@@ -64,7 +64,7 @@ int main(int argc, char **argv) {
                 exit(EXIT_SUCCESS);
             }
             gettimeofday(&call_start, NULL);
-            status = clnt_call(client, 0, (xdrproc_t) xdr_void, NULL, (xdrproc_t) xdr_void, error, timeout);
+            status = clnt_call(client, NFSPROC_NULL, (xdrproc_t) xdr_void, NULL, (xdrproc_t) xdr_void, error, timeout);
             gettimeofday(&call_end, NULL);
             sent++;
 
