@@ -16,12 +16,12 @@ void int_handler(int sig) {
     quitting = 1;
 }
 
-void print_summary(char *hostname, unsigned int sent, unsigned int received, unsigned int ms, float min, float max) {
+void print_summary(char *hostname, unsigned int sent, unsigned int received, unsigned int ms, float min, float max, float avg) {
     printf("--- %s nfsping statistics ---\n", hostname);
     printf("%u NULLs sent, %u received, %d lost, time %d ms\n",
         sent, received, sent - received , ms);
-    printf("rtt min/avg/max/mdev = %.3f/0.029/%.3f/0.000 ms\n",
-        min, max);
+    printf("rtt min/avg/max/mdev = %.3f/%.3f/%.3f/0.000 ms\n",
+        min, avg, max);
 }
 
 int main(int argc, char **argv) {
@@ -39,7 +39,7 @@ int main(int argc, char **argv) {
     unsigned int received = 0;
     unsigned long us;
     unsigned int total;
-    float ms, min, max;
+    float ms, min, max, avg;
 
     quitting = 0;
     signal(SIGINT, int_handler);
@@ -71,7 +71,7 @@ int main(int argc, char **argv) {
             if (quitting) {
                 gettimeofday(&end, NULL);
                 total = tv2ms(end) - tv2ms(start);
-                print_summary(argv[1], sent, received, total, min, max); 
+                print_summary(argv[1], sent, received, total, min, max, avg); 
                 exit(EXIT_SUCCESS);
             }
             gettimeofday(&call_start, NULL);
@@ -84,12 +84,16 @@ int main(int argc, char **argv) {
                 us = tv2us(call_end) - tv2us(call_start);
                 ms = us / 1000.0;
                 printf("%03.3f ms\n", ms);
-                if (min) {
-                    if (ms < min) min = ms;
+
+                /* first result is a special case */
+                if (received == 1) {
+                    min = max = avg = ms;
                 } else {
-                    min = ms;
+                    if (ms < min) min = ms;
+                    if (ms > max) max = ms;
+                    /* calculate the average time */
+                    avg = (avg * (received - 1) + ms) / received;
                 }
-                if (ms > max) max = ms;
             } else {
                 clnt_perror(client, argv[0]);
             }
