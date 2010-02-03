@@ -16,11 +16,12 @@ void int_handler(int sig) {
     quitting = 1;
 }
 
-void print_summary(char *hostname, unsigned int sent, unsigned int received, unsigned int ms) {
+void print_summary(char *hostname, unsigned int sent, unsigned int received, unsigned int ms, float min, float max) {
     printf("--- %s nfsping statistics ---\n", hostname);
     printf("%u NULLs sent, %u received, %d lost, time %d ms\n",
         sent, received, sent - received , ms);
-    printf("rtt min/avg/max/mdev = 0.028/0.029/0.030/0.000 ms\n");
+    printf("rtt min/avg/max/mdev = %.3f/0.029/%.3f/0.000 ms\n",
+        min, max);
 }
 
 int main(int argc, char **argv) {
@@ -38,7 +39,7 @@ int main(int argc, char **argv) {
     unsigned int received = 0;
     unsigned long us;
     unsigned int total;
-    float ms;
+    float ms, min, max;
 
     quitting = 0;
     signal(SIGINT, int_handler);
@@ -70,7 +71,7 @@ int main(int argc, char **argv) {
             if (quitting) {
                 gettimeofday(&end, NULL);
                 total = tv2ms(end) - tv2ms(start);
-                print_summary(argv[1], sent, received, total); 
+                print_summary(argv[1], sent, received, total, min, max); 
                 exit(EXIT_SUCCESS);
             }
             gettimeofday(&call_start, NULL);
@@ -83,6 +84,12 @@ int main(int argc, char **argv) {
                 us = tv2us(call_end) - tv2us(call_start);
                 ms = us / 1000.0;
                 printf("%03.3f ms\n", ms);
+                if (min) {
+                    if (ms < min) min = ms;
+                } else {
+                    min = ms;
+                }
+                if (ms > max) max = ms;
             } else {
                 clnt_perror(client, argv[0]);
             }
