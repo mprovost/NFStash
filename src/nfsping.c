@@ -7,14 +7,19 @@ unsigned long tv2us(struct timeval tv) {
     return tv.tv_sec * 1000000 + tv.tv_usec;
 }
 
+/* convert a timeval to milliseconds */
+unsigned long tv2ms(struct timeval tv) {
+    return tv.tv_sec * 1000 + tv.tv_usec / 1000;
+}
+
 void int_handler(int sig) {
     quitting = 1;
 }
 
-void print_summary(char *hostname, unsigned int sent, unsigned int received) {
+void print_summary(char *hostname, unsigned int sent, unsigned int received, unsigned int ms) {
     printf("--- %s nfsping statistics ---\n", hostname);
     printf("%u NULLs sent, %u received, %d lost, time %d ms\n",
-        sent, received, received / sent, 100);
+        sent, received, sent - received , ms);
     printf("rtt min/avg/max/mdev = 0.028/0.029/0.030/0.000 ms\n");
 }
 
@@ -32,6 +37,7 @@ int main(int argc, char **argv) {
     unsigned int sent = 0;
     unsigned int received = 0;
     unsigned long us;
+    unsigned int total;
     float ms;
 
     quitting = 0;
@@ -58,9 +64,13 @@ int main(int argc, char **argv) {
     if (client) {
         client->cl_auth = authnone_create();
 
+        gettimeofday(&start, NULL);
+
         while(1) {
             if (quitting) {
-                print_summary(argv[1], sent, received); 
+                gettimeofday(&end, NULL);
+                total = tv2ms(end) - tv2ms(start);
+                print_summary(argv[1], sent, received, total); 
                 exit(EXIT_SUCCESS);
             }
             gettimeofday(&call_start, NULL);
