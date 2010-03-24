@@ -34,6 +34,7 @@ int main(int argc, char **argv) {
     struct sockaddr_in *client_sock;
     int sock = RPC_ANYSOCK;
     struct addrinfo hints, *addr, *current;
+    char ip[INET_ADDRSTRLEN];
     int getaddr;
     unsigned int sent = 0;
     unsigned int received = 0;
@@ -54,13 +55,21 @@ int main(int argc, char **argv) {
     client_sock = (struct sockaddr_in *) addr->ai_addr;
     client_sock->sin_family = AF_INET;
     client_sock->sin_port = htons(NFS_PORT);
-    if (inet_pton(AF_INET, argv[1], &client_sock->sin_addr)) {
-        client = clntudp_create(client_sock, NFS_PROGRAM, 3, wait, &sock);
-    } else {
+    /* first try treating the hostname as an IP address */
+    if (inet_pton(AF_INET, argv[1], &client_sock->sin_addr) < 1) {
+        /* if that fails, do a DNS lookup */
+        memset(&hints, 0, sizeof(hints));
+        hints.ai_flags = AI_CANONNAME | AI_ADDRCONFIG;
+        hints.ai_family = AF_INET;
+        hints.ai_socktype = SOCK_DGRAM; /* change to SOCK_STREAM for TCP */
         getaddr = getaddrinfo(argv[1], "nfs", &hints, &addr);
-        printf("invalid address!\n");
-        exit(1);
+        if (getaddr == 0) {
+            client_sock->sin_addr = ((struct sockaddr_in *)addr->ai_addr)->sin_addr;
+            inet_ntop(AF_INET, &client_sock->sin_addr, ip, sizeof(ip));
+            printf("%s %s\n", addr->ai_canonname, ip);
+        }
     }
+    client = clntudp_create(client_sock, NFS_PROGRAM, 3, wait, &sock);
 
     if (client) {
         client->cl_auth = authnone_create();
