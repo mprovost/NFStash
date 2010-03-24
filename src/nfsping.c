@@ -5,9 +5,10 @@ volatile sig_atomic_t quitting;
 struct timeval start, end;
 unsigned int total;
 float ms, min, max, avg;
-char *target;
 unsigned int sent = 0;
 unsigned int received = 0;
+char *hostname;
+char *ip;
 
 /* convert a timeval to microseconds */
 unsigned long tv2us(struct timeval tv) {
@@ -24,7 +25,11 @@ void int_handler(int sig) {
 }
 
 void print_summary() {
-    printf("--- %s nfsping statistics ---\n", target);
+    if (hostname) {
+        printf("--- %s nfsping statistics ---\n", hostname);
+    } else {
+        printf("--- %s nfsping statistics ---\n", ip);
+    }
     printf("%u NULLs sent, %u received, %d lost, time %d ms\n",
         sent, received, sent - received , total);
     printf("rtt min/avg/max/mdev = %.3f/%.3f/%.3f/0.000 ms\n",
@@ -48,11 +53,11 @@ int main(int argc, char **argv) {
     struct sockaddr_in *client_sock;
     int sock = RPC_ANYSOCK;
     struct addrinfo hints, *addr, *current;
-    char ip[INET_ADDRSTRLEN];
     int getaddr;
     unsigned long us;
     int ch;
     unsigned long count;
+    char *target;
 
     quitting = 0;
     signal(SIGINT, int_handler);
@@ -80,8 +85,13 @@ int main(int argc, char **argv) {
     client_sock = (struct sockaddr_in *) addr->ai_addr;
     client_sock->sin_family = AF_INET;
     client_sock->sin_port = htons(NFS_PORT);
+
     /* first try treating the hostname as an IP address */
-    if (inet_pton(AF_INET, target, &client_sock->sin_addr) < 1) {
+    if (inet_pton(AF_INET, target, &client_sock->sin_addr)) {
+        hostname = NULL;
+        ip = target;
+        printf("NFSPING %s\n", target);
+    } else {
         /* if that fails, do a DNS lookup */
         memset(&hints, 0, sizeof(hints));
         hints.ai_flags = AI_CANONNAME | AI_ADDRCONFIG;
@@ -90,10 +100,16 @@ int main(int argc, char **argv) {
         getaddr = getaddrinfo(target, "nfs", &hints, &addr);
         if (getaddr == 0) {
             client_sock->sin_addr = ((struct sockaddr_in *)addr->ai_addr)->sin_addr;
-            inet_ntop(AF_INET, &client_sock->sin_addr, ip, sizeof(ip));
-            printf("%s %s\n", addr->ai_canonname, ip);
+            ip = calloc(1, INET_ADDRSTRLEN);
+            inet_ntop(AF_INET, &client_sock->sin_addr, ip, INET_ADDRSTRLEN);
+            hostname = addr->ai_canonname;
+            printf("NFSPING %s (%s)\n", hostname, ip);
+        } else {
+            printf("%s: %s\n", target, gai_strerror(getaddr));
+            exit(EXIT_FAILURE);
         }
     }
+
     client = clntudp_create(client_sock, NFS_PROGRAM, 3, wait, &sock);
 
     if (client) {
@@ -136,5 +152,6 @@ int main(int argc, char **argv) {
         finish();
     } else {
         clnt_pcreateerror(argv[0]);
+        exit(EXIT_FAILURE);
     }
 }
