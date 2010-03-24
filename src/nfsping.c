@@ -56,7 +56,7 @@ int main(int argc, char **argv) {
     int getaddr;
     unsigned long us;
     int ch;
-    unsigned long count;
+    unsigned long count = 0;
     char *target;
 
     quitting = 0;
@@ -71,7 +71,6 @@ int main(int argc, char **argv) {
         switch(ch) {
             case 'c':
                 count = strtoul(optarg, NULL, 10);
-                printf("count = %lu\n", count);
         }
     }
 
@@ -144,7 +143,7 @@ int main(int argc, char **argv) {
             } else {
                 clnt_perror(client, argv[0]);
             }
-            if (sent >= count) {
+            if (count && sent >= count) {
                 break;
             }
             nanosleep(&sleep_time, NULL);
