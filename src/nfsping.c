@@ -19,10 +19,16 @@ unsigned long tv2ms(struct timeval tv) {
     return tv.tv_sec * 1000 + tv.tv_usec / 1000;
 }
 
-/* convert milliseconds to a timeout */
+/* convert milliseconds to a timeval */
 void ms2tv(struct timeval *tv, unsigned long ms) {
     tv->tv_sec = ms / 1000;
     tv->tv_usec = (ms % 1000) * 1000;
+}
+
+/* convert milliseconds to a timespec */
+void ms2ts(struct timespec *ts, unsigned long ms) {
+    ts->tv_sec = ms / 1000;
+    ts->tv_nsec = (ms % 1000000) * 1000000;
 }
 
 void int_handler(int sig) {
@@ -49,6 +55,7 @@ int main(int argc, char **argv) {
     struct timeval timeout = { 2, 500000 };
     struct timeval wait;
     struct timeval call_start, call_end;
+    /* default 1 second */
     struct timespec sleep_time = { 1, 0 };
     struct sockaddr_in *client_sock;
     int sock = RPC_ANYSOCK;
@@ -65,10 +72,13 @@ int main(int argc, char **argv) {
 
     wait.tv_sec = 1;
 
-    while ((ch = getopt(argc, argv, "c:t:")) != -1) {
+    while ((ch = getopt(argc, argv, "c:p:t:")) != -1) {
         switch(ch) {
             case 'c':
                 count = strtoul(optarg, NULL, 10);
+                break;
+            case 'p':
+                ms2ts(&sleep_time, strtoul(optarg, NULL, 10));
                 break;
             case 't':
                 /* TODO check for zero */
