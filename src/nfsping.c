@@ -3,7 +3,6 @@
 volatile sig_atomic_t quitting;
 
 struct timeval start, end;
-unsigned int total;
 float ms, min, max, avg;
 unsigned int sent = 0;
 unsigned int received = 0;
@@ -19,21 +18,24 @@ unsigned long tv2ms(struct timeval tv) {
     return tv.tv_sec * 1000 + tv.tv_usec / 1000;
 }
 
+/* convert milliseconds to a timeout */
+void ms2tv(struct timeval *tv, unsigned long ms) {
+    tv->tv_sec = ms / 1000;
+    tv->tv_usec = (ms % 1000) * 1000;
+}
+
 void int_handler(int sig) {
     quitting = 1;
 }
 
 void print_summary() {
-    printf("--- %s nfsping statistics ---\n", host_string);
-    printf("%u NULLs sent, %u received, %d lost, time %d ms\n",
-        sent, received, sent - received , total);
-    printf("rtt min/avg/max/mdev = %.3f/%.3f/%.3f/0.000 ms\n",
-        min, avg, max);
+    printf("%s : xmt/rcv/%%loss = %u/%u/%.0f%%, min/avg/max = %.2f/%.2f/%.2f\n",
+        host_string, sent, received, floor((sent - received) / (double)sent * 100), min, avg, max);
 }
 
 int finish() {
     gettimeofday(&end, NULL);
-    total = tv2ms(end) - tv2ms(start);
+    printf("\n");
     print_summary();
     exit(EXIT_SUCCESS);
 }
@@ -42,7 +44,9 @@ int main(int argc, char **argv) {
     CLIENT *client;
     enum clnt_stat status;
     char *error;
-    struct timeval timeout, wait;
+    /* default 2.5 seconds */
+    struct timeval timeout = { 2, 500000 };
+    struct timeval wait;
     struct timeval call_start, call_end;
     struct timespec sleep_time = { 1, 0 };
     struct sockaddr_in *client_sock;
@@ -58,15 +62,17 @@ int main(int argc, char **argv) {
     quitting = 0;
     signal(SIGINT, int_handler);
 
-    timeout.tv_sec = 5;
-    timeout.tv_usec = 0;
-
     wait.tv_sec = 1;
 
-    while ((ch = getopt(argc, argv, "c:")) != -1) {
+    while ((ch = getopt(argc, argv, "c:t:")) != -1) {
         switch(ch) {
             case 'c':
                 count = strtoul(optarg, NULL, 10);
+                break;
+            case 't':
+                /* TODO check for zero */
+                ms2tv(&timeout, strtoul(optarg, NULL, 10));
+                break;
         }
     }
 
@@ -106,6 +112,7 @@ int main(int argc, char **argv) {
     printf("NFSPING %s\n", host_string);
 
     client = clntudp_create(client_sock, NFS_PROGRAM, 3, wait, &sock);
+    clnt_control (client, CLSET_TIMEOUT, (char *) &timeout);
 
     if (client) {
         client->cl_auth = authnone_create();
@@ -125,7 +132,7 @@ int main(int argc, char **argv) {
                 received++;
                 us = tv2us(call_end) - tv2us(call_start);
                 ms = us / 1000.0;
-                printf("%s %03.3f ms\n", host_string, ms);
+                printf("%s %03.2f ms\n", host_string, ms);
 
                 /* first result is a special case */
                 if (received == 1) {

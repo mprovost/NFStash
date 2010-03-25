@@ -6,6 +6,7 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <unistd.h>
+#include <math.h>
 
 #define NFS_PROGRAM 100003
 #define NFS_PORT    2049
