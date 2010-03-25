@@ -6,6 +6,7 @@ struct timeval start, end;
 float ms, min, max, avg;
 unsigned int sent = 0;
 unsigned int received = 0;
+double loss;
 char *host_string;
 
 /* convert a timeval to microseconds */
@@ -30,7 +31,7 @@ void int_handler(int sig) {
 
 void print_summary() {
     printf("%s : xmt/rcv/%%loss = %u/%u/%.0f%%, min/avg/max = %.2f/%.2f/%.2f\n",
-        host_string, sent, received, floor((sent - received) / (double)sent * 100), min, avg, max);
+        host_string, sent, received, loss, min, avg, max);
 }
 
 int finish() {
@@ -132,7 +133,7 @@ int main(int argc, char **argv) {
                 received++;
                 us = tv2us(call_end) - tv2us(call_start);
                 ms = us / 1000.0;
-                printf("%s %03.2f ms\n", host_string, ms);
+                loss = floor((sent - received) / (double)sent * 100);
 
                 /* first result is a special case */
                 if (received == 1) {
@@ -143,6 +144,8 @@ int main(int argc, char **argv) {
                     /* calculate the average time */
                     avg = (avg * (received - 1) + ms) / received;
                 }
+
+                printf("%s : [%u], %03.2f ms (%03.2f avg, %.0f%% loss)\n", host_string, sent - 1, ms, avg, loss);
             } else {
                 clnt_perror(client, argv[0]);
             }
