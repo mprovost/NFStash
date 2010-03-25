@@ -120,8 +120,6 @@ int main(int argc, char **argv) {
         }
     }
 
-    printf("NFSPING %s\n", host_string);
-
     client = clntudp_create(client_sock, NFS_PROGRAM, 3, wait, &sock);
     clnt_control (client, CLSET_TIMEOUT, (char *) &timeout);
 
@@ -140,6 +138,11 @@ int main(int argc, char **argv) {
             sent++;
 
             if (status == RPC_SUCCESS) {
+                /* check if we're not looping */
+                if (!count) {
+                    printf("%s is alive\n", host_string);
+                    exit(EXIT_SUCCESS);
+                }
                 received++;
                 us = tv2us(call_end) - tv2us(call_start);
                 ms = us / 1000.0;
@@ -157,7 +160,11 @@ int main(int argc, char **argv) {
 
                 printf("%s : [%u], %03.2f ms (%03.2f avg, %.0f%% loss)\n", host_string, sent - 1, ms, avg, loss);
             } else {
-                clnt_perror(client, argv[0]);
+                clnt_perror(client, host_string);
+                if (!count) {
+                    printf("%s is dead\n", host_string);
+                    exit(EXIT_FAILURE);
+                }
             }
             if (count && sent >= count) {
                 break;
