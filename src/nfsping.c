@@ -7,8 +7,7 @@ unsigned int total;
 float ms, min, max, avg;
 unsigned int sent = 0;
 unsigned int received = 0;
-char *hostname;
-char *ip;
+char *host_string;
 
 /* convert a timeval to microseconds */
 unsigned long tv2us(struct timeval tv) {
@@ -25,11 +24,7 @@ void int_handler(int sig) {
 }
 
 void print_summary() {
-    if (hostname) {
-        printf("--- %s nfsping statistics ---\n", hostname);
-    } else {
-        printf("--- %s nfsping statistics ---\n", ip);
-    }
+    printf("--- %s nfsping statistics ---\n", host_string);
     printf("%u NULLs sent, %u received, %d lost, time %d ms\n",
         sent, received, sent - received , total);
     printf("rtt min/avg/max/mdev = %.3f/%.3f/%.3f/0.000 ms\n",
@@ -58,6 +53,7 @@ int main(int argc, char **argv) {
     int ch;
     unsigned long count = 0;
     char *target;
+    char *ip;
 
     quitting = 0;
     signal(SIGINT, int_handler);
@@ -87,9 +83,8 @@ int main(int argc, char **argv) {
 
     /* first try treating the hostname as an IP address */
     if (inet_pton(AF_INET, target, &client_sock->sin_addr)) {
-        hostname = NULL;
         ip = target;
-        printf("NFSPING %s\n", target);
+        asprintf(&host_string, "%s", target);
     } else {
         /* if that fails, do a DNS lookup */
         memset(&hints, 0, sizeof(hints));
@@ -101,13 +96,14 @@ int main(int argc, char **argv) {
             client_sock->sin_addr = ((struct sockaddr_in *)addr->ai_addr)->sin_addr;
             ip = calloc(1, INET_ADDRSTRLEN);
             inet_ntop(AF_INET, &client_sock->sin_addr, ip, INET_ADDRSTRLEN);
-            hostname = addr->ai_canonname;
-            printf("NFSPING %s (%s)\n", hostname, ip);
+            asprintf(&host_string, "%s (%s)", addr->ai_canonname, ip);
         } else {
             printf("%s: %s\n", target, gai_strerror(getaddr));
             exit(EXIT_FAILURE);
         }
     }
+
+    printf("NFSPING %s\n", host_string);
 
     client = clntudp_create(client_sock, NFS_PROGRAM, 3, wait, &sock);
 
@@ -129,7 +125,7 @@ int main(int argc, char **argv) {
                 received++;
                 us = tv2us(call_end) - tv2us(call_start);
                 ms = us / 1000.0;
-                printf("%03.3f ms\n", ms);
+                printf("%s %03.3f ms\n", host_string, ms);
 
                 /* first result is a special case */
                 if (received == 1) {
