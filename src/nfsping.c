@@ -7,7 +7,7 @@ float min, max, avg;
 unsigned int sent = 0;
 unsigned int received = 0;
 double loss;
-char *host_string;
+char *target;
 
 /* convert a timeval to microseconds */
 unsigned long tv2us(struct timeval tv) {
@@ -37,12 +37,12 @@ void int_handler(int sig) {
 
 void print_summary() {
     printf("%s : xmt/rcv/%%loss = %u/%u/%.0f%%, min/avg/max = %.2f/%.2f/%.2f\n",
-        host_string, sent, received, loss, min / 1000.0, avg / 1000.0, max / 1000.0);
+        target, sent, received, loss, min / 1000.0, avg / 1000.0, max / 1000.0);
 }
 
 void print_verbose_summary(results_t results) {
     results_t *current = &results;
-    printf("%s :", host_string);
+    printf("%s :", target);
     while (current) {
         if (current->us)
             printf(" %.2f", current->us / 1000.0);
@@ -71,16 +71,17 @@ int main(int argc, char **argv) {
     results_t *current;
     int ch;
     unsigned long count = 0;
-    int verbose, loop;
-    char *target;
-    char *ip;
+    int verbose, loop, ip;
 
     /* listen for ctrl-c */
     quitting = 0;
     signal(SIGINT, int_handler);
 
-    while ((ch = getopt(argc, argv, "C:c:lp:t:")) != -1) {
+    while ((ch = getopt(argc, argv, "AC:c:lp:t:")) != -1) {
         switch(ch) {
+            case 'A':
+                ip = 1;
+                break;
             case 'C':
                 verbose = 1;
                 results = calloc(1, sizeof(results_t));
@@ -114,21 +115,18 @@ int main(int argc, char **argv) {
     client_sock->sin_port = htons(NFS_PORT);
 
     /* first try treating the hostname as an IP address */
-    if (inet_pton(AF_INET, target, &client_sock->sin_addr)) {
-        ip = target;
-        asprintf(&host_string, "%s", target);
-    } else {
+    if (!inet_pton(AF_INET, target, &client_sock->sin_addr)) {
         /* if that fails, do a DNS lookup */
         memset(&hints, 0, sizeof(hints));
-        hints.ai_flags = AI_CANONNAME | AI_ADDRCONFIG;
         hints.ai_family = AF_INET;
         hints.ai_socktype = SOCK_DGRAM; /* change to SOCK_STREAM for TCP */
         getaddr = getaddrinfo(target, "nfs", &hints, &addr);
         if (getaddr == 0) {
             client_sock->sin_addr = ((struct sockaddr_in *)addr->ai_addr)->sin_addr;
-            ip = calloc(1, INET_ADDRSTRLEN);
-            inet_ntop(AF_INET, &client_sock->sin_addr, ip, INET_ADDRSTRLEN);
-            asprintf(&host_string, "%s (%s)", addr->ai_canonname, ip);
+            if (ip) {
+                target = calloc(1, INET_ADDRSTRLEN);
+                inet_ntop(AF_INET, &client_sock->sin_addr, target, INET_ADDRSTRLEN);
+            }
         } else {
             printf("%s: %s\n", target, gai_strerror(getaddr));
             exit(EXIT_FAILURE);
@@ -154,7 +152,7 @@ int main(int argc, char **argv) {
             if (status == RPC_SUCCESS) {
                 /* check if we're not looping */
                 if (!count && !loop) {
-                    printf("%s is alive\n", host_string);
+                    printf("%s is alive\n", target);
                     exit(EXIT_SUCCESS);
                 }
                 received++;
@@ -179,11 +177,11 @@ int main(int argc, char **argv) {
                 if (verbose)
                     current->us = us;
 
-                printf("%s : [%u], %03.2f ms (%03.2f avg, %.0f%% loss)\n", host_string, sent - 1, us / 1000.0, avg / 1000.0, loss);
+                printf("%s : [%u], %03.2f ms (%03.2f avg, %.0f%% loss)\n", target, sent - 1, us / 1000.0, avg / 1000.0, loss);
             } else {
-                clnt_perror(client, host_string);
+                clnt_perror(client, target);
                 if (!count && !loop) {
-                    printf("%s is dead\n", host_string);
+                    printf("%s is dead\n", target);
                     exit(EXIT_FAILURE);
                 }
                 if (verbose && sent > 1) {
