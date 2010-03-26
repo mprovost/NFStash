@@ -11,3 +11,8 @@
 #define NFS_PROGRAM 100003
 #define NFS_PORT    2049
 #define NFSPROC_NULL 0
+
+typedef struct results {
+    unsigned long us;
+    struct results *next;
+} results_t;

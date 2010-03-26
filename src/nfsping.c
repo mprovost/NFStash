@@ -3,7 +3,7 @@
 volatile sig_atomic_t quitting;
 
 struct timeval start, end;
-float ms, min, max, avg;
+float min, max, avg;
 unsigned int sent = 0;
 unsigned int received = 0;
 double loss;
@@ -37,14 +37,20 @@ void int_handler(int sig) {
 
 void print_summary() {
     printf("%s : xmt/rcv/%%loss = %u/%u/%.0f%%, min/avg/max = %.2f/%.2f/%.2f\n",
-        host_string, sent, received, loss, min, avg, max);
+        host_string, sent, received, loss, min / 1000.0, avg / 1000.0, max / 1000.0);
 }
 
-int finish() {
-    gettimeofday(&end, NULL);
+void print_verbose_summary(results_t results) {
+    results_t *current = &results;
+    printf("%s :", host_string);
+    while (current) {
+        if (current->us)
+            printf(" %.2f", current->us / 1000.0);
+        else
+            printf(" -");
+        current = current->next;
+    }
     printf("\n");
-    print_summary();
-    exit(EXIT_SUCCESS);
 }
 
 int main(int argc, char **argv) {
@@ -59,21 +65,30 @@ int main(int argc, char **argv) {
     struct timespec sleep_time = { 1, 0 };
     struct sockaddr_in *client_sock;
     int sock = RPC_ANYSOCK;
-    struct addrinfo hints, *addr, *current;
+    struct addrinfo hints, *addr;
     int getaddr;
     unsigned long us;
+    results_t *results;
+    results_t *current;
     int ch;
     unsigned long count = 0;
+    int verbose;
     char *target;
     char *ip;
 
+    /* listen for ctrl-c */
     quitting = 0;
     signal(SIGINT, int_handler);
 
     wait.tv_sec = 1;
 
-    while ((ch = getopt(argc, argv, "c:p:t:")) != -1) {
+    while ((ch = getopt(argc, argv, "C:c:p:t:")) != -1) {
         switch(ch) {
+            case 'C':
+                verbose = 1;
+                results = calloc(1, sizeof(results_t));
+                current = results;
+                /* fall through to regular count */
             case 'c':
                 count = strtoul(optarg, NULL, 10);
                 break;
@@ -144,26 +159,37 @@ int main(int argc, char **argv) {
                     exit(EXIT_SUCCESS);
                 }
                 received++;
+                loss = (sent - received) / (double)sent * 100;
+
                 us = tv2us(call_end) - tv2us(call_start);
-                ms = us / 1000.0;
-                loss = floor((sent - received) / (double)sent * 100);
 
                 /* first result is a special case */
                 if (received == 1) {
-                    min = max = avg = ms;
+                    min = max = avg = us;
                 } else {
-                    if (ms < min) min = ms;
-                    if (ms > max) max = ms;
+                    if (verbose) {
+                        current->next = calloc(1, sizeof(results_t));
+                        current = current->next;
+                    }
+                    if (us < min) min = us;
+                    if (us > max) max = us;
                     /* calculate the average time */
-                    avg = (avg * (received - 1) + ms) / received;
+                    avg = (avg * (received - 1) + us) / received;
                 }
 
-                printf("%s : [%u], %03.2f ms (%03.2f avg, %.0f%% loss)\n", host_string, sent - 1, ms, avg, loss);
+                if (verbose)
+                    current->us = us;
+
+                printf("%s : [%u], %03.2f ms (%03.2f avg, %.0f%% loss)\n", host_string, sent - 1, us / 1000.0, avg / 1000.0, loss);
             } else {
                 clnt_perror(client, host_string);
                 if (!count) {
                     printf("%s is dead\n", host_string);
                     exit(EXIT_FAILURE);
+                }
+                if (verbose && received) {
+                    current->next = calloc(1, sizeof(results_t));
+                    current = current->next;
                 }
             }
             if (count && sent >= count) {
@@ -171,7 +197,13 @@ int main(int argc, char **argv) {
             }
             nanosleep(&sleep_time, NULL);
         }
-        finish();
+        gettimeofday(&end, NULL);
+        printf("\n");
+        if (verbose)
+            print_verbose_summary(*results);
+        else
+            print_summary();
+        exit(EXIT_SUCCESS);
     } else {
         clnt_pcreateerror(argv[0]);
         exit(EXIT_FAILURE);
