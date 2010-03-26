@@ -59,7 +59,6 @@ int main(int argc, char **argv) {
     char *error;
     /* default 2.5 seconds */
     struct timeval timeout = { 2, 500000 };
-    struct timeval wait;
     struct timeval call_start, call_end;
     /* default 1 second */
     struct timespec sleep_time = { 1, 0 };
@@ -79,8 +78,6 @@ int main(int argc, char **argv) {
     /* listen for ctrl-c */
     quitting = 0;
     signal(SIGINT, int_handler);
-
-    wait.tv_sec = 1;
 
     while ((ch = getopt(argc, argv, "C:c:p:t:")) != -1) {
         switch(ch) {
@@ -135,8 +132,7 @@ int main(int argc, char **argv) {
         }
     }
 
-    client = clntudp_create(client_sock, NFS_PROGRAM, 3, wait, &sock);
-    clnt_control (client, CLSET_TIMEOUT, (char *) &timeout);
+    client = clntudp_create(client_sock, NFS_PROGRAM, 3, timeout, &sock);
 
     if (client) {
         client->cl_auth = authnone_create();
