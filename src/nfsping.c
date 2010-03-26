@@ -183,7 +183,7 @@ int main(int argc, char **argv) {
                     printf("%s is dead\n", host_string);
                     exit(EXIT_FAILURE);
                 }
-                if (verbose && received) {
+                if (verbose && sent > 1) {
                     current->next = calloc(1, sizeof(results_t));
                     current = current->next;
                 }
