@@ -71,7 +71,7 @@ int main(int argc, char **argv) {
     results_t *current;
     int ch;
     unsigned long count = 0;
-    int verbose;
+    int verbose, loop;
     char *target;
     char *ip;
 
@@ -79,7 +79,7 @@ int main(int argc, char **argv) {
     quitting = 0;
     signal(SIGINT, int_handler);
 
-    while ((ch = getopt(argc, argv, "C:c:p:t:")) != -1) {
+    while ((ch = getopt(argc, argv, "C:c:lp:t:")) != -1) {
         switch(ch) {
             case 'C':
                 verbose = 1;
@@ -88,6 +88,9 @@ int main(int argc, char **argv) {
                 /* fall through to regular count */
             case 'c':
                 count = strtoul(optarg, NULL, 10);
+                break;
+            case 'l':
+                loop = 1;
                 break;
             case 'p':
                 ms2ts(&sleep_time, strtoul(optarg, NULL, 10));
@@ -150,7 +153,7 @@ int main(int argc, char **argv) {
 
             if (status == RPC_SUCCESS) {
                 /* check if we're not looping */
-                if (!count) {
+                if (!count && !loop) {
                     printf("%s is alive\n", host_string);
                     exit(EXIT_SUCCESS);
                 }
@@ -179,7 +182,7 @@ int main(int argc, char **argv) {
                 printf("%s : [%u], %03.2f ms (%03.2f avg, %.0f%% loss)\n", host_string, sent - 1, us / 1000.0, avg / 1000.0, loss);
             } else {
                 clnt_perror(client, host_string);
-                if (!count) {
+                if (!count && !loop) {
                     printf("%s is dead\n", host_string);
                     exit(EXIT_FAILURE);
                 }
