@@ -70,7 +70,7 @@ int main(int argc, char **argv) {
     /* default 25 ms */
     struct timespec wait_time = { 0, 25000000 };
     int sock = RPC_ANYSOCK;
-    struct addrinfo hints;
+    struct addrinfo hints, *addr;
     int getaddr;
     unsigned long us;
     double loss;
@@ -136,9 +136,9 @@ int main(int argc, char **argv) {
             target->next = NULL;
         }
         target->name = argv[index];
-        target->addr = calloc(1, sizeof(struct addrinfo));
-        target->addr->ai_addr = calloc(1, sizeof(struct sockaddr_in));
-        target->client_sock = (struct sockaddr_in *) target->addr->ai_addr;
+        addr = calloc(1, sizeof(struct addrinfo));
+        addr->ai_addr = calloc(1, sizeof(struct sockaddr_in));
+        target->client_sock = (struct sockaddr_in *) addr->ai_addr;
         target->client_sock->sin_family = AF_INET;
         target->client_sock->sin_port = htons(NFS_PORT);
 
@@ -150,9 +150,9 @@ int main(int argc, char **argv) {
         /* first try treating the hostname as an IP address */
         if (!inet_pton(AF_INET, target->name, &target->client_sock->sin_addr)) {
             /* if that fails, do a DNS lookup */
-            getaddr = getaddrinfo(target->name, "nfs", &hints, &target->addr);
+            getaddr = getaddrinfo(target->name, "nfs", &hints, &addr);
             if (getaddr == 0) {
-                target->client_sock->sin_addr = ((struct sockaddr_in *)target->addr->ai_addr)->sin_addr;
+                target->client_sock->sin_addr = ((struct sockaddr_in *)addr->ai_addr)->sin_addr;
                 if (ip) {
                     target->name = calloc(1, INET_ADDRSTRLEN);
                     inet_ntop(AF_INET, &target->client_sock->sin_addr, target->name, INET_ADDRSTRLEN);

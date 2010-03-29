@@ -20,7 +20,6 @@ typedef struct results {
 
 typedef struct targets {
     char *name;
-    struct addrinfo *addr;
     struct sockaddr_in *client_sock;
     CLIENT *client;
     struct results *results;
