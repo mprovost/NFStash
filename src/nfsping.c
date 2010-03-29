@@ -2,13 +2,6 @@
 
 volatile sig_atomic_t quitting;
 
-struct timeval start, end;
-float min, max, avg;
-unsigned int sent = 0;
-unsigned int received = 0;
-double loss;
-char *target;
-
 /* convert a timeval to microseconds */
 unsigned long tv2us(struct timeval tv) {
     return tv.tv_sec * 1000000 + tv.tv_usec;
@@ -35,26 +28,37 @@ void int_handler(int sig) {
     quitting = 1;
 }
 
-void print_summary() {
-    printf("%s : xmt/rcv/%%loss = %u/%u/%.0f%%, min/avg/max = %.2f/%.2f/%.2f\n",
-        target, sent, received, loss, min / 1000.0, avg / 1000.0, max / 1000.0);
+void print_summary(targets_t targets) {
+    targets_t *target = &targets;
+    double loss;
+
+    while (target) {
+        loss = (target->sent - target->received) / (double)target->sent * 100;
+        printf("%s : xmt/rcv/%%loss = %u/%u/%.0f%%, min/avg/max = %.2f/%.2f/%.2f\n",
+            target->name, target->sent, target->received, loss, target->min / 1000.0, target->avg / 1000.0, target->max / 1000.0);
+        target = target->next;
+    }
 }
 
-void print_verbose_summary(results_t results) {
-    results_t *current = &results;
-    printf("%s :", target);
-    while (current) {
-        if (current->us)
-            printf(" %.2f", current->us / 1000.0);
-        else
-            printf(" -");
-        current = current->next;
+void print_verbose_summary(targets_t targets) {
+    targets_t *target = &targets;
+    results_t *current = target->results;
+
+    while (target) {
+        printf("%s :", target->name);
+        while (current) {
+            if (current->us)
+                printf(" %.2f", current->us / 1000.0);
+            else
+                printf(" -");
+            current = current->next;
+        }
+        printf("\n");
+        target = target->next;
     }
-    printf("\n");
 }
 
 int main(int argc, char **argv) {
-    CLIENT *client;
     enum clnt_stat status;
     char *error;
     /* default 2.5 seconds */
@@ -62,33 +66,48 @@ int main(int argc, char **argv) {
     struct timeval call_start, call_end;
     /* default 1 second */
     struct timespec sleep_time = { 1, 0 };
-    struct sockaddr_in *client_sock;
+    /* default 25 ms */
+    struct timespec wait_time = { 0, 25000000 };
     int sock = RPC_ANYSOCK;
-    struct addrinfo hints, *addr;
+    struct addrinfo hints;
     int getaddr;
     unsigned long us;
+    double loss;
+    targets_t *targets;
+    targets_t *target;
     results_t *results;
     results_t *current;
     int ch;
-    unsigned long count = 0;
-    int verbose, loop, ip;
+    unsigned long count;
+    int verbose = 0, loop = 0, ip = 0;
+    int first, index;
 
     /* listen for ctrl-c */
     quitting = 0;
     signal(SIGINT, int_handler);
 
-    while ((ch = getopt(argc, argv, "AC:c:lp:t:")) != -1) {
+    targets = calloc(1, sizeof(targets_t));
+    target = targets;
+
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_DGRAM; /* change to SOCK_STREAM for TCP */
+
+    while ((ch = getopt(argc, argv, "AC:c:ilp:t:")) != -1) {
         switch(ch) {
             case 'A':
                 ip = 1;
                 break;
             case 'C':
                 verbose = 1;
-                results = calloc(1, sizeof(results_t));
-                current = results;
+                target->results = calloc(1, sizeof(results_t));
+                target->current = target->results;
                 /* fall through to regular count */
             case 'c':
                 count = strtoul(optarg, NULL, 10);
+                break;
+            case 'i':
+                ms2ts(&wait_time, strtoul(optarg, NULL, 10));
                 break;
             case 'l':
                 loop = 1;
@@ -103,106 +122,115 @@ int main(int argc, char **argv) {
         }
     }
 
-    argc -= optind;
-    argv += optind;
+    /* mark the first non-option argument */
+    first = optind;
 
-    target = *argv;
+    for (index = optind; index < argc; index++) {
+        if (index > first) {
+            target->next = calloc(1, sizeof(targets_t));
+            target = target->next;
+            target->next = NULL;
+        }
+        target->name = argv[index];
+        printf("arg: %s\n", target->name);
+        target->addr = calloc(1, sizeof(struct addrinfo));
+        target->addr->ai_addr = calloc(1, sizeof(struct sockaddr_in));
+        target->client_sock = (struct sockaddr_in *) target->addr->ai_addr;
+        target->client_sock->sin_family = AF_INET;
+        target->client_sock->sin_port = htons(NFS_PORT);
 
-    addr = calloc(1, sizeof(struct addrinfo));
-    addr->ai_addr = calloc(1, sizeof(struct sockaddr_in));
-    client_sock = (struct sockaddr_in *) addr->ai_addr;
-    client_sock->sin_family = AF_INET;
-    client_sock->sin_port = htons(NFS_PORT);
-
-    /* first try treating the hostname as an IP address */
-    if (!inet_pton(AF_INET, target, &client_sock->sin_addr)) {
-        /* if that fails, do a DNS lookup */
-        memset(&hints, 0, sizeof(hints));
-        hints.ai_family = AF_INET;
-        hints.ai_socktype = SOCK_DGRAM; /* change to SOCK_STREAM for TCP */
-        getaddr = getaddrinfo(target, "nfs", &hints, &addr);
-        if (getaddr == 0) {
-            client_sock->sin_addr = ((struct sockaddr_in *)addr->ai_addr)->sin_addr;
-            if (ip) {
-                target = calloc(1, INET_ADDRSTRLEN);
-                inet_ntop(AF_INET, &client_sock->sin_addr, target, INET_ADDRSTRLEN);
+        /* first try treating the hostname as an IP address */
+        if (!inet_pton(AF_INET, target->name, &target->client_sock->sin_addr)) {
+            /* if that fails, do a DNS lookup */
+            getaddr = getaddrinfo(target->name, "nfs", &hints, &target->addr);
+            if (getaddr == 0) {
+                target->client_sock->sin_addr = ((struct sockaddr_in *)target->addr->ai_addr)->sin_addr;
+                if (ip) {
+                    target->name = calloc(1, INET_ADDRSTRLEN);
+                    inet_ntop(AF_INET, &target->client_sock->sin_addr, target->name, INET_ADDRSTRLEN);
+                }
+            } else {
+                printf("%s: %s\n", target->name, gai_strerror(getaddr));
+                exit(EXIT_FAILURE);
             }
+        }
+
+        target->client = clntudp_create(target->client_sock, NFS_PROGRAM, 3, timeout, &sock);
+        if (target->client) {
+            target->client->cl_auth = authnone_create();
         } else {
-            printf("%s: %s\n", target, gai_strerror(getaddr));
+            clnt_pcreateerror(argv[0]);
             exit(EXIT_FAILURE);
         }
     }
 
-    client = clntudp_create(client_sock, NFS_PROGRAM, 3, timeout, &sock);
+    while(1) {
+        if (quitting) {
+            break;
+        }
 
-    if (client) {
-        client->cl_auth = authnone_create();
+        /* reset back to start of list */
+        target = targets;
 
-        gettimeofday(&start, NULL);
-
-        while(1) {
-            if (quitting) {
-                break;
-            }
+        while (target) {
             gettimeofday(&call_start, NULL);
-            status = clnt_call(client, NFSPROC_NULL, (xdrproc_t) xdr_void, NULL, (xdrproc_t) xdr_void, error, timeout);
+            status = clnt_call(target->client, NFSPROC_NULL, (xdrproc_t) xdr_void, NULL, (xdrproc_t) xdr_void, error, timeout);
             gettimeofday(&call_end, NULL);
-            sent++;
+            target->sent++;
 
             if (status == RPC_SUCCESS) {
                 /* check if we're not looping */
                 if (!count && !loop) {
-                    printf("%s is alive\n", target);
+                    printf("%s is alive\n", target->name);
                     exit(EXIT_SUCCESS);
                 }
-                received++;
-                loss = (sent - received) / (double)sent * 100;
+                target->received++;
+                loss = (target->sent - target->received) / (double)target->sent * 100;
 
                 us = tv2us(call_end) - tv2us(call_start);
 
                 /* first result is a special case */
-                if (received == 1) {
-                    min = max = avg = us;
+                if (target->received == 1) {
+                    target->min = target->max = target->avg = us;
                 } else {
                     if (verbose) {
-                        current->next = calloc(1, sizeof(results_t));
-                        current = current->next;
+                        target->current->next = calloc(1, sizeof(results_t));
+                        target->current = target->current->next;
                     }
-                    if (us < min) min = us;
-                    if (us > max) max = us;
+                    if (us < target->min) target->min = us;
+                    if (us > target->max) target->max = us;
                     /* calculate the average time */
-                    avg = (avg * (received - 1) + us) / received;
+                    target->avg = (target->avg * (target->received - 1) + us) / target->received;
                 }
 
                 if (verbose)
-                    current->us = us;
+                    target->current->us = us;
 
-                printf("%s : [%u], %03.2f ms (%03.2f avg, %.0f%% loss)\n", target, sent - 1, us / 1000.0, avg / 1000.0, loss);
+                printf("%s : [%u], %03.2f ms (%03.2f avg, %.0f%% loss)\n", target->name, target->sent - 1, us / 1000.0, target->avg / 1000.0, loss);
             } else {
-                clnt_perror(client, target);
+                clnt_perror(target->client, target->name);
                 if (!count && !loop) {
-                    printf("%s is dead\n", target);
+                    printf("%s is dead\n", target->name);
                     exit(EXIT_FAILURE);
                 }
-                if (verbose && sent > 1) {
-                    current->next = calloc(1, sizeof(results_t));
-                    current = current->next;
+                if (verbose && target->sent > 1) {
+                    target->current->next = calloc(1, sizeof(results_t));
+                    target->current = target->current->next;
                 }
             }
-            if (count && sent >= count) {
-                break;
-            }
-            nanosleep(&sleep_time, NULL);
+            target = target->next;
+            if (target)
+                nanosleep(&wait_time, NULL);
         }
-        gettimeofday(&end, NULL);
-        printf("\n");
-        if (verbose)
-            print_verbose_summary(*results);
-        else
-            print_summary();
-        exit(EXIT_SUCCESS);
-    } else {
-        clnt_pcreateerror(argv[0]);
-        exit(EXIT_FAILURE);
+        if (count && !target->next && target->sent >= count) {
+            break;
+        }
+        nanosleep(&sleep_time, NULL);
     }
+    printf("\n");
+    if (verbose)
+        print_verbose_summary(*targets);
+    else
+        print_summary(*targets);
+    exit(EXIT_SUCCESS);
 }
