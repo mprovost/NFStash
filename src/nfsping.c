@@ -79,7 +79,7 @@ int main(int argc, char **argv) {
     results_t *current;
     int ch;
     unsigned long count;
-    int verbose = 0, loop = 0, ip = 0;
+    int verbose = 0, loop = 0, ip = 0, quiet = 0;
     int first, index;
 
     /* listen for ctrl-c */
@@ -93,7 +93,7 @@ int main(int argc, char **argv) {
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_DGRAM; /* change to SOCK_STREAM for TCP */
 
-    while ((ch = getopt(argc, argv, "AC:c:i:lp:t:")) != -1) {
+    while ((ch = getopt(argc, argv, "AC:c:i:lp:qt:")) != -1) {
         switch(ch) {
             case 'A':
                 ip = 1;
@@ -115,6 +115,9 @@ int main(int argc, char **argv) {
             case 'p':
                 ms2ts(&sleep_time, strtoul(optarg, NULL, 10));
                 break;
+            case 'q':
+                quiet = 1;
+                break;
             case 't':
                 /* TODO check for zero */
                 ms2tv(&timeout, strtoul(optarg, NULL, 10));
@@ -132,7 +135,6 @@ int main(int argc, char **argv) {
             target->next = NULL;
         }
         target->name = argv[index];
-        printf("arg: %s\n", target->name);
         target->addr = calloc(1, sizeof(struct addrinfo));
         target->addr->ai_addr = calloc(1, sizeof(struct sockaddr_in));
         target->client_sock = (struct sockaddr_in *) target->addr->ai_addr;
@@ -164,13 +166,13 @@ int main(int argc, char **argv) {
         }
     }
 
+    /* reset back to start of list */
+    target = targets;
+
     while(1) {
         if (quitting) {
             break;
         }
-
-        /* reset back to start of list */
-        target = targets;
 
         while (target) {
             gettimeofday(&call_start, NULL);
@@ -206,7 +208,8 @@ int main(int argc, char **argv) {
                 if (verbose)
                     target->current->us = us;
 
-                printf("%s : [%u], %03.2f ms (%03.2f avg, %.0f%% loss)\n", target->name, target->sent - 1, us / 1000.0, target->avg / 1000.0, loss);
+                if (!quiet)
+                    printf("%s : [%u], %03.2f ms (%03.2f avg, %.0f%% loss)\n", target->name, target->sent - 1, us / 1000.0, target->avg / 1000.0, loss);
             } else {
                 clnt_perror(target->client, target->name);
                 if (!count && !loop) {
@@ -218,13 +221,20 @@ int main(int argc, char **argv) {
                     target->current = target->current->next;
                 }
             }
+
             target = target->next;
             if (target)
                 nanosleep(&wait_time, NULL);
         }
-        if (count && !target->next && target->sent >= count) {
+
+        /* reset back to start of list */
+        /* do this at the end of the loop not the start so we can check if we're done or need to sleep */
+        target = targets;
+
+        if (count && target->sent >= count) {
             break;
         }
+
         nanosleep(&sleep_time, NULL);
     }
     printf("\n");
