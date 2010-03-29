@@ -82,6 +82,7 @@ int main(int argc, char **argv) {
     unsigned long count;
     int verbose = 0, loop = 0, ip = 0, quiet = 0;
     int first, index;
+    char *tmpip;
 
     /* listen for ctrl-c */
     quitting = 0;
@@ -153,12 +154,23 @@ int main(int argc, char **argv) {
             getaddr = getaddrinfo(target->name, "nfs", &hints, &addr);
             if (getaddr == 0) {
                 target->client_sock->sin_addr = ((struct sockaddr_in *)addr->ai_addr)->sin_addr;
-                if (ip) {
-                    target->name = calloc(1, INET_ADDRSTRLEN);
-                    inet_ntop(AF_INET, &target->client_sock->sin_addr, target->name, INET_ADDRSTRLEN);
+                if (addr->ai_next) {
+                    tmpip = calloc(1, INET_ADDRSTRLEN);
+                    inet_ntop(AF_INET, &target->client_sock->sin_addr, tmpip, INET_ADDRSTRLEN);
+                    fprintf(stderr, "Multiple addresses found for %s, using %s\n", target->name, tmpip);
+                    if (ip) {
+                        target->name = tmpip;
+                    } else {
+                        free(tmpip);
+                    }
+                } else {
+                    if (ip) {
+                        target->name = calloc(1, INET_ADDRSTRLEN);
+                        inet_ntop(AF_INET, &target->client_sock->sin_addr, target->name, INET_ADDRSTRLEN);
+                    }
                 }
             } else {
-                printf("%s: %s\n", target->name, gai_strerror(getaddr));
+                fprintf(stderr, "%s: %s\n", target->name, gai_strerror(getaddr));
                 exit(EXIT_FAILURE);
             }
         }
