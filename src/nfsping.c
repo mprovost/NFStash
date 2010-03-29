@@ -42,10 +42,11 @@ void print_summary(targets_t targets) {
 
 void print_verbose_summary(targets_t targets) {
     targets_t *target = &targets;
-    results_t *current = target->results;
+    results_t *current;
 
     while (target) {
         printf("%s :", target->name);
+        current = target->results;
         while (current) {
             if (current->us)
                 printf(" %.2f", current->us / 1000.0);
@@ -140,6 +141,11 @@ int main(int argc, char **argv) {
         target->client_sock = (struct sockaddr_in *) target->addr->ai_addr;
         target->client_sock->sin_family = AF_INET;
         target->client_sock->sin_port = htons(NFS_PORT);
+
+        if (verbose) {
+            target->results = calloc(1, sizeof(results_t));
+            target->current = target->results;
+        }
 
         /* first try treating the hostname as an IP address */
         if (!inet_pton(AF_INET, target->name, &target->client_sock->sin_addr)) {
