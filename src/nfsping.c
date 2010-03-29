@@ -93,7 +93,7 @@ int main(int argc, char **argv) {
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_DGRAM; /* change to SOCK_STREAM for TCP */
 
-    while ((ch = getopt(argc, argv, "AC:c:ilp:t:")) != -1) {
+    while ((ch = getopt(argc, argv, "AC:c:i:lp:t:")) != -1) {
         switch(ch) {
             case 'A':
                 ip = 1;
