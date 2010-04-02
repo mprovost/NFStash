@@ -80,9 +80,10 @@ int main(int argc, char **argv) {
     results_t *current;
     int ch;
     unsigned long count;
-    int verbose = 0, loop = 0, ip = 0, quiet = 0;
+    /* command-line options */
+    int verbose = 0, loop = 0, ip = 0, quiet = 0, multiple = 0;
     int first, index;
-    char *tmpip;
+    char *tmpip[INET_ADDRSTRLEN];
 
     /* listen for ctrl-c */
     quitting = 0;
@@ -95,7 +96,7 @@ int main(int argc, char **argv) {
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_DGRAM; /* change to SOCK_STREAM for TCP */
 
-    while ((ch = getopt(argc, argv, "AC:c:i:lp:qt:")) != -1) {
+    while ((ch = getopt(argc, argv, "AC:c:i:lmp:qt:")) != -1) {
         switch(ch) {
             case 'A':
                 ip = 1;
@@ -113,6 +114,9 @@ int main(int argc, char **argv) {
                 break;
             case 'l':
                 loop = 1;
+                break;
+            case 'm':
+                multiple = 1;
                 break;
             case 'p':
                 ms2ts(&sleep_time, strtoul(optarg, NULL, 10));
@@ -137,36 +141,34 @@ int main(int argc, char **argv) {
             target->next = NULL;
         }
         target->name = argv[index];
-        addr = calloc(1, sizeof(struct addrinfo));
-        addr->ai_addr = calloc(1, sizeof(struct sockaddr_in));
-        target->client_sock = (struct sockaddr_in *) addr->ai_addr;
-        target->client_sock->sin_family = AF_INET;
-        target->client_sock->sin_port = htons(NFS_PORT);
 
         if (verbose) {
             target->results = calloc(1, sizeof(results_t));
             target->current = target->results;
         }
 
+        target->client_sock = calloc(1, sizeof(struct sockaddr_in));
+        target->client_sock->sin_family = AF_INET;
+        target->client_sock->sin_port = htons(NFS_PORT);
+
         /* first try treating the hostname as an IP address */
-        if (!inet_pton(AF_INET, target->name, &target->client_sock->sin_addr)) {
+        if (!inet_pton(AF_INET, target->name, &((struct sockaddr_in *)target->client_sock)->sin_addr)) {
             /* if that fails, do a DNS lookup */
+            addr = calloc(1, sizeof(struct addrinfo));
             getaddr = getaddrinfo(target->name, "nfs", &hints, &addr);
-            if (getaddr == 0) {
+            if (getaddr == 0) { /* success! */
+                if (ip)
+                    target->name = calloc(1, INET_ADDRSTRLEN);
                 target->client_sock->sin_addr = ((struct sockaddr_in *)addr->ai_addr)->sin_addr;
+                /* check for multiple addresses */
                 if (addr->ai_next) {
-                    tmpip = calloc(1, INET_ADDRSTRLEN);
-                    inet_ntop(AF_INET, &target->client_sock->sin_addr, tmpip, INET_ADDRSTRLEN);
-                    fprintf(stderr, "Multiple addresses found for %s, using %s\n", target->name, tmpip);
-                    if (ip) {
-                        target->name = tmpip;
-                    } else {
-                        free(tmpip);
-                    }
+                    inet_ntop(AF_INET, &((struct sockaddr_in *)addr->ai_addr)->sin_addr, tmpip, INET_ADDRSTRLEN);
+                        fprintf(stderr, "Multiple addresses found for %s, using %s\n", target->name, tmpip);
+                        if (ip)
+                            strncpy(target->name, *tmpip, INET_ADDRSTRLEN);
                 } else {
                     if (ip) {
-                        target->name = calloc(1, INET_ADDRSTRLEN);
-                        inet_ntop(AF_INET, &target->client_sock->sin_addr, target->name, INET_ADDRSTRLEN);
+                        inet_ntop(AF_INET, &((struct sockaddr_in *)addr->ai_addr)->sin_addr, target->name, INET_ADDRSTRLEN);
                     }
                 }
             } else {
