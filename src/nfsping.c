@@ -160,6 +160,13 @@ int main(int argc, char **argv) {
             if (getaddr == 0) { /* success! */
                 while (addr) {
                     target->client_sock->sin_addr = ((struct sockaddr_in *)addr->ai_addr)->sin_addr;
+                    target->client = clntudp_create(target->client_sock, NFS_PROGRAM, 3, timeout, &sock);
+                    if (target->client) {
+                        target->client->cl_auth = authnone_create();
+                    } else {
+                        clnt_pcreateerror(argv[0]);
+                        exit(EXIT_FAILURE);
+                    }
 
                     if (ip) {
                         target->name = calloc(1, INET_ADDRSTRLEN);
@@ -190,20 +197,6 @@ int main(int argc, char **argv) {
             }
         }
 
-    }
-
-    /* reset back to start of list */
-    target = targets;
-
-    while (target) {
-        target->client = clntudp_create(target->client_sock, NFS_PROGRAM, 3, timeout, &sock);
-        if (target->client) {
-            target->client->cl_auth = authnone_create();
-        } else {
-            clnt_pcreateerror(argv[0]);
-            exit(EXIT_FAILURE);
-        }
-        target = target->next;
     }
 
     /* reset back to start of list */
