@@ -83,7 +83,6 @@ int main(int argc, char **argv) {
     /* command-line options */
     int verbose = 0, loop = 0, ip = 0, quiet = 0, multiple = 0;
     int first, index;
-    char *tmpip[INET_ADDRSTRLEN];
 
     /* listen for ctrl-c */
     quitting = 0;
@@ -140,7 +139,8 @@ int main(int argc, char **argv) {
             target = target->next;
             target->next = NULL;
         }
-        target->name = argv[index];
+
+        target->name = calloc(1, INET_ADDRSTRLEN);
 
         if (verbose) {
             target->results = calloc(1, sizeof(results_t));
@@ -155,21 +155,34 @@ int main(int argc, char **argv) {
         if (!inet_pton(AF_INET, target->name, &((struct sockaddr_in *)target->client_sock)->sin_addr)) {
             /* if that fails, do a DNS lookup */
             addr = calloc(1, sizeof(struct addrinfo));
-            getaddr = getaddrinfo(target->name, "nfs", &hints, &addr);
+            free(target->name);
+            getaddr = getaddrinfo(argv[index], "nfs", &hints, &addr);
             if (getaddr == 0) { /* success! */
-                if (ip)
-                    target->name = calloc(1, INET_ADDRSTRLEN);
-                target->client_sock->sin_addr = ((struct sockaddr_in *)addr->ai_addr)->sin_addr;
-                /* check for multiple addresses */
-                if (addr->ai_next) {
-                    inet_ntop(AF_INET, &((struct sockaddr_in *)addr->ai_addr)->sin_addr, tmpip, INET_ADDRSTRLEN);
-                        fprintf(stderr, "Multiple addresses found for %s, using %s\n", target->name, tmpip);
-                        if (ip)
-                            strncpy(target->name, *tmpip, INET_ADDRSTRLEN);
-                } else {
+                while (addr) {
+                    target->client_sock->sin_addr = ((struct sockaddr_in *)addr->ai_addr)->sin_addr;
+
                     if (ip) {
+                        target->name = calloc(1, INET_ADDRSTRLEN);
                         inet_ntop(AF_INET, &((struct sockaddr_in *)addr->ai_addr)->sin_addr, target->name, INET_ADDRSTRLEN);
+                    } else {
+                        target->name = argv[index];
                     }
+
+                    if (addr->ai_next) {
+                        if (multiple) {
+                            /* create the next target */
+                            target->next = calloc(1, sizeof(targets_t));
+                            target = target->next;
+                            target->next = NULL;
+                            target->client_sock = calloc(1, sizeof(struct sockaddr_in));
+                            target->client_sock->sin_family = AF_INET;
+                            target->client_sock->sin_port = htons(NFS_PORT);
+                        } else {
+                            fprintf(stderr, "Multiple addresses found for %s, using %s\n", argv[index], target->name);
+                            break;
+                        }
+                    }
+                    addr = addr->ai_next;
                 }
             } else {
                 fprintf(stderr, "%s: %s\n", target->name, gai_strerror(getaddr));
@@ -177,6 +190,12 @@ int main(int argc, char **argv) {
             }
         }
 
+    }
+
+    /* reset back to start of list */
+    target = targets;
+
+    while (target) {
         target->client = clntudp_create(target->client_sock, NFS_PROGRAM, 3, timeout, &sock);
         if (target->client) {
             target->client->cl_auth = authnone_create();
@@ -184,6 +203,7 @@ int main(int argc, char **argv) {
             clnt_pcreateerror(argv[0]);
             exit(EXIT_FAILURE);
         }
+        target = target->next;
     }
 
     /* reset back to start of list */
