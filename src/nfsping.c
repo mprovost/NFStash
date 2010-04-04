@@ -155,16 +155,18 @@ int main(int argc, char **argv) {
         if (!inet_pton(AF_INET, target->name, &((struct sockaddr_in *)target->client_sock)->sin_addr)) {
             /* if that fails, do a DNS lookup */
             addr = calloc(1, sizeof(struct addrinfo));
-            free(target->name);
             getaddr = getaddrinfo(argv[index], "nfs", &hints, &addr);
             if (getaddr == 0) { /* success! */
+                /* loop through possibly multiple DNS responses */
                 while (addr) {
                     target->client_sock->sin_addr = ((struct sockaddr_in *)addr->ai_addr)->sin_addr;
 
                     if (ip) {
-                        target->name = calloc(1, INET_ADDRSTRLEN);
                         inet_ntop(AF_INET, &((struct sockaddr_in *)addr->ai_addr)->sin_addr, target->name, INET_ADDRSTRLEN);
                     } else {
+                        if (&target->name != NULL) {
+                            free(target->name);
+                        }
                         target->name = argv[index];
                     }
 
@@ -177,6 +179,9 @@ int main(int argc, char **argv) {
                             target->client_sock = calloc(1, sizeof(struct sockaddr_in));
                             target->client_sock->sin_family = AF_INET;
                             target->client_sock->sin_port = htons(NFS_PORT);
+                            if (ip) {
+                                target->name = calloc(1, INET_ADDRSTRLEN);
+                            }
                         } else {
                             fprintf(stderr, "Multiple addresses found for %s, using %s\n", argv[index], target->name);
                             break;
@@ -195,6 +200,7 @@ int main(int argc, char **argv) {
     /* reset back to start of list */
     target = targets;
 
+    /* loop through the targets and create the rpc client */
     while (target) {
         target->client = clntudp_create(target->client_sock, NFS_PROGRAM, 3, timeout, &sock);
         if (target->client) {
