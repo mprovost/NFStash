@@ -154,7 +154,6 @@ int main(int argc, char **argv) {
         /* first try treating the hostname as an IP address */
         if (!inet_pton(AF_INET, target->name, &((struct sockaddr_in *)target->client_sock)->sin_addr)) {
             /* if that fails, do a DNS lookup */
-            addr = calloc(1, sizeof(struct addrinfo));
             getaddr = getaddrinfo(argv[index], "nfs", &hints, &addr);
             if (getaddr == 0) { /* success! */
                 /* loop through possibly multiple DNS responses */
@@ -193,6 +192,7 @@ int main(int argc, char **argv) {
                 fprintf(stderr, "%s: %s\n", target->name, gai_strerror(getaddr));
                 exit(EXIT_FAILURE);
             }
+            freeaddrinfo(addr);
         }
 
     }
