@@ -88,9 +88,6 @@ int main(int argc, char **argv) {
     quitting = 0;
     signal(SIGINT, int_handler);
 
-    targets = calloc(1, sizeof(targets_t));
-    target = targets;
-
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_DGRAM; /* change to SOCK_STREAM for TCP */
@@ -102,11 +99,10 @@ int main(int argc, char **argv) {
                 break;
             case 'C':
                 verbose = 1;
-                target->results = calloc(1, sizeof(results_t));
-                target->current = target->results;
                 /* fall through to regular count */
             case 'c':
                 count = strtoul(optarg, NULL, 10);
+                /* TODO if count==0 */
                 break;
             case 'i':
                 ms2ts(&wait_time, strtoul(optarg, NULL, 10));
@@ -133,6 +129,9 @@ int main(int argc, char **argv) {
     /* mark the first non-option argument */
     first = optind;
 
+    targets = calloc(1, sizeof(targets_t));
+    target = targets;
+
     for (index = optind; index < argc; index++) {
         if (index > first) {
             target->next = calloc(1, sizeof(targets_t));
@@ -140,7 +139,7 @@ int main(int argc, char **argv) {
             target->next = NULL;
         }
 
-        target->name = calloc(1, INET_ADDRSTRLEN);
+        target->name = argv[index];
 
         if (verbose) {
             target->results = calloc(1, sizeof(results_t));
@@ -151,7 +150,8 @@ int main(int argc, char **argv) {
         target->client_sock->sin_family = AF_INET;
         target->client_sock->sin_port = htons(NFS_PORT);
 
-        /* first try treating the hostname as an IP address */
+        /* first try treating the hostname as an IP address
+         * this avoids all the dns code */
         if (!inet_pton(AF_INET, target->name, &((struct sockaddr_in *)target->client_sock)->sin_addr)) {
             /* if that fails, do a DNS lookup */
             getaddr = getaddrinfo(argv[index], "nfs", &hints, &addr);
@@ -161,28 +161,39 @@ int main(int argc, char **argv) {
                     target->client_sock->sin_addr = ((struct sockaddr_in *)addr->ai_addr)->sin_addr;
 
                     if (ip) {
+                        target->name = calloc(1, INET_ADDRSTRLEN);
                         inet_ntop(AF_INET, &((struct sockaddr_in *)addr->ai_addr)->sin_addr, target->name, INET_ADDRSTRLEN);
-                    } else {
-                        if (&target->name != NULL) {
-                            free(target->name);
-                        }
-                        target->name = argv[index];
                     }
 
+                    /* multiple results */
                     if (addr->ai_next) {
                         if (multiple) {
                             /* create the next target */
                             target->next = calloc(1, sizeof(targets_t));
                             target = target->next;
                             target->next = NULL;
+                            target->name = argv[index];
+
+                            if (verbose) {
+                                target->results = calloc(1, sizeof(results_t));
+                                target->current = target->results;
+                            }
+
                             target->client_sock = calloc(1, sizeof(struct sockaddr_in));
                             target->client_sock->sin_family = AF_INET;
                             target->client_sock->sin_port = htons(NFS_PORT);
-                            if (ip) {
-                                target->name = calloc(1, INET_ADDRSTRLEN);
-                            }
                         } else {
+                            /* we have to look up the IP address if we haven't already for the warning */
+                            if (!ip) {
+                                target->name = calloc(1, INET_ADDRSTRLEN);
+                                inet_ntop(AF_INET, &((struct sockaddr_in *)addr->ai_addr)->sin_addr, target->name, INET_ADDRSTRLEN);
+                            }
                             fprintf(stderr, "Multiple addresses found for %s, using %s\n", argv[index], target->name);
+                            /* if we're not using the IP address again we can free it */
+                            if (!ip) {
+                                free(target->name);
+                                target->name = argv[index];
+                            }
                             break;
                         }
                     }
@@ -192,9 +203,7 @@ int main(int argc, char **argv) {
                 fprintf(stderr, "%s: %s\n", target->name, gai_strerror(getaddr));
                 exit(EXIT_FAILURE);
             }
-            freeaddrinfo(addr);
         }
-
     }
 
     /* reset back to start of list */
