@@ -108,7 +108,7 @@ int main(int argc, char **argv) {
                 count = strtoul(optarg, NULL, 10);
                 /* TODO if count==0 */
                 break;
-            /* do dns lookups for IP addresses */
+            /* do reverse dns lookups for IP addresses */
             case 'd':
                 dns = 1;
                 break;
@@ -168,9 +168,9 @@ int main(int argc, char **argv) {
         target->client_sock->sin_family = AF_INET;
         target->client_sock->sin_port = htons(NFS_PORT);
 
-        /* first try treating the hostname as an IP address
-         * this avoids all the dns code */
+        /* first try treating the hostname as an IP address */
         if (inet_pton(AF_INET, target->name, &((struct sockaddr_in *)target->client_sock)->sin_addr)) {
+            /* if we have reverse lookups enabled */
             if (dns) {
                 target->name = calloc(1, NI_MAXHOST);
                 getaddr = getnameinfo((struct sockaddr *)target->client_sock, sizeof(struct sockaddr_in), target->name, NI_MAXHOST, NULL, 0, 0);
