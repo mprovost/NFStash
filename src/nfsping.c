@@ -79,7 +79,7 @@ int main(int argc, char **argv) {
     results_t *results;
     results_t *current;
     int ch;
-    unsigned long count;
+    unsigned long count = 0;
     /* command-line options */
     int verbose = 0, loop = 0, ip = 0, quiet = 0, multiple = 0;
     int first, index;
@@ -90,35 +90,49 @@ int main(int argc, char **argv) {
 
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;
-    hints.ai_socktype = SOCK_DGRAM; /* change to SOCK_STREAM for TCP */
+    /* default to UDP */
+    hints.ai_socktype = SOCK_DGRAM;
 
-    while ((ch = getopt(argc, argv, "AC:c:i:lmp:qt:")) != -1) {
+    while ((ch = getopt(argc, argv, "AC:c:i:lmp:qTt:")) != -1) {
         switch(ch) {
+            /* show IP addresses */
             case 'A':
                 ip = 1;
                 break;
+            /* number of pings per target, parseable summary */
             case 'C':
                 verbose = 1;
                 /* fall through to regular count */
+            /* number of pings per target */
             case 'c':
                 count = strtoul(optarg, NULL, 10);
                 /* TODO if count==0 */
                 break;
+            /* interval between targets */
             case 'i':
                 ms2ts(&wait_time, strtoul(optarg, NULL, 10));
                 break;
+            /* loop forever */
             case 'l':
                 loop = 1;
                 break;
+            /* use multiple IP addresses if found */
             case 'm':
                 multiple = 1;
                 break;
+            /* time between pings to target */
             case 'p':
                 ms2ts(&sleep_time, strtoul(optarg, NULL, 10));
                 break;
+            /* quiet, only print summary */
             case 'q':
                 quiet = 1;
                 break;
+            /* use TCP */
+            case 'T':
+                hints.ai_socktype = SOCK_STREAM;
+                break;
+            /* timeout */
             case 't':
                 /* TODO check for zero */
                 ms2tv(&timeout, strtoul(optarg, NULL, 10));
@@ -212,7 +226,13 @@ int main(int argc, char **argv) {
 
     /* loop through the targets and create the rpc client */
     while (target) {
-        target->client = clntudp_create(target->client_sock, NFS_PROGRAM, 3, timeout, &sock);
+        /* TCP */
+        if (hints.ai_socktype == SOCK_STREAM) {
+            target->client = clnttcp_create(target->client_sock, NFS_PROGRAM, 3, &sock, 0, 0);
+        /* UDP */
+        } else {
+            target->client = clntudp_create(target->client_sock, NFS_PROGRAM, 3, timeout, &sock);
+        }
         if (target->client) {
             target->client->cl_auth = authnone_create();
         } else {
