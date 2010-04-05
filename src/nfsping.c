@@ -81,7 +81,7 @@ int main(int argc, char **argv) {
     int ch;
     unsigned long count = 0;
     /* command-line options */
-    int verbose = 0, loop = 0, ip = 0, quiet = 0, multiple = 0;
+    int dns = 0, verbose = 0, loop = 0, ip = 0, quiet = 0, multiple = 0;
     int first, index;
 
     /* listen for ctrl-c */
@@ -93,7 +93,7 @@ int main(int argc, char **argv) {
     /* default to UDP */
     hints.ai_socktype = SOCK_DGRAM;
 
-    while ((ch = getopt(argc, argv, "AC:c:i:lmp:qTt:")) != -1) {
+    while ((ch = getopt(argc, argv, "AC:c:di:lmp:qTt:")) != -1) {
         switch(ch) {
             /* show IP addresses */
             case 'A':
@@ -107,6 +107,10 @@ int main(int argc, char **argv) {
             case 'c':
                 count = strtoul(optarg, NULL, 10);
                 /* TODO if count==0 */
+                break;
+            /* do dns lookups for IP addresses */
+            case 'd':
+                dns = 1;
                 break;
             /* interval between targets */
             case 'i':
@@ -166,7 +170,16 @@ int main(int argc, char **argv) {
 
         /* first try treating the hostname as an IP address
          * this avoids all the dns code */
-        if (!inet_pton(AF_INET, target->name, &((struct sockaddr_in *)target->client_sock)->sin_addr)) {
+        if (inet_pton(AF_INET, target->name, &((struct sockaddr_in *)target->client_sock)->sin_addr)) {
+            if (dns) {
+                target->name = calloc(1, NI_MAXHOST);
+                getaddr = getnameinfo((struct sockaddr *)target->client_sock, sizeof(struct sockaddr_in), target->name, NI_MAXHOST, NULL, 0, 0);
+                if (getaddr > 0) { /* failure! */
+                    fprintf(stderr, "%s: %s\n", target->name, gai_strerror(getaddr));
+                    exit(EXIT_FAILURE);
+                }
+            }
+        } else {
             /* if that fails, do a DNS lookup */
             /* we don't call freeaddrinfo because we keep a pointer to the sin_addr in the target */
             getaddr = getaddrinfo(argv[index], "nfs", &hints, &addr);
