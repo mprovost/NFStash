@@ -154,6 +154,7 @@ int main(int argc, char **argv) {
          * this avoids all the dns code */
         if (!inet_pton(AF_INET, target->name, &((struct sockaddr_in *)target->client_sock)->sin_addr)) {
             /* if that fails, do a DNS lookup */
+            /* we don't call freeaddrinfo because we keep a pointer to the sin_addr in the target */
             getaddr = getaddrinfo(argv[index], "nfs", &hints, &addr);
             if (getaddr == 0) { /* success! */
                 /* loop through possibly multiple DNS responses */
