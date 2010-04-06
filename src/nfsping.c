@@ -70,6 +70,7 @@ int main(int argc, char **argv) {
     /* default 25 ms */
     struct timespec wait_time = { 0, 25000000 };
     int sock = RPC_ANYSOCK;
+    uint16_t port = htons(NFS_PORT);
     struct addrinfo hints, *addr;
     int getaddr;
     unsigned long us;
@@ -93,7 +94,7 @@ int main(int argc, char **argv) {
     /* default to UDP */
     hints.ai_socktype = SOCK_DGRAM;
 
-    while ((ch = getopt(argc, argv, "AC:c:di:lmp:qTt:")) != -1) {
+    while ((ch = getopt(argc, argv, "AC:c:di:lMmP:p:qTt:")) != -1) {
         switch(ch) {
             /* show IP addresses */
             case 'A':
@@ -120,9 +121,17 @@ int main(int argc, char **argv) {
             case 'l':
                 loop = 1;
                 break;
+            /* use the portmapper */
+            case 'M':
+                port = 0;
+                break;
             /* use multiple IP addresses if found */
             case 'm':
                 multiple = 1;
+                break;
+            /* specify NFS port */
+            case 'P':
+                port = htons(strtoul(optarg, NULL, 10));
                 break;
             /* time between pings to target */
             case 'p':
@@ -166,7 +175,7 @@ int main(int argc, char **argv) {
 
         target->client_sock = calloc(1, sizeof(struct sockaddr_in));
         target->client_sock->sin_family = AF_INET;
-        target->client_sock->sin_port = htons(NFS_PORT);
+        target->client_sock->sin_port = port;
 
         /* first try treating the hostname as an IP address */
         if (inet_pton(AF_INET, target->name, &((struct sockaddr_in *)target->client_sock)->sin_addr)) {
@@ -209,7 +218,7 @@ int main(int argc, char **argv) {
 
                             target->client_sock = calloc(1, sizeof(struct sockaddr_in));
                             target->client_sock->sin_family = AF_INET;
-                            target->client_sock->sin_port = htons(NFS_PORT);
+                            target->client_sock->sin_port = port;
                         } else {
                             /* we have to look up the IP address if we haven't already for the warning */
                             if (!ip) {
