@@ -83,6 +83,8 @@ int main(int argc, char **argv) {
     unsigned long count = 0;
     /* command-line options */
     int dns = 0, verbose = 0, loop = 0, ip = 0, quiet = 0, multiple = 0;
+    /* default to NFS v3 */
+    u_long version = 3;
     int first, index;
 
     /* listen for ctrl-c */
@@ -94,8 +96,12 @@ int main(int argc, char **argv) {
     /* default to UDP */
     hints.ai_socktype = SOCK_DGRAM;
 
-    while ((ch = getopt(argc, argv, "AC:c:di:lMmP:p:qTt:")) != -1) {
+    while ((ch = getopt(argc, argv, "2AC:c:di:lMmP:p:qTt:")) != -1) {
         switch(ch) {
+            /* use NFS version 2 */
+            case 2:
+                version = 2;
+                break;
             /* show IP addresses */
             case 'A':
                 ip = 1;
@@ -247,20 +253,24 @@ int main(int argc, char **argv) {
     target = targets;
 
     /* loop through the targets and create the rpc client */
+    /* TODO should we exit on failure or just skip to the next target? */
     while (target) {
         /* TCP */
         if (hints.ai_socktype == SOCK_STREAM) {
-            target->client = clnttcp_create(target->client_sock, NFS_PROGRAM, 3, &sock, 0, 0);
+            target->client = clnttcp_create(target->client_sock, NFS_PROGRAM, version, &sock, 0, 0);
+            if (target->client == NULL) {
+                clnt_pcreateerror("clnttcp_create");
+                exit(EXIT_FAILURE);
+            }
         /* UDP */
         } else {
-            target->client = clntudp_create(target->client_sock, NFS_PROGRAM, 3, timeout, &sock);
+            target->client = clntudp_create(target->client_sock, NFS_PROGRAM, version, timeout, &sock);
+            if (target->client == NULL) {
+                clnt_pcreateerror("clntudp_create");
+                exit(EXIT_FAILURE);
+            }
         }
-        if (target->client) {
-            target->client->cl_auth = authnone_create();
-        } else {
-            clnt_pcreateerror(argv[0]);
-            exit(EXIT_FAILURE);
-        }
+        target->client->cl_auth = authnone_create();
         target = target->next;
     }
 
@@ -309,7 +319,7 @@ int main(int argc, char **argv) {
                 if (!quiet)
                     printf("%s : [%u], %03.2f ms (%03.2f avg, %.0f%% loss)\n", target->name, target->sent - 1, us / 1000.0, target->avg / 1000.0, loss);
             } else {
-                clnt_perror(target->client, target->name);
+                clnt_perror(target->client, "clnt_call");
                 if (!count && !loop) {
                     printf("%s is dead\n", target->name);
                     exit(EXIT_FAILURE);
