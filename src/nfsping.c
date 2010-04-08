@@ -34,27 +34,28 @@ void print_summary(targets_t targets) {
 
     while (target) {
         loss = (target->sent - target->received) / (double)target->sent * 100;
-        printf("%s : xmt/rcv/%%loss = %u/%u/%.0f%%, min/avg/max = %.2f/%.2f/%.2f\n",
+        fprintf(stderr, "%s : xmt/rcv/%%loss = %u/%u/%.0f%%, min/avg/max = %.2f/%.2f/%.2f\n",
             target->name, target->sent, target->received, loss, target->min / 1000.0, target->avg / 1000.0, target->max / 1000.0);
         target = target->next;
     }
 }
 
+/* TODO target output spacing */
 void print_verbose_summary(targets_t targets) {
     targets_t *target = &targets;
     results_t *current;
 
     while (target) {
-        printf("%s :", target->name);
+        fprintf(stderr, "%s :", target->name);
         current = target->results;
         while (current) {
             if (current->us)
-                printf(" %.2f", current->us / 1000.0);
+                fprintf(stderr, " %.2f", current->us / 1000.0);
             else
-                printf(" -");
+                fprintf(stderr, " -");
             current = current->next;
         }
-        printf("\n");
+        fprintf(stderr, "\n");
         target = target->next;
     }
 }
@@ -345,7 +346,10 @@ int main(int argc, char **argv) {
 
         nanosleep(&sleep_time, NULL);
     }
-    printf("\n");
+    fflush(stdout);
+    /* these print to stderr */
+    if (!quiet)
+        fprintf(stderr, "\n");
     if (verbose)
         print_verbose_summary(*targets);
     else
