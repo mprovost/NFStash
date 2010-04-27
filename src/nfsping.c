@@ -24,8 +24,39 @@ void ms2ts(struct timespec *ts, unsigned long ms) {
     ts->tv_nsec = (ms % 1000000) * 1000000;
 }
 
+unsigned long ts2ms(struct timespec ts) {
+    unsigned long ms = ts.tv_sec * 1000;
+    ms += ts.tv_nsec / 1000000;
+    return ms;
+}
+
 void int_handler(int sig) {
     quitting = 1;
+}
+
+void usage() {
+    struct timeval timeout = NFS_TIMEOUT;
+    struct timespec wait_time = NFS_WAIT;
+    struct timespec sleep_time = NFS_SLEEP;
+
+    printf("Usage: nfsping [options] [targets...]\n\
+    -2    use NFS version 2\n\
+    -A    show IP addresses\n\
+    -c n  count of pings to send to target\n\
+    -C n  same as -c, output parseable format\n\
+    -d    reverse DNS lookups for targets\n\
+    -i n  interval between targets (in ms, default %lu)\n\
+    -l    loop forever\n\
+    -m    use multiple target IP addresses if found\n\
+    -M    use the portmapper (default no)\n\
+    -p n  pause between pings to target (in ms, default %lu)\n\
+    -P n  specify NFS port (default %i)\n\
+    -q    quiet, only print summary\n\
+    -t n  timeout (in ms, default %lu)\n\
+    -T    use TCP (default UDP)\n",
+    ts2ms(wait_time), ts2ms(sleep_time), NFS_PORT, tv2ms(timeout));
+
+    exit(3);
 }
 
 void print_summary(targets_t targets) {
@@ -63,13 +94,10 @@ void print_verbose_summary(targets_t targets) {
 int main(int argc, char **argv) {
     enum clnt_stat status;
     char *error;
-    /* default 2.5 seconds */
-    struct timeval timeout = { 2, 500000 };
+    struct timeval timeout = NFS_TIMEOUT;
     struct timeval call_start, call_end;
-    /* default 1 second */
-    struct timespec sleep_time = { 1, 0 };
-    /* default 25 ms */
-    struct timespec wait_time = { 0, 25000000 };
+    struct timespec sleep_time = NFS_SLEEP;
+    struct timespec wait_time = NFS_WAIT;
     int sock = RPC_ANYSOCK;
     uint16_t port = htons(NFS_PORT);
     struct addrinfo hints, *addr;
@@ -97,7 +125,11 @@ int main(int argc, char **argv) {
     /* default to UDP */
     hints.ai_socktype = SOCK_DGRAM;
 
-    while ((ch = getopt(argc, argv, "2AC:c:di:lMmP:p:qTt:")) != -1) {
+    /* no arguments passed */
+    if (argc == 1)
+        usage();
+
+    while ((ch = getopt(argc, argv, "2Ac:C:dhi:lmMp:P:qt:T")) != -1) {
         switch(ch) {
             /* use NFS version 2 */
             case 2:
@@ -107,15 +139,15 @@ int main(int argc, char **argv) {
             case 'A':
                 ip = 1;
                 break;
-            /* number of pings per target, parseable summary */
-            case 'C':
-                verbose = 1;
-                /* fall through to regular count */
             /* number of pings per target */
             case 'c':
                 count = strtoul(optarg, NULL, 10);
                 /* TODO if count==0 */
                 break;
+            /* number of pings per target, parseable summary */
+            case 'C':
+                verbose = 1;
+                /* fall through to regular count */
             /* do reverse dns lookups for IP addresses */
             case 'd':
                 dns = 1;
@@ -128,35 +160,40 @@ int main(int argc, char **argv) {
             case 'l':
                 loop = 1;
                 break;
-            /* use the portmapper */
-            case 'M':
-                port = 0;
-                break;
             /* use multiple IP addresses if found */
             case 'm':
                 multiple = 1;
                 break;
-            /* specify NFS port */
-            case 'P':
-                port = htons(strtoul(optarg, NULL, 10));
+            /* use the portmapper */
+            case 'M':
+                port = 0;
                 break;
             /* time between pings to target */
             case 'p':
                 ms2ts(&sleep_time, strtoul(optarg, NULL, 10));
                 break;
+            /* specify NFS port */
+            case 'P':
+                port = htons(strtoul(optarg, NULL, 10));
+                break;
             /* quiet, only print summary */
             case 'q':
                 quiet = 1;
-                break;
-            /* use TCP */
-            case 'T':
-                hints.ai_socktype = SOCK_STREAM;
                 break;
             /* timeout */
             case 't':
                 /* TODO check for zero */
                 ms2tv(&timeout, strtoul(optarg, NULL, 10));
                 break;
+            /* use TCP */
+            case 'T':
+                hints.ai_socktype = SOCK_STREAM;
+                break;
+            /* timeout */
+            case 'h':
+            case '?':
+            default:
+                usage();
         }
     }
 

@@ -12,6 +12,12 @@
 #define NFS_PROGRAM 100003
 #define NFS_PORT    2049
 #define NFSPROC_NULL 0
+/* struct timeval */
+#define NFS_TIMEOUT { 2, 500000 };
+/* struct timespec */
+#define NFS_WAIT { 0, 25000000 };
+/* struct timespec */
+#define NFS_SLEEP { 1, 0 };
 
 typedef struct results {
     unsigned long us;
