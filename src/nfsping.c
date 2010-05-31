@@ -139,15 +139,15 @@ int main(int argc, char **argv) {
             case 'A':
                 ip = 1;
                 break;
+            /* number of pings per target, parseable summary */
+            case 'C':
+                verbose = 1;
+                /* fall through to regular count */
             /* number of pings per target */
             case 'c':
                 count = strtoul(optarg, NULL, 10);
                 /* TODO if count==0 */
                 break;
-            /* number of pings per target, parseable summary */
-            case 'C':
-                verbose = 1;
-                /* fall through to regular count */
             /* do reverse dns lookups for IP addresses */
             case 'd':
                 dns = 1;
