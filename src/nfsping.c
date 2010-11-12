@@ -405,5 +405,15 @@ int main(int argc, char **argv) {
         print_verbose_summary(*targets);
     else
         print_summary(*targets);
+    /* loop through the targets and find any that didn't get a response
+     * exit with a failure if there were any missing responses */
+    target = targets;
+    while (target) {
+        if (target->received < target->sent)
+            exit(EXIT_FAILURE);
+        else
+            target = target->next;
+    }
+    /* otherwise exit successfully */
     exit(EXIT_SUCCESS);
 }
