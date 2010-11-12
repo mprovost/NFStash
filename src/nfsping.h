@@ -1,3 +1,6 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <rpc/rpc.h>
 #include <time.h>
 #include <signal.h>
