@@ -21,7 +21,7 @@ void ms2tv(struct timeval *tv, unsigned long ms) {
 /* convert milliseconds to a timespec */
 void ms2ts(struct timespec *ts, unsigned long ms) {
     ts->tv_sec = ms / 1000;
-    ts->tv_nsec = (ms % 1000000) * 1000000;
+    ts->tv_nsec = (ms % 1000) * 1000000;
 }
 
 unsigned long ts2ms(struct timespec ts) {
