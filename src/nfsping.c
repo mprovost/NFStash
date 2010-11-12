@@ -327,14 +327,16 @@ int main(int argc, char **argv) {
             target->sent++;
 
             if (status == RPC_SUCCESS) {
+                target->received++;
+
                 /* check if we're not looping */
                 if (!count && !loop) {
                     printf("%s is alive\n", target->name);
-                    exit(EXIT_SUCCESS);
+                    target = target->next;
+                    continue;
                 }
-                target->received++;
-                loss = (target->sent - target->received) / (double)target->sent * 100;
 
+                loss = (target->sent - target->received) / (double)target->sent * 100;
                 us = tv2us(call_end) - tv2us(call_start);
 
                 /* first result is a special case */
@@ -360,7 +362,6 @@ int main(int argc, char **argv) {
                 clnt_perror(target->client, "clnt_call");
                 if (!count && !loop) {
                     printf("%s is dead\n", target->name);
-                    exit(EXIT_FAILURE);
                 }
                 if (verbose && target->sent > 1) {
                     target->current->next = calloc(1, sizeof(results_t));
@@ -376,6 +377,19 @@ int main(int argc, char **argv) {
         /* reset back to start of list */
         /* do this at the end of the loop not the start so we can check if we're done or need to sleep */
         target = targets;
+
+        /* if we're not looping we can exit now */
+        if (!count && !loop) {
+            /* loop through the targets, if we find any that errored, exit with a failure */
+            while (target) {
+                if (target->received)
+                    target = target->next;
+                else
+                    exit(EXIT_FAILURE);
+            }
+            /* didn't find any failures */
+            exit(EXIT_SUCCESS);
+        }
 
         if (count && target->sent >= count) {
             break;
