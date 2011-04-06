@@ -1,0 +1,66 @@
+NFSping is a command line utility for measuring the response time of an NFS server. It's basically a copy of the fping interface but doesn't share any code with that project.
+
+On modern NFS servers, the network stack and filesystem are often being run on separate cores or even hardware components. This means in practise that a fast ICMP ping response isn't indicative of how quickly the NFS filesystem is responding. This tool more directly tests the NFS component of the operating system.
+
+It checks if the server is responding by sending an NFS NULL procedure and checking for a response. The NULL procedure is a noop that is designed for testing. NFSping supports versions 2 and 3 of NFS. By default it doesn't use the RPC portmapper and defaults to checking port 2049 using the UDP transport.
+
+In its most basic form it simply reports whether the server is responding:
+
+$ nfsping localhost
+localhost is alive
+
+and exits with a return status of 0, or:
+
+$ nfsping localhost
+clnt_call: RPC: Timed out
+localhost is dead
+
+and exiting with a status of 1. This simple form of the command can be built into scripts which just check if the server is up or not without being concerned about a particular response time.
+
+To measure response time, pass the number of requests to send as an argument:
+
+$ nfsping -c 5 localhost
+localhost : [0], 0.09 ms (0.09 avg, 0% loss)
+localhost : [1], 0.16 ms (0.12 avg, 0% loss)
+localhost : [2], 0.15 ms (0.13 avg, 0% loss)
+localhost : [3], 0.16 ms (0.14 avg, 0% loss)
+localhost : [4], 0.12 ms (0.14 avg, 0% loss)
+
+localhost : xmt/rcv/%loss = 5/5/0%, min/avg/max = 0.09/0.14/0.16
+
+To exit early, use control-C.
+
+It also has a form that produces more easily parsed output:
+
+$ nfsping -C 5 localhost
+localhost : [0], 1.96 ms (1.96 avg, 0% loss)
+localhost : [1], 0.11 ms (1.04 avg, 0% loss)
+localhost : [2], 0.12 ms (0.73 avg, 0% loss)
+localhost : [3], 0.16 ms (0.59 avg, 0% loss)
+localhost : [4], 0.18 ms (0.51 avg, 0% loss)
+
+localhost : 1.96 0.11 0.12 0.16 0.18
+
+To only show the summary line, use the -q option.
+
+To keep sending requests indefinitely like traditional ping, use the -l option.
+
+This is a list of the available command-line options:
+
+Usage: nfsping [options] [targets...]
+    -2    use NFS version 2
+    -A    show IP addresses
+    -c n  count of pings to send to target
+    -C n  same as -c, output parseable format
+    -d    reverse DNS lookups for targets
+    -i n  interval between targets (in ms, default 25)
+    -l    loop forever
+    -m    use multiple target IP addresses if found
+    -M    use the portmapper (default no)
+    -p n  pause between pings to target (in ms, default 1000)
+    -P n  specify NFS port (default 2049)
+    -q    quiet, only print summary
+    -t n  timeout (in ms, default 2500)
+    -T    use TCP (default UDP)
+
+NFSping will handle multiple targets and iterate through them on each round. If there are multiple DNS responses for a target, only the first is used. All of them can be checked by using the -m option. The sleep interval between targets can be controlled with the -i option. If any of the targets fail to respond, the command will exit with a status code of 1.
