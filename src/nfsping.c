@@ -49,6 +49,7 @@ void usage() {
     -l    loop forever\n\
     -m    use multiple target IP addresses if found\n\
     -M    use the portmapper (default no)\n\
+    -n    check the mount protocol (default NFS)\n\
     -p n  pause between pings to target (in ms, default %lu)\n\
     -P n  specify NFS port (default %i)\n\
     -q    quiet, only print summary\n\
@@ -111,7 +112,7 @@ int main(int argc, char **argv) {
     int ch;
     unsigned long count = 0;
     /* command-line options */
-    int dns = 0, verbose = 0, loop = 0, ip = 0, quiet = 0, multiple = 0;
+    int dns = 0, verbose = 0, loop = 0, ip = 0, quiet = 0, multiple = 0, mount = 0;
     /* default to NFS v3 */
     u_long version = 3;
     int first, index;
@@ -129,7 +130,7 @@ int main(int argc, char **argv) {
     if (argc == 1)
         usage();
 
-    while ((ch = getopt(argc, argv, "2Ac:C:dhi:lmMp:P:qt:T")) != -1) {
+    while ((ch = getopt(argc, argv, "2Ac:C:dhi:lmnMp:P:qt:T")) != -1) {
         switch(ch) {
             /* use NFS version 2 */
             case 2:
@@ -168,6 +169,10 @@ int main(int argc, char **argv) {
             case 'M':
                 port = 0;
                 break;
+            /* check mount protocol */
+            case 'n':
+                mount = 1;
+                break;
             /* time between pings to target */
             case 'p':
                 ms2ts(&sleep_time, strtoul(optarg, NULL, 10));
@@ -195,6 +200,11 @@ int main(int argc, char **argv) {
             default:
                 usage();
         }
+    }
+
+    /* if we're checking mount instead of nfs, set the correct port unless specified as an option or using the portmapper */
+    if (mount && port == htons(NFS_PORT)) {
+        port = htons(MOUNT_PORT);
     }
 
     /* mark the first non-option argument */
@@ -295,14 +305,20 @@ int main(int argc, char **argv) {
     while (target) {
         /* TCP */
         if (hints.ai_socktype == SOCK_STREAM) {
-            target->client = clnttcp_create(target->client_sock, NFS_PROGRAM, version, &sock, 0, 0);
+            if (mount)
+                target->client = clnttcp_create(target->client_sock, MOUNT_PROGRAM, version, &sock, 0, 0);
+            else
+                target->client = clnttcp_create(target->client_sock, NFS_PROGRAM, version, &sock, 0, 0);
             if (target->client == NULL) {
                 clnt_pcreateerror("clnttcp_create");
                 exit(EXIT_FAILURE);
             }
         /* UDP */
         } else {
-            target->client = clntudp_create(target->client_sock, NFS_PROGRAM, version, timeout, &sock);
+            if (mount)
+                target->client = clntudp_create(target->client_sock, MOUNT_PROGRAM, version, timeout, &sock);
+            else
+                target->client = clntudp_create(target->client_sock, NFS_PROGRAM, version, timeout, &sock);
             if (target->client == NULL) {
                 clnt_pcreateerror("clntudp_create");
                 exit(EXIT_FAILURE);
@@ -322,7 +338,10 @@ int main(int argc, char **argv) {
 
         while (target) {
             gettimeofday(&call_start, NULL);
-            status = clnt_call(target->client, NFSPROC_NULL, (xdrproc_t) xdr_void, NULL, (xdrproc_t) xdr_void, error, timeout);
+            if (mount)
+                status = clnt_call(target->client, MOUNTPROC_NULL, (xdrproc_t) xdr_void, NULL, (xdrproc_t) xdr_void, error, timeout);
+            else
+                status = clnt_call(target->client, NFSPROC_NULL, (xdrproc_t) xdr_void, NULL, (xdrproc_t) xdr_void, error, timeout);
             gettimeofday(&call_end, NULL);
             target->sent++;
 

@@ -19,6 +19,11 @@
 /* struct timespec */
 #define NFS_SLEEP { 1, 0 };
 
+#define MOUNT_PROGRAM 100005
+/* this isn't really a standard */
+#define MOUNT_PORT    4046
+#define MOUNTPROC_NULL 0
+
 typedef struct results {
     unsigned long us;
     struct results *next;
