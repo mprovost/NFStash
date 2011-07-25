@@ -210,6 +210,11 @@ int main(int argc, char **argv) {
     /* mark the first non-option argument */
     first = optind;
 
+    /* check if we don't have any targets */
+    if (first == argc) {
+        usage();
+    }
+
     targets = calloc(1, sizeof(targets_t));
     target = targets;
 
