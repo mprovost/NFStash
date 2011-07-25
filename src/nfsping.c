@@ -102,6 +102,7 @@ int main(int argc, char **argv) {
     int sock = RPC_ANYSOCK;
     uint16_t port = htons(NFS_PORT);
     struct addrinfo hints, *addr;
+    struct rpc_err clnt_err;
     int getaddr;
     unsigned long us;
     double loss;
@@ -401,7 +402,12 @@ int main(int argc, char **argv) {
                 if (!quiet)
                     printf("%s : [%u], %03.2f ms (%03.2f avg, %.0f%% loss)\n", target->name, target->sent - 1, us / 1000.0, target->avg / 1000.0, loss);
             } else {
+                clnt_geterr(target->client, &clnt_err);
                 clnt_perror(target->client, "clnt_call");
+                /* mount port isn't very standard so print a warning */
+                if (mount && target->client_sock->sin_port && clnt_err.re_status == RPC_CANTRECV) {
+                    fprintf(stderr, "Unable to contact mount port, consider using portmapper (-M)\n");
+                }
                 if (!count && !loop) {
                     printf("%s is dead\n", target->name);
                 }
