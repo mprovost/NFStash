@@ -61,7 +61,7 @@ Usage: nfsping [options] [targets...]
     -M    use the portmapper (default no)
     -n    check the mount protocol (default NFS)
     -p n  pause between pings to target (in ms, default 1000)
-    -P n  specify port (default 2049)
+    -P n  specify port (default NFS:2049 mount:4046)
     -q    quiet, only print summary
     -t n  timeout (in ms, default 2500)
     -T    use TCP (default UDP)
