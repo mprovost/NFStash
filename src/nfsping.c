@@ -167,7 +167,13 @@ int main(int argc, char **argv) {
                 break;
             /* use the portmapper */
             case 'M':
-                port = 0;
+                /* check if it's been changed from the default by the -P option */
+                if (port == htons(NFS_PORT)) {
+                    port = 0;
+                } else {
+                    fprintf(stderr, "nfsping: Can't specify both port and portmapper!\n");
+                    exit(3);
+                }
                 break;
             /* check mount protocol */
             case 'n':
@@ -179,7 +185,13 @@ int main(int argc, char **argv) {
                 break;
             /* specify NFS port */
             case 'P':
-                port = htons(strtoul(optarg, NULL, 10));
+                /* check for the portmapper option */
+                if (port) {
+                    port = htons(strtoul(optarg, NULL, 10));
+                } else {
+                    fprintf(stderr, "nfsping: Can't specify both portmapper and port!\n");
+                    exit(3);
+                }    
                 break;
             /* quiet, only print summary */
             case 'q':
