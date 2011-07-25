@@ -4,6 +4,8 @@ On modern NFS servers, the network stack and filesystem are often being run on s
 
 It checks if the server is responding by sending an NFS NULL procedure and checking for a response. The NULL procedure is a noop that is designed for testing. NFSping supports versions 2 and 3 of NFS. By default it doesn't use the RPC portmapper and defaults to checking port 2049 using the UDP transport.
 
+It can also check the NFS mount protocol response.
+
 In its most basic form it simply reports whether the server is responding:
 
 $ nfsping localhost
@@ -57,6 +59,7 @@ Usage: nfsping [options] [targets...]
     -l    loop forever
     -m    use multiple target IP addresses if found
     -M    use the portmapper (default no)
+    -n    check the mount protocol (default NFS)
     -p n  pause between pings to target (in ms, default 1000)
     -P n  specify NFS port (default 2049)
     -q    quiet, only print summary
