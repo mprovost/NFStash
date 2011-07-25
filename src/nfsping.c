@@ -51,7 +51,7 @@ void usage() {
     -M    use the portmapper (default no)\n\
     -n    check the mount protocol (default NFS)\n\
     -p n  pause between pings to target (in ms, default %lu)\n\
-    -P n  specify NFS port (default %i)\n\
+    -P n  specify port (default %i)\n\
     -q    quiet, only print summary\n\
     -t n  timeout (in ms, default %lu)\n\
     -T    use TCP (default UDP)\n",
@@ -147,7 +147,10 @@ int main(int argc, char **argv) {
             /* number of pings per target */
             case 'c':
                 count = strtoul(optarg, NULL, 10);
-                /* TODO if count==0 */
+                if (count == 0) {
+                    fprintf(stderr, "nfsping: zero count, nothing to do!\n");
+                    exit(3);
+                }
                 break;
             /* do reverse dns lookups for IP addresses */
             case 'd':
