@@ -202,8 +202,11 @@ int main(int argc, char **argv) {
                 break;
             /* timeout */
             case 't':
-                /* TODO check for zero */
                 ms2tv(&timeout, strtoul(optarg, NULL, 10));
+                if (timeout.tv_sec == 0 && timeout.tv_usec == 0) {
+                    fprintf(stderr, "nfsping: zero timeout!\n");
+                    exit(3);
+                }
                 break;
             /* use TCP */
             case 'T':
