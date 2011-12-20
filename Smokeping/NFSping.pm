@@ -29,12 +29,17 @@ DOC
 Integrates NFSping as a probe into smokeping. The variable B<binary> must 
 point to your copy of the NFSping program.
 
+NFSping can be downloaded from:
+
+L<https://github.com/mprovost/NFSping>
+
 In B<blazemode>, NFSping sends one more ping than requested, and discards
 the first RTT value returned as it's likely to be an outlier.
 
 DOC
 		authors => <<'DOC',
 Tobias Oetiker <tobi@oetiker.ch>
+Matt Provost <mprovost@termcap.net>
 DOC
 	}
 }
@@ -116,7 +121,7 @@ sub ping ($){
     while (<$errh>){
         chomp;
 	$self->do_debug("Got nfsping output: '$_'");
-        next unless /^\S+\s+:\s+[-\d\.]/; #filter out error messages from fping
+        next unless /^\S+\s+:\s+[-\d\.]/; #filter out error messages from nfsping
         my @times = split /\s+/;
         my $ip = shift @times;
         next unless ':' eq shift @times; #drop the colon
@@ -139,38 +144,35 @@ sub probevars {
 		binary => {
 			_sub => sub {
 				my ($val) = @_;
-        			return undef if $ENV{SERVER_SOFTWARE}; # don't check for fping presence in cgi mode
+        			return undef if $ENV{SERVER_SOFTWARE}; # don't check for nfsping presence in cgi mode
 				return "ERROR: NFSping 'binary' does not point to an executable"
             				unless -f $val and -x _;
 				return undef;
 			},
-			_doc => "The location of your fping binary.",
-			_example => '/usr/bin/fping',
+			_doc => "The location of your nfsping binary.",
+			_example => '/usr/local/bin/nfsping',
 		},
 		blazemode => {
 			_re => '(true|false)',
 			_example => 'true',
-			_doc => "Send an extra ping and then discarge the first answer since the first is bound to be an outliner.",
+			_doc => "Send an extra ping and then discard the first answer since the first is bound to be an outlier.",
 
 		},
 		timeout => {
 			_re => '(\d*\.)?\d+',
 			_example => 1.5,
 			_doc => <<DOC,
-The fping "-t" parameter, but in (possibly fractional) seconds rather than
-milliseconds, for consistency with other Smokeping probes. Note that as
-Smokeping uses the fping 'counting' mode (-C), this apparently only affects
-the last ping.
+The nfsping "-t" parameter, but in (possibly fractional) seconds rather than
+milliseconds, for consistency with other Smokeping probes.
 DOC
 		},
 		hostinterval => {
 			_re => '(\d*\.)?\d+',
 			_example => 1.5,
 			_doc => <<DOC,
-The fping "-p" parameter, but in (possibly fractional) seconds rather than
-milliseconds, for consistency with other Smokeping probes. From fping(1):
-
-This parameter sets the time that fping  waits between successive packets
+The nfsping "-p" parameter, but in (possibly fractional) seconds rather than
+milliseconds, for consistency with other Smokeping probes. This
+parameter sets the time that nfsping  waits between successive packets
 to an individual target.
 DOC
 		},
@@ -179,10 +181,9 @@ DOC
 			_example => .001,
 			_default => .01,
 			_doc => <<DOC,
-The fping "-i" parameter, but in (probably fractional) seconds rather than
-milliseconds, for consistency with other Smokeping probes. From fping(1):
-
-The minimum amount of time between sending a ping packet to any target.
+The nfsping "-i" parameter, but in (probably fractional) seconds rather than
+milliseconds, for consistency with other Smokeping probes. This is the
+interval between pings to successive targets. 
 DOC
 		},
 	});
