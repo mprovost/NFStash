@@ -330,7 +330,7 @@ int main(int argc, char **argv) {
         /* TCP */
         if (hints.ai_socktype == SOCK_STREAM) {
             if (mount)
-                target->client = clnttcp_create(target->client_sock, MOUNT_PROGRAM, version, &sock, 0, 0);
+                target->client = clnttcp_create(target->client_sock, MOUNTPROG, version, &sock, 0, 0);
             else
                 target->client = clnttcp_create(target->client_sock, NFS_PROGRAM, version, &sock, 0, 0);
             if (target->client == NULL) {
@@ -340,7 +340,7 @@ int main(int argc, char **argv) {
         /* UDP */
         } else {
             if (mount)
-                target->client = clntudp_create(target->client_sock, MOUNT_PROGRAM, version, timeout, &sock);
+                target->client = clntudp_create(target->client_sock, MOUNTPROG, version, timeout, &sock);
             else
                 target->client = clntudp_create(target->client_sock, NFS_PROGRAM, version, timeout, &sock);
             if (target->client == NULL) {
