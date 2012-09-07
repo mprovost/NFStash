@@ -13,7 +13,6 @@ bool_t xdr_fhandle(XDR *xdrs, fhandle objp) {
 }
 
 bool_t xdr_fhstatus (XDR *xdrs, fhstatus *objp) {
-    printf("fhs_status = %u\n", objp->fhs_status);
     if (!xdr_u_int(xdrs, &objp->fhs_status))
         return FALSE;
 
@@ -38,6 +37,7 @@ int main(int argc, char **argv) {
     u_long version = 3;
     uint16_t port = htons(MOUNT_PORT);
     bool_t dirpath;
+    int i;
 
     client_sock.sin_family = AF_INET;
     client_sock.sin_port = port;
@@ -52,7 +52,14 @@ int main(int argc, char **argv) {
     status = clnt_call(client, MOUNTPROC_MNT, (xdrproc_t) xdr_dirpath, &argv[2], (xdrproc_t) xdr_fhstatus, &result, timeout);
 
     if (status == RPC_SUCCESS) {
-        printf("filehandle: %d\n", result.fhs_status);
+        printf("fhs_status = %u\n", result.fhs_status);
+        if (result.fhs_status == MNT3_OK) {
+            printf("filehandle: 0x");
+            for (i = 0; i < FHSIZE; i++) {
+                printf("%02hhx", result.fhstatus_u.fhs_fhandle[i]);
+            }
+            printf("\n");
+        }
     } else {
         clnt_geterr(client, &clnt_err);
         clnt_perror(client, "clnt_call");
