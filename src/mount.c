@@ -1,30 +1,7 @@
 #include "nfsping.h"
 
-bool_t xdr_dirpath (XDR *xdrs, dirpath *objp) {
-    if (!xdr_string(xdrs, objp, MNTPATHLEN))
-        return FALSE;
-    return TRUE;
-}
-
-bool_t xdr_fhandle(XDR *xdrs, fhandle objp) {
-    if (!xdr_opaque(xdrs, objp, FHSIZE))
-        return FALSE;
-    return TRUE;
-}
-
-bool_t xdr_fhstatus (XDR *xdrs, fhstatus *objp) {
-    if (!xdr_u_int(xdrs, &objp->fhs_status))
-        return FALSE;
-
-    if (objp->fhs_status == 0) {
-        if (!xdr_fhandle(xdrs, objp->fhstatus_u.fhs_fhandle))
-            return FALSE;
-    }
-    return TRUE;
-}
-
 int main(int argc, char **argv) {
-    enum clnt_stat status;
+    mountres3 *mountres;
     struct rpc_err clnt_err;
     int sock = RPC_ANYSOCK;
     CLIENT *client;
@@ -47,21 +24,20 @@ int main(int argc, char **argv) {
 
     client = clntudp_create(&client_sock, MOUNTPROG, version, timeout, &sock);
 
-    //result = mountproc_mnt_1(&argv[2], client);
+    mountres = mountproc_mnt_3(&argv[2], client);
 
-    status = clnt_call(client, MOUNTPROC_MNT, (xdrproc_t) xdr_dirpath, &argv[2], (xdrproc_t) xdr_fhstatus, &result, timeout);
-
-    if (status == RPC_SUCCESS) {
-        printf("fhs_status = %u\n", result.fhs_status);
-        if (result.fhs_status == MNT3_OK) {
-            printf("filehandle: 0x");
-            for (i = 0; i < FHSIZE; i++) {
-                printf("%02hhx", result.fhstatus_u.fhs_fhandle[i]);
-            }
-            printf("\n");
+    printf("fhs_status = %u\n", mountres->fhs_status);
+    if (mountres->fhs_status == MNT3_OK) {
+        printf("filehandle: 0x");
+        for (i = 0; i < mountres->mountres3_u.mountinfo.fhandle.fhandle3_len; i++) {
+            printf("%02hhx", mountres->mountres3_u.mountinfo.fhandle.fhandle3_val[i]);
         }
-    } else {
-        clnt_geterr(client, &clnt_err);
-        clnt_perror(client, "clnt_call");
+        printf("\n");
     }
+
+    clnt_destroy(client);
+
+    client_sock.sin_port = htons(NFS_PORT);
+    client = clntudp_create(&client_sock, NFS_PROGRAM, version, timeout, &sock);
+
 }
