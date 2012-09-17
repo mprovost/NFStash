@@ -93,7 +93,7 @@ void print_verbose_summary(targets_t targets) {
 }
 
 int main(int argc, char **argv) {
-    enum clnt_stat status;
+    void *status;
     char *error;
     struct timeval timeout = NFS_TIMEOUT;
     struct timeval call_start, call_end;
@@ -253,6 +253,7 @@ int main(int argc, char **argv) {
 
         target->client_sock = calloc(1, sizeof(struct sockaddr_in));
         target->client_sock->sin_family = AF_INET;
+        /* TODO use pmap_getport to talk to the portmapper directly and set the port */
         target->client_sock->sin_port = port;
 
         /* first try treating the hostname as an IP address */
@@ -348,7 +349,10 @@ int main(int argc, char **argv) {
                 exit(EXIT_FAILURE);
             }
         }
+
         target->client->cl_auth = authnone_create();
+        clnt_control(target->client, CLSET_TIMEOUT, (char *)&timeout);
+
         target = target->next;
     }
 
@@ -363,13 +367,14 @@ int main(int argc, char **argv) {
         while (target) {
             gettimeofday(&call_start, NULL);
             if (mount)
-                status = clnt_call(target->client, MOUNTPROC_NULL, (xdrproc_t) xdr_void, NULL, (xdrproc_t) xdr_void, error, timeout);
+                status = mountproc_null_3(NULL, target->client);
             else
-                status = clnt_call(target->client, NFSPROC_NULL, (xdrproc_t) xdr_void, NULL, (xdrproc_t) xdr_void, error, timeout);
+                status = nfsproc3_null_3(NULL, target->client);
             gettimeofday(&call_end, NULL);
             target->sent++;
 
-            if (status == RPC_SUCCESS) {
+            //if (status == RPC_SUCCESS) {
+            if (status != NULL) {
                 target->received++;
 
                 /* check if we're not looping */
@@ -403,7 +408,11 @@ int main(int argc, char **argv) {
                     printf("%s : [%u], %03.2f ms (%03.2f avg, %.0f%% loss)\n", target->name, target->sent - 1, us / 1000.0, target->avg / 1000.0, loss);
             } else {
                 clnt_geterr(target->client, &clnt_err);
-                clnt_perror(target->client, "clnt_call");
+                if (mount)
+                    clnt_perror(target->client, "mountproc_null_3");
+                else
+                    clnt_perror(target->client, "nfsproc3_null_3");
+
                 /* mount port isn't very standard so print a warning */
                 if (mount && target->client_sock->sin_port && clnt_err.re_status == RPC_CANTRECV) {
                     fprintf(stderr, "Unable to contact mount port, consider using portmapper (-M)\n");
