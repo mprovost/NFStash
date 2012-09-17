@@ -35,12 +35,12 @@ void int_handler(int sig) {
 }
 
 void usage() {
-    struct timeval timeout = NFS_TIMEOUT;
-    struct timespec wait_time = NFS_WAIT;
+    struct timeval  timeout    = NFS_TIMEOUT;
+    struct timespec wait_time  = NFS_WAIT;
     struct timespec sleep_time = NFS_SLEEP;
 
     printf("Usage: nfsping [options] [targets...]\n\
-    -2    use NFS version 2\n\
+    -2    use NFS version 2 (default 3)\n\
     -A    show IP addresses\n\
     -c n  count of pings to send to target\n\
     -C n  same as -c, output parseable format\n\
