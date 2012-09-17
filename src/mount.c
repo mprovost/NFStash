@@ -19,39 +19,71 @@ int main(int argc, char **argv) {
     uint16_t port = htons(MOUNT_PORT);
     bool_t dirpath;
     int i;
+    char *host;
+    char *path;
 
     client_sock.sin_family = AF_INET;
     client_sock.sin_port = port;
-    printf("mounting %s on %s\n", argv[2], argv[1]);
-    intresult = inet_pton(AF_INET, argv[1], &client_sock.sin_addr);
+    host = strtok(argv[1], ":");
+    path = strtok(NULL, ":");
+    printf("mounting %s on %s\n", path, host); 
+    intresult = inet_pton(AF_INET, host, &client_sock.sin_addr);
     inet_ntop(AF_INET, &client_sock.sin_addr, &hostname, INET_ADDRSTRLEN);
 
-    client = clntudp_create(&client_sock, MOUNTPROG, version, timeout, &sock);
-    client->cl_auth = authunix_create_default();
+    fsstatargp = calloc(1, sizeof(FSSTAT3args));
 
-    mountres = mountproc_mnt_3(&argv[2], client);
+    if (path[0] == '/') {
+        client = clntudp_create(&client_sock, MOUNTPROG, version, timeout, &sock);
+        client->cl_auth = authunix_create_default();
 
-    printf("fhs_status = %u\n", mountres->fhs_status);
-    if (mountres->fhs_status == MNT3_OK) {
-        printf("filehandle: 0x");
-        for (i = 0; i < mountres->mountres3_u.mountinfo.fhandle.fhandle3_len; i++) {
-            printf("%02hhx", mountres->mountres3_u.mountinfo.fhandle.fhandle3_val[i]);
+        mountres = mountproc_mnt_3(&path, client);
+
+        if (mountres) {
+            printf("fhs_status = %u\n", mountres->fhs_status);
+            if (mountres->fhs_status == MNT3_OK) {
+                printf("filehandle: ");
+                for (i = 0; i < mountres->mountres3_u.mountinfo.fhandle.fhandle3_len; i++) {
+                    printf("%02hhx", mountres->mountres3_u.mountinfo.fhandle.fhandle3_val[i]);
+                }
+                printf("\n");
+            }
+        } else {
+           clnt_geterr(client, &clnt_err);
+           /* check for authentication errors which probably mean it needs a low port */
+           if (clnt_err.re_status == RPC_AUTHERROR)
+               printf("Unable to mount filesystem, consider running as root\n");
+
+           clnt_perror(client, "mountproc_mnt_3");
+           exit(1);
         }
-        printf("\n");
+
+        fsstatargp->fsroot.data.data_len = mountres->mountres3_u.mountinfo.fhandle.fhandle3_len;
+        fsstatargp->fsroot.data.data_val = mountres->mountres3_u.mountinfo.fhandle.fhandle3_val;
+
+        //clnt_destroy(client);
+    } else {
+        /* hex takes two characters for each byte */
+        if (strlen(path) == FHSIZE * 2) {
+            fsstatargp->fsroot.data.data_val = calloc(FHSIZE, sizeof(char));
+            for (i = 0; i < FHSIZE; i++)
+                sscanf(&path[i * 2], "%2hhx", &fsstatargp->fsroot.data.data_val[i]);
+
+                printf("filehandle hex: ");
+                for (i = 0; i < 32; i++) {
+                    printf("%02hhx", fsstatargp->fsroot.data.data_val[i]);
+                }
+                printf("\n");
+        fsstatargp->fsroot.data.data_len = FHSIZE;
+        } else {
+            printf("oops! %i\n", strlen(path));
+        }
     }
-
-    //clnt_destroy(client);
-
+        
     client_sock.sin_port = htons(NFS_PORT);
     client = clntudp_create(&client_sock, NFS_PROGRAM, version, timeout, &nfs_sock);
     client->cl_auth = authunix_create_default();
 
-    fsstatargp = calloc(1, sizeof(FSSTAT3args));
     fsstatres = calloc(1, sizeof(FSSTAT3res));
-
-    fsstatargp->fsroot.data.data_len = mountres->mountres3_u.mountinfo.fhandle.fhandle3_len;
-    fsstatargp->fsroot.data.data_val = mountres->mountres3_u.mountinfo.fhandle.fhandle3_val;
-
     fsstatres = nfsproc3_fsstat_3(fsstatargp, client);
 
     if (fsstatres->status == NFS3_OK) {
