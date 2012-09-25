@@ -16,19 +16,24 @@ int main(int argc, char **argv) {
     fhstatus result;
     int intresult;
     u_long version = 3;
-    uint16_t port = htons(MOUNT_PORT);
     bool_t dirpath;
     int i;
     char *host;
     char *path;
 
     client_sock.sin_family = AF_INET;
-    client_sock.sin_port = port;
     host = strtok(argv[1], ":");
     path = strtok(NULL, ":");
-    printf("mounting %s on %s\n", path, host); 
     intresult = inet_pton(AF_INET, host, &client_sock.sin_addr);
     inet_ntop(AF_INET, &client_sock.sin_addr, &hostname, INET_ADDRSTRLEN);
+    printf("mounting %s on %s\n", path, hostname); 
+
+    /* get mount port from portmapper */
+    client_sock.sin_port = htons(pmap_getport(&client_sock, MOUNTPROG, version, IPPROTO_UDP));
+    if (client_sock.sin_port == 0) {
+        clnt_pcreateerror("pmap_getport");
+        exit(1);
+    }
 
     fsstatargp = calloc(1, sizeof(FSSTAT3args));
 
