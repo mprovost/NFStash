@@ -252,9 +252,6 @@ int main(int argc, char **argv) {
         }
 
         target->client_sock = calloc(1, sizeof(struct sockaddr_in));
-        target->client_sock->sin_family = AF_INET;
-        /* TODO use pmap_getport to talk to the portmapper directly and set the port */
-        target->client_sock->sin_port = port;
 
         /* first try treating the hostname as an IP address */
         if (inet_pton(AF_INET, target->name, &((struct sockaddr_in *)target->client_sock)->sin_addr)) {
@@ -296,8 +293,6 @@ int main(int argc, char **argv) {
                             }
 
                             target->client_sock = calloc(1, sizeof(struct sockaddr_in));
-                            target->client_sock->sin_family = AF_INET;
-                            target->client_sock->sin_port = port;
                         } else {
                             /* we have to look up the IP address if we haven't already for the warning */
                             if (!ip) {
@@ -328,26 +323,51 @@ int main(int argc, char **argv) {
     /* loop through the targets and create the rpc client */
     /* TODO should we exit on failure or just skip to the next target? */
     while (target) {
+        target->client_sock->sin_family = AF_INET;
+
+        if (port)
+            target->client_sock->sin_port = port;
+
         /* TCP */
         if (hints.ai_socktype == SOCK_STREAM) {
-            if (mount)
+            if (mount) {
+                /* check the portmapper */
+                if (port == 0)
+                    target->client_sock->sin_port = htons(pmap_getport(target->client_sock, MOUNTPROG, version, IPPROTO_TCP));
                 target->client = clnttcp_create(target->client_sock, MOUNTPROG, version, &sock, 0, 0);
-            else
+            } else {
+                /* check the portmapper */
+                if (port == 0)
+                    target->client_sock->sin_port = htons(pmap_getport(target->client_sock, NFS_PROGRAM, version, IPPROTO_TCP));
                 target->client = clnttcp_create(target->client_sock, NFS_PROGRAM, version, &sock, 0, 0);
+            }
             if (target->client == NULL) {
                 clnt_pcreateerror("clnttcp_create");
                 exit(EXIT_FAILURE);
             }
         /* UDP */
         } else {
-            if (mount)
+            if (mount) {
+                /* check the portmapper */
+                if (port == 0)
+                    target->client_sock->sin_port = htons(pmap_getport(target->client_sock, MOUNTPROG, version, IPPROTO_UDP));
                 target->client = clntudp_create(target->client_sock, MOUNTPROG, version, timeout, &sock);
-            else
+            } else {
+                /* check the portmapper */
+                if (port == 0)
+                    target->client_sock->sin_port = htons(pmap_getport(target->client_sock, NFS_PROGRAM, version, IPPROTO_UDP));
                 target->client = clntudp_create(target->client_sock, NFS_PROGRAM, version, timeout, &sock);
+            }
             if (target->client == NULL) {
                 clnt_pcreateerror("clntudp_create");
                 exit(EXIT_FAILURE);
             }
+        }
+
+        /* check if the portmapper failed */
+        if (target->client_sock->sin_port == 0) {
+            clnt_pcreateerror("pmap_getport");
+            exit(EXIT_FAILURE);
         }
 
         target->client->cl_auth = authnone_create();
@@ -373,7 +393,6 @@ int main(int argc, char **argv) {
             gettimeofday(&call_end, NULL);
             target->sent++;
 
-            //if (status == RPC_SUCCESS) {
             if (status != NULL) {
                 target->received++;
 
