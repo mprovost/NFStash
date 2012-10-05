@@ -48,7 +48,7 @@ void usage() {
     -i n  interval between targets (in ms, default %lu)\n\
     -l    loop forever\n\
     -m    use multiple target IP addresses if found\n\
-    -M    use the portmapper (default no)\n\
+    -M    use the portmapper (default: NFS no, mount yes)\n\
     -n    check the mount protocol (default NFS)\n\
     -p n  pause between pings to target (in ms, default %lu)\n\
     -P n  specify port (default NFS:%i mount:%i)\n\
@@ -221,9 +221,9 @@ int main(int argc, char **argv) {
         }
     }
 
-    /* if we're checking mount instead of nfs, set the correct port unless specified as an option or using the portmapper */
+    /* if we're checking mount instead of nfs, default to using the portmapper */
     if (mount && port == htons(NFS_PORT)) {
-        port = htons(MOUNT_PORT);
+        port = 0;
     }
 
     /* mark the first non-option argument */
@@ -365,6 +365,7 @@ int main(int argc, char **argv) {
         }
 
         /* check if the portmapper failed */
+        /* by this point we should know which port we're talking to */
         if (target->client_sock->sin_port == 0) {
             clnt_pcreateerror("pmap_getport");
             exit(EXIT_FAILURE);
