@@ -2,7 +2,7 @@ NFSping is a command line utility for measuring the response time of an NFS serv
 
 On modern NFS servers, the network stack and filesystem are often being run on separate cores or even hardware components. This means in practise that a fast ICMP ping response isn't indicative of how quickly the NFS filesystem is responding. This tool more directly tests the NFS component of the operating system.
 
-It checks if the server is responding by sending an NFS NULL procedure and checking for a response. The NULL procedure is a noop that is designed for testing. NFSping supports versions 2 and 3 of NFS. By default it doesn't use the RPC portmapper and defaults to checking port 2049 using the UDP transport.
+It checks if the server is responding by sending an NFS NULL procedure and checking for a response. The NULL procedure is a noop that is designed for testing. NFSping supports versions 2 and 3 of NFS. By default it doesn't use the RPC portmapper for NFS pings and defaults to checking port 2049 using the UDP transport. It will use the portmapper for pinging the mount protocol since that doesn't use a standard port.
 
 It can also check the NFS mount protocol response using the -n option.
 
@@ -56,7 +56,7 @@ To keep sending requests indefinitely like traditional ping, use the -l option.
 This is a list of the available command-line options:
 
 Usage: nfsping [options] [targets...]
-    -2    use NFS version 2
+    -2    use NFS version 2 (default 3)
     -A    show IP addresses
     -c n  count of pings to send to target
     -C n  same as -c, output parseable format
@@ -64,7 +64,7 @@ Usage: nfsping [options] [targets...]
     -i n  interval between targets (in ms, default 25)
     -l    loop forever
     -m    use multiple target IP addresses if found
-    -M    use the portmapper (default no)
+    -M    use the portmapper (default: NFS no, mount yes)
     -n    check the mount protocol (default NFS)
     -p n  pause between pings to target (in ms, default 1000)
     -P n  specify port (default NFS:2049 mount:4046)
