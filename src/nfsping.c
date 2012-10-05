@@ -101,6 +101,7 @@ int main(int argc, char **argv) {
     struct timespec wait_time = NFS_WAIT;
     int sock = RPC_ANYSOCK;
     uint16_t port = htons(NFS_PORT);
+    unsigned long prognum = NFS_PROGRAM;
     struct addrinfo hints, *addr;
     struct rpc_err clnt_err;
     int getaddr;
@@ -113,7 +114,7 @@ int main(int argc, char **argv) {
     int ch;
     unsigned long count = 0;
     /* command-line options */
-    int dns = 0, verbose = 0, loop = 0, ip = 0, quiet = 0, multiple = 0, mount = 0;
+    int dns = 0, verbose = 0, loop = 0, ip = 0, quiet = 0, multiple = 0;
     /* default to NFS v3 */
     u_long version = 3;
     int first, index;
@@ -181,7 +182,7 @@ int main(int argc, char **argv) {
                 break;
             /* check mount protocol */
             case 'n':
-                mount = 1;
+                prognum = MOUNTPROG;
                 break;
             /* time between pings to target */
             case 'p':
@@ -222,7 +223,7 @@ int main(int argc, char **argv) {
     }
 
     /* if we're checking mount instead of nfs, default to using the portmapper */
-    if (mount && port == htons(NFS_PORT)) {
+    if (prognum == MOUNTPROG && port == htons(NFS_PORT)) {
         port = 0;
     }
 
@@ -330,34 +331,22 @@ int main(int argc, char **argv) {
 
         /* TCP */
         if (hints.ai_socktype == SOCK_STREAM) {
-            if (mount) {
-                /* check the portmapper */
-                if (port == 0)
-                    target->client_sock->sin_port = htons(pmap_getport(target->client_sock, MOUNTPROG, version, IPPROTO_TCP));
-                target->client = clnttcp_create(target->client_sock, MOUNTPROG, version, &sock, 0, 0);
-            } else {
-                /* check the portmapper */
-                if (port == 0)
-                    target->client_sock->sin_port = htons(pmap_getport(target->client_sock, NFS_PROGRAM, version, IPPROTO_TCP));
-                target->client = clnttcp_create(target->client_sock, NFS_PROGRAM, version, &sock, 0, 0);
-            }
+            /* check the portmapper */
+            if (port == 0)
+                target->client_sock->sin_port = htons(pmap_getport(target->client_sock, prognum, version, IPPROTO_TCP));
+            target->client = clnttcp_create(target->client_sock, prognum, version, &sock, 0, 0);
+
             if (target->client == NULL) {
                 clnt_pcreateerror("clnttcp_create");
                 exit(EXIT_FAILURE);
             }
         /* UDP */
         } else {
-            if (mount) {
-                /* check the portmapper */
-                if (port == 0)
-                    target->client_sock->sin_port = htons(pmap_getport(target->client_sock, MOUNTPROG, version, IPPROTO_UDP));
-                target->client = clntudp_create(target->client_sock, MOUNTPROG, version, timeout, &sock);
-            } else {
-                /* check the portmapper */
-                if (port == 0)
-                    target->client_sock->sin_port = htons(pmap_getport(target->client_sock, NFS_PROGRAM, version, IPPROTO_UDP));
-                target->client = clntudp_create(target->client_sock, NFS_PROGRAM, version, timeout, &sock);
-            }
+            /* check the portmapper */
+            if (port == 0)
+                target->client_sock->sin_port = htons(pmap_getport(target->client_sock, prognum, version, IPPROTO_UDP));
+            target->client = clntudp_create(target->client_sock, prognum, version, timeout, &sock);
+
             if (target->client == NULL) {
                 clnt_pcreateerror("clntudp_create");
                 exit(EXIT_FAILURE);
@@ -387,7 +376,7 @@ int main(int argc, char **argv) {
 
         while (target) {
             gettimeofday(&call_start, NULL);
-            if (mount)
+            if (prognum == MOUNTPROG)
                 status = mountproc_null_3(NULL, target->client);
             else
                 status = nfsproc3_null_3(NULL, target->client);
@@ -428,13 +417,14 @@ int main(int argc, char **argv) {
                     printf("%s : [%u], %03.2f ms (%03.2f avg, %.0f%% loss)\n", target->name, target->sent - 1, us / 1000.0, target->avg / 1000.0, loss);
             } else {
                 clnt_geterr(target->client, &clnt_err);
-                if (mount)
+                if (prognum == MOUNTPROG)
                     clnt_perror(target->client, "mountproc_null_3");
                 else
                     clnt_perror(target->client, "nfsproc3_null_3");
 
+                /* TODO is this needed with portmapper on by default? */
                 /* mount port isn't very standard so print a warning */
-                if (mount && target->client_sock->sin_port && clnt_err.re_status == RPC_CANTRECV) {
+                if (prognum == MOUNTPROG && target->client_sock->sin_port && clnt_err.re_status == RPC_CANTRECV) {
                     fprintf(stderr, "Unable to contact mount port, consider using portmapper (-M)\n");
                 }
                 if (!count && !loop) {
