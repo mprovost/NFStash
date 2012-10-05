@@ -25,9 +25,6 @@
 /* struct timespec */
 #define NFS_SLEEP { 1, 0 };
 
-/* this isn't really a standard */
-#define MOUNT_PORT 4046
-
 typedef struct results {
     unsigned long us;
     struct results *next;

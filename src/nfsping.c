@@ -51,11 +51,11 @@ void usage() {
     -M    use the portmapper (default: NFS no, mount yes)\n\
     -n    check the mount protocol (default NFS)\n\
     -p n  pause between pings to target (in ms, default %lu)\n\
-    -P n  specify port (default NFS:%i mount:%i)\n\
+    -P n  specify port (default NFS:%i)\n\
     -q    quiet, only print summary\n\
     -t n  timeout (in ms, default %lu)\n\
     -T    use TCP (default UDP)\n",
-    ts2ms(wait_time), ts2ms(sleep_time), NFS_PORT, MOUNT_PORT, tv2ms(timeout));
+    ts2ms(wait_time), ts2ms(sleep_time), NFS_PORT, tv2ms(timeout));
 
     exit(3);
 }
