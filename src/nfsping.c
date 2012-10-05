@@ -167,6 +167,7 @@ int main(int argc, char **argv) {
                 loop = 1;
                 break;
             /* use multiple IP addresses if found */
+            /* TODO in this case do we also want to default to showing IP addresses instead of names? */
             case 'm':
                 multiple = 1;
                 break;
@@ -268,7 +269,7 @@ int main(int argc, char **argv) {
         } else {
             /* if that fails, do a DNS lookup */
             /* we don't call freeaddrinfo because we keep a pointer to the sin_addr in the target */
-            getaddr = getaddrinfo(argv[index], "nfs", &hints, &addr);
+            getaddr = getaddrinfo(target->name, "nfs", &hints, &addr);
             if (getaddr == 0) { /* success! */
                 /* loop through possibly multiple DNS responses */
                 while (addr) {
