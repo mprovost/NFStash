@@ -34,13 +34,14 @@ u_int mount_perror(mountstat3 fhs_status) {
     return fhs_status;
 }
 
-mountres3 *get_root_filehandle(struct sockaddr_in *client_sock, char *path) {
+mountres3 *get_root_filehandle(char *hostname, struct sockaddr_in *client_sock, char *path) {
     const u_long version = 3;
     struct timeval timeout = NFS_TIMEOUT;
     int sock = RPC_ANYSOCK;
     CLIENT *client;
     struct rpc_err clnt_err;
     mountres3 *mountres;
+    int i;
 
     /* get mount port from portmapper */
     client_sock->sin_port = htons(pmap_getport(client_sock, MOUNTPROG, version, IPPROTO_UDP));
@@ -58,18 +59,27 @@ mountres3 *get_root_filehandle(struct sockaddr_in *client_sock, char *path) {
         mountres = mountproc_mnt_3(&path, client);
 
         if (mountres) {
-            if (mountres->fhs_status != MNT3_OK)
+            if (mountres->fhs_status == MNT3_OK) {
+                printf("%s:", hostname);
+                for (i = 0; i < mountres->mountres3_u.mountinfo.fhandle.fhandle3_len; i++) {
+                    printf("%02hhx", mountres->mountres3_u.mountinfo.fhandle.fhandle3_val[i]);
+                }
+                printf("\n");
+            } else {
+                fprintf(stderr, "%s: ", hostname);
                 mount_perror(mountres->fhs_status);
+            }
         } else {
-           clnt_geterr(client, &clnt_err);
-           /* check for authentication errors which probably mean it needs a low port */
-           if (clnt_err.re_status == RPC_AUTHERROR)
+            fprintf(stderr, "%s: ", hostname);
+            clnt_geterr(client, &clnt_err);
+            /* check for authentication errors which probably mean it needs a low port */
+            if (clnt_err.re_status == RPC_AUTHERROR)
                fprintf(stderr, "Unable to mount filesystem, consider running as root\n");
 
-           clnt_perror(client, "mountproc_mnt_3");
+            clnt_perror(client, "mountproc_mnt_3");
         }
     } else {
-        fprintf(stderr, "Invalid path: %s\n", path);
+        fprintf(stderr, "%s: Invalid path: %s\n", hostname, path);
         mountres->fhs_status = MNT3ERR_INVAL;
     }
         
@@ -86,7 +96,6 @@ int main(int argc, char **argv) {
     int getaddr;
     struct addrinfo hints, *addr;
     bool_t dirpath;
-    int i;
     char *host;
     char *path;
 
@@ -102,14 +111,7 @@ int main(int argc, char **argv) {
 
     /* first try treating the hostname as an IP address */
     if (inet_pton(AF_INET, host, &client_sock.sin_addr)) {
-        mountres = get_root_filehandle(&client_sock, path);
-        if (mountres && mountres->fhs_status == MNT3_OK) {
-            printf("%s:", host);
-            for (i = 0; i < mountres->mountres3_u.mountinfo.fhandle.fhandle3_len; i++) {
-                printf("%02hhx", mountres->mountres3_u.mountinfo.fhandle.fhandle3_val[i]);
-            }
-            printf("\n");
-        }
+        mountres = get_root_filehandle(host, &client_sock, path);
     } else {
         /* if that fails, do a DNS lookup */
         /* we don't call freeaddrinfo because we keep a pointer to the sin_addr in the client_sock */
@@ -118,22 +120,25 @@ int main(int argc, char **argv) {
             /* loop through possibly multiple DNS responses */
             while (addr) {
                 client_sock.sin_addr = ((struct sockaddr_in *)addr->ai_addr)->sin_addr;
-                inet_ntop(AF_INET, &((struct sockaddr_in *)addr->ai_addr)->sin_addr, hostname, INET_ADDRSTRLEN);
 
-                mountres = get_root_filehandle(&client_sock, path);
-                if (mountres && mountres->fhs_status == MNT3_OK) {
-                    printf("%s:", host);
-                    for (i = 0; i < mountres->mountres3_u.mountinfo.fhandle.fhandle3_len; i++) {
-                        printf("%02hhx", mountres->mountres3_u.mountinfo.fhandle.fhandle3_val[i]);
-                    }
-                    printf("\n");
+                if (inet_ntop(AF_INET, &((struct sockaddr_in *)addr->ai_addr)->sin_addr, hostname, INET_ADDRSTRLEN)) {
+                    mountres = get_root_filehandle(hostname, &client_sock, path);
+                } else {
+                    fprintf(stderr, "%s: ", hostname);
+                    perror("inet_ntop");
+                    return EXIT_FAILURE;
                 }
 
                 addr = addr->ai_next;
             }
         } else {
             fprintf(stderr, "%s: %s\n", host, gai_strerror(getaddr));
-            exit(EXIT_FAILURE);
+            return EXIT_FAILURE;
         }
     }
+
+    if (mountres)
+        return EXIT_SUCCESS;
+    else
+        return EXIT_FAILURE;
 }
