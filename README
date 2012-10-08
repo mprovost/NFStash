@@ -1,57 +1,70 @@
+$ nfsping -c 5 filer1
+filer1 : [0], 0.52 ms (0.52 avg, 0% loss)
+filer1 : [1], 0.35 ms (0.43 avg, 0% loss)
+filer1 : [2], 0.36 ms (0.41 avg, 0% loss)
+filer1 : [3], 1.18 ms (0.60 avg, 0% loss)
+filer1 : [4], 0.33 ms (0.55 avg, 0% loss)
+
+filer1 : xmt/rcv/%loss = 5/5/0%, min/avg/max = 0.33/0.55/1.18
+
+
 NFSping is a command line utility for measuring the response time of an NFS server. It's basically a copy of the fping interface but doesn't share any code with that project.
 
-On modern NFS servers, the network stack and filesystem are often being run on separate cores or even hardware components. This means in practise that a fast ICMP ping response isn't indicative of how quickly the NFS filesystem is responding. This tool more directly tests the NFS component of the operating system.
+On modern NFS servers, the network stack and filesystem are often being run on separate cores or even hardware components. This means in practise that a fast ICMP ping response isn't indicative of how quickly the NFS filesystem is responding. This tool more directly tests the responsiveness of the server's operating system's NFS component.
 
-It checks if the server is responding by sending an NFS NULL procedure and checking for a response. The NULL procedure is a noop that is designed for testing. NFSping supports versions 2 and 3 of NFS. By default it doesn't use the RPC portmapper for NFS pings and defaults to checking port 2049 using the UDP transport. It will use the portmapper for pinging the mount protocol since that doesn't use a standard port.
+NFSping checks if the server is responding by sending an NFS NULL RPC and waiting for a response. The NULL procedure is a noop that is designed for testing. NFSping supports versions 2 and 3 of NFS. By default it doesn't use the RPC portmapper for NFS pings and defaults to checking port 2049 using the UDP transport.
 
-It can also check the NFS mount protocol response using the -n option.
+NFSping can also check the mount protocol response using the -n option. It will use the portmapper for pinging the mount protocol since that doesn't use a standard port, or a specific port can be specified using the -P option.
 
-To build nfsping:
+To build the nfsping executable:
 
-$ cd src && make
+$ git clone git://github.com/mprovost/NFSping.git
+$ cd NFSping/src && make
 
 The program can then be copied to a location like /usr/local/bin.
 
 In its most basic form it simply reports whether the server is responding:
 
-$ nfsping localhost
-localhost is alive
+$ nfsping filer1
+filer1 is alive
 
 and exits with a return status of 0, or:
 
-$ nfsping localhost
+$ nfsping filer1
 clnt_call: RPC: Timed out
-localhost is dead
+filer1 is dead
 
 and exiting with a status of 1. This simple form of the command can be built into scripts which just check if the server is up or not without being concerned about a particular response time.
 
-To measure response time, pass the number of requests to send as an argument:
+To measure response time, pass the number of requests to send as an argument to the -c (count) option:
 
-$ nfsping -c 5 localhost
-localhost : [0], 0.09 ms (0.09 avg, 0% loss)
-localhost : [1], 0.16 ms (0.12 avg, 0% loss)
-localhost : [2], 0.15 ms (0.13 avg, 0% loss)
-localhost : [3], 0.16 ms (0.14 avg, 0% loss)
-localhost : [4], 0.12 ms (0.14 avg, 0% loss)
+$ nfsping -c 5 filer1
+filer1 : [0], 0.09 ms (0.09 avg, 0% loss)
+filer1 : [1], 0.16 ms (0.12 avg, 0% loss)
+filer1 : [2], 0.15 ms (0.13 avg, 0% loss)
+filer1 : [3], 0.16 ms (0.14 avg, 0% loss)
+filer1 : [4], 0.12 ms (0.14 avg, 0% loss)
 
-localhost : xmt/rcv/%loss = 5/5/0%, min/avg/max = 0.09/0.14/0.16
+filer1 : xmt/rcv/%loss = 5/5/0%, min/avg/max = 0.09/0.14/0.16
+
+Or to send a continuous sequence of pings like the traditional ICMP ping command use the -l (loop) option:
+
+$ nfsping -l filer1
 
 To exit early, use control-c.
 
-It also has a form that produces more easily parsed output:
+It also has a form that produces more easily parsed output when using the -C option:
 
-$ nfsping -C 5 localhost
-localhost : [0], 1.96 ms (1.96 avg, 0% loss)
-localhost : [1], 0.11 ms (1.04 avg, 0% loss)
-localhost : [2], 0.12 ms (0.73 avg, 0% loss)
-localhost : [3], 0.16 ms (0.59 avg, 0% loss)
-localhost : [4], 0.18 ms (0.51 avg, 0% loss)
+$ nfsping -C 5 filer1
+filer1 : [0], 1.96 ms (1.96 avg, 0% loss)
+filer1 : [1], 0.11 ms (1.04 avg, 0% loss)
+filer1 : [2], 0.12 ms (0.73 avg, 0% loss)
+filer1 : [3], 0.16 ms (0.59 avg, 0% loss)
+filer1 : [4], 0.18 ms (0.51 avg, 0% loss)
 
-localhost : 1.96 0.11 0.12 0.16 0.18
+filer1 : 1.96 0.11 0.12 0.16 0.18
 
-To only show the summary line, use the -q option.
-
-To keep sending requests indefinitely like traditional ping, use the -l option.
+To only show the summary line, use the -q (quiet) option.
 
 This is a list of the available command-line options:
 
@@ -67,7 +80,7 @@ Usage: nfsping [options] [targets...]
     -M    use the portmapper (default: NFS no, mount yes)
     -n    check the mount protocol (default NFS)
     -p n  pause between pings to target (in ms, default 1000)
-    -P n  specify port (default NFS:2049 mount:4046)
+    -P n  specify port (default: NFS 2049)
     -q    quiet, only print summary
     -t n  timeout (in ms, default 2500)
     -T    use TCP (default UDP)
