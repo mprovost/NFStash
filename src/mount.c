@@ -3,7 +3,7 @@
 u_int mount_perror(mountstat3 fhs_status) {
     switch (fhs_status) {
         case MNT3_OK:
-            fprintf(stderr, "MNT3_OK");
+            /* not an error */
             break;
         case MNT3ERR_NOENT:
             fprintf(stderr, "MNT3ERR_NOENT");
@@ -30,7 +30,8 @@ u_int mount_perror(mountstat3 fhs_status) {
             fprintf(stderr, "UNKNOWN");
             break;
     }
-    fprintf(stderr, "\n");
+    if (fhs_status)
+        fprintf(stderr, "\n");
     return fhs_status;
 }
 
