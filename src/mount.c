@@ -1,5 +1,14 @@
 #include "nfsping.h"
 
+void usage() {
+    printf("Usage: nfsmount [options] target\n\
+    -T    use TCP (default UDP)\n"
+    );
+
+    exit(3);
+}
+
+
 u_int mount_perror(mountstat3 fhs_status) {
     switch (fhs_status) {
         case MNT3_OK:
@@ -35,13 +44,14 @@ u_int mount_perror(mountstat3 fhs_status) {
     return fhs_status;
 }
 
-mountres3 *get_root_filehandle(char *hostname, struct sockaddr_in *client_sock, char *path) {
-    const u_long version = 3;
+
+mountres3 *get_root_filehandle(char *hostname, struct sockaddr_in *client_sock, int socktype, char *path) {
     struct timeval timeout = NFS_TIMEOUT;
     int sock = RPC_ANYSOCK;
     CLIENT *client;
     struct rpc_err clnt_err;
     mountres3 *mountres;
+    u_long version = 3;
     int i;
 
     /* get mount port from portmapper */
@@ -53,7 +63,11 @@ mountres3 *get_root_filehandle(char *hostname, struct sockaddr_in *client_sock, 
     }
 
     if (path[0] == '/') {
-        client = clntudp_create(client_sock, MOUNTPROG, version, timeout, &sock);
+        if (socktype == SOCK_DGRAM)
+            client = clntudp_create(client_sock, MOUNTPROG, version, timeout, &sock);
+        else
+            client = clnttcp_create(client_sock, MOUNTPROG, version, &sock, 0, 0);
+            
         /* mounts don't need authentication because they return a list of authentication flavours supported */
         client->cl_auth = authnone_create();
 
@@ -99,6 +113,7 @@ int main(int argc, char **argv) {
     bool_t dirpath;
     char *host;
     char *path;
+    int ch, first, index;
 
     client_sock.sin_family = AF_INET;
 
@@ -107,12 +122,29 @@ int main(int argc, char **argv) {
     /* default to UDP */
     hints.ai_socktype = SOCK_DGRAM;
 
-    host = strtok(argv[1], ":");
+    /* no arguments passed */
+    if (argc == 1)
+        usage();
+
+    while ((ch = getopt(argc, argv, "T")) != -1) {
+        switch(ch) {
+            /* use TCP */
+            case 'T':
+                hints.ai_socktype = SOCK_STREAM;
+                break;
+            case 'h':
+            case '?':
+            default:
+                usage();
+        }
+    }
+
+    host = strtok(argv[optind], ":");
     path = strtok(NULL, ":");
 
     /* first try treating the hostname as an IP address */
     if (inet_pton(AF_INET, host, &client_sock.sin_addr)) {
-        mountres = get_root_filehandle(host, &client_sock, path);
+        mountres = get_root_filehandle(host, &client_sock, hints.ai_socktype, path);
     } else {
         /* if that fails, do a DNS lookup */
         /* we don't call freeaddrinfo because we keep a pointer to the sin_addr in the client_sock */
@@ -123,7 +155,7 @@ int main(int argc, char **argv) {
                 client_sock.sin_addr = ((struct sockaddr_in *)addr->ai_addr)->sin_addr;
 
                 if (inet_ntop(AF_INET, &((struct sockaddr_in *)addr->ai_addr)->sin_addr, hostname, INET_ADDRSTRLEN)) {
-                    mountres = get_root_filehandle(hostname, &client_sock, path);
+                    mountres = get_root_filehandle(hostname, &client_sock, hints.ai_socktype, path);
                 } else {
                     fprintf(stderr, "%s: ", hostname);
                     perror("inet_ntop");
