@@ -97,7 +97,7 @@ u_int nfs_perror(nfsstat3 status) {
 }
 
 
-FSSTAT3res *get_fsstat(char *hostname, struct sockaddr_in *client_sock, FSSTAT3args *fsstatargp) {
+FSSTAT3res get_fsstat(char *hostname, struct sockaddr_in *client_sock, FSSTAT3args *fsstatargp) {
     CLIENT client;
     FSSTAT3res fsstatres;
     const u_long version = 3;
@@ -110,18 +110,15 @@ FSSTAT3res *get_fsstat(char *hostname, struct sockaddr_in *client_sock, FSSTAT3a
 
     fsstatres = *nfsproc3_fsstat_3(fsstatargp, &client);
 
-    if (fsstatres.status == NFS3_OK) {
-        printf("%llu bytes free\n", fsstatres.FSSTAT3res_u.resok.fbytes);
-    } else {
-       clnt_geterr(&client, &clnt_err);
-       /* check for authentication errors which probably mean it needs a low port */
-       if (clnt_err.re_status == RPC_AUTHERROR)
-           printf("Unable to mount filesystem, consider running as root\n");
-
-       clnt_perror(&client, "mountproc_mnt_3");
-       exit(1);
+    if (fsstatres.status != NFS3_OK) {
+        clnt_geterr(&client, &clnt_err);
+        if (clnt_err.re_status)
+            clnt_perror(&client, "nfsproc3_fsstat_3");
+        else
+            nfs_perror(fsstatres.status);
     }
-    //clnt_destroy(&client);
+
+    return fsstatres;
 }
 
 
@@ -142,6 +139,7 @@ int main(int argc, char **argv) {
     u_int fh_len;
     char *fh_val;
     FSSTAT3args fsstatarg;
+    FSSTAT3res  fsstatres;
 
     client_sock.sin_family = AF_INET;
     client_sock.sin_port = htons(NFS_PORT);
@@ -150,27 +148,27 @@ int main(int argc, char **argv) {
     intresult = inet_pton(AF_INET, host, &client_sock.sin_addr);
     inet_ntop(AF_INET, &client_sock.sin_addr, &hostname, INET_ADDRSTRLEN);
 
-        //fsstatargp->fsroot.data.data_len = mountres->mountres3_u.mountinfo.fhandle.fhandle3_len;
-        //fsstatargp->fsroot.data.data_val = mountres->mountres3_u.mountinfo.fhandle.fhandle3_val;
+    /* hex takes two characters for each byte */
+    fsstatarg.fsroot.data.data_len = strlen(fh) / 2;
 
-        /* hex takes two characters for each byte */
-        fsstatarg.fsroot.data.data_len = strlen(fh) / 2;
-
-        if (fh_len % 2 == 0 && fh_len <= FHSIZE3) {
-        fsstatarg.fsroot.data.data_val = malloc(fsstatarg.fsroot.data.data_len);
-            for (i = 0; i <= fsstatarg.fsroot.data.data_len; i++) {
-                sscanf(&fh[i * 2], "%2hhx", &fsstatarg.fsroot.data.data_val[i]);
-            }
-
-                printf("filehandle hex: ");
-                for (i = 0; i < fsstatarg.fsroot.data.data_len; i++) {
-                    printf("%02hhx", fsstatarg.fsroot.data.data_val[i]);
-                }
-                printf("\n");
-
-            get_fsstat(host, &client_sock, &fsstatarg);
-
-        } else {
-            printf("oops! %zi\n", strlen(fh));
+    if (fh_len % 2 == 0 && fh_len <= FHSIZE3) {
+    fsstatarg.fsroot.data.data_val = malloc(fsstatarg.fsroot.data.data_len);
+        for (i = 0; i <= fsstatarg.fsroot.data.data_len; i++) {
+            sscanf(&fh[i * 2], "%2hhx", &fsstatarg.fsroot.data.data_val[i]);
         }
+
+            printf("filehandle hex: ");
+            for (i = 0; i < fsstatarg.fsroot.data.data_len; i++) {
+                printf("%02hhx", fsstatarg.fsroot.data.data_val[i]);
+            }
+            printf("\n");
+
+        fsstatres = get_fsstat(hostname, &client_sock, &fsstatarg);
+
+        if (fsstatres.status == NFS3_OK)
+            printf("%llu bytes free\n", fsstatres.FSSTAT3res_u.resok.fbytes);
+
+    } else {
+        printf("oops! %zi\n", strlen(fh));
     }
+}
