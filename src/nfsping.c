@@ -40,7 +40,6 @@ void usage() {
     struct timespec sleep_time = NFS_SLEEP;
 
     printf("Usage: nfsping [options] [targets...]\n\
-    -2    use NFS version 2 (default 3)\n\
     -A    show IP addresses\n\
     -c n  count of pings to send to target\n\
     -C n  same as -c, output parseable format\n\
@@ -54,7 +53,8 @@ void usage() {
     -P n  specify port (default: NFS %i)\n\
     -q    quiet, only print summary\n\
     -t n  timeout (in ms, default %lu)\n\
-    -T    use TCP (default UDP)\n",
+    -T    use TCP (default UDP)\n\
+    -V n  specify NFS version (2 or 3, default 3)\n",
     ts2ms(wait_time), ts2ms(sleep_time), NFS_PORT, tv2ms(timeout));
 
     exit(3);
@@ -132,12 +132,8 @@ int main(int argc, char **argv) {
     if (argc == 1)
         usage();
 
-    while ((ch = getopt(argc, argv, "2Ac:C:dhi:lmnMp:P:qt:T")) != -1) {
+    while ((ch = getopt(argc, argv, "Ac:C:dhi:lmnMp:P:qt:TV:")) != -1) {
         switch(ch) {
-            /* use NFS version 2 */
-            case 2:
-                version = 2;
-                break;
             /* show IP addresses */
             case 'A':
                 ip = 1;
@@ -215,7 +211,10 @@ int main(int argc, char **argv) {
             case 'T':
                 hints.ai_socktype = SOCK_STREAM;
                 break;
-            /* timeout */
+            /* specify NFS version */
+            case 'V':
+                version = strtoul(optarg, NULL, 10);
+                break;
             case 'h':
             case '?':
             default:
@@ -378,8 +377,11 @@ int main(int argc, char **argv) {
         while (target) {
             gettimeofday(&call_start, NULL);
             if (prognum == MOUNTPROG)
+                /* TODO version 2 */
                 status = mountproc_null_3(NULL, target->client);
             else
+                /* TODO version 2 */
+                /* this might work for both versions */
                 status = nfsproc3_null_3(NULL, target->client);
             gettimeofday(&call_end, NULL);
             target->sent++;
@@ -422,6 +424,7 @@ int main(int argc, char **argv) {
                     clnt_perror(target->client, "mountproc_null_3");
                 else
                     clnt_perror(target->client, "nfsproc3_null_3");
+                fprintf(stderr, "\n");
 
                 /* TODO is this needed with portmapper on by default? */
                 /* mount port isn't very standard so print a warning */
