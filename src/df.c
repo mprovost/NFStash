@@ -1,5 +1,13 @@
 #include "nfsping.h"
 
+void usage() {
+    printf("Usage: nfsdf [options] [filehandle...]\n\
+    -i    display inodes\n\
+    ");
+
+    exit(3);
+}
+
 u_int nfs_perror(nfsstat3 status) {
     switch(status) {
         case NFS3_OK:
@@ -134,6 +142,8 @@ int main(int argc, char **argv) {
     int intresult;
     bool_t dirpath;
     int i;
+    int ch;
+    int inodes;
     char *host;
     char *fh;
     u_int fh_len;
@@ -143,32 +153,55 @@ int main(int argc, char **argv) {
 
     client_sock.sin_family = AF_INET;
     client_sock.sin_port = htons(NFS_PORT);
-    host = strtok(argv[1], ":");
+
+    /* no arguments passed */
+    if (argc == 1)
+        usage();
+
+    while ((ch = getopt(argc, argv, "i")) != -1) {
+        switch(ch) {
+            /* display inodes */
+            case 'i':
+                inodes = 1; 
+                break;
+            case 'h':
+            case '?':
+            default:
+                usage();
+        }
+    }
+
+    host = strtok(argv[optind], ":");
     fh = strtok(NULL, ":");
-    intresult = inet_pton(AF_INET, host, &client_sock.sin_addr);
-    inet_ntop(AF_INET, &client_sock.sin_addr, &hostname, INET_ADDRSTRLEN);
+
+    if (inet_pton(AF_INET, host, &client_sock.sin_addr)) {
+        inet_ntop(AF_INET, &client_sock.sin_addr, &hostname, INET_ADDRSTRLEN);
+    }
 
     /* hex takes two characters for each byte */
-    fsstatarg.fsroot.data.data_len = strlen(fh) / 2;
+    fh_len = strlen(fh) / 2;
 
-    if (fh_len % 2 == 0 && fh_len <= FHSIZE3) {
-    fsstatarg.fsroot.data.data_val = malloc(fsstatarg.fsroot.data.data_len);
+    if (fh_len && fh_len % 2 == 0 && fh_len <= FHSIZE3) {
+        fsstatarg.fsroot.data.data_len = fh_len;
+        fsstatarg.fsroot.data.data_val = malloc(fsstatarg.fsroot.data.data_len);
+
+        /* convert from the hex string to a byte array */
         for (i = 0; i <= fsstatarg.fsroot.data.data_len; i++) {
             sscanf(&fh[i * 2], "%2hhx", &fsstatarg.fsroot.data.data_val[i]);
         }
 
-            printf("filehandle hex: ");
-            for (i = 0; i < fsstatarg.fsroot.data.data_len; i++) {
-                printf("%02hhx", fsstatarg.fsroot.data.data_val[i]);
-            }
-            printf("\n");
-
         fsstatres = get_fsstat(hostname, &client_sock, &fsstatarg);
 
-        if (fsstatres.status == NFS3_OK)
-            printf("%llu bytes free\n", fsstatres.FSSTAT3res_u.resok.fbytes);
+        if (fsstatres.status == NFS3_OK) {
+            if (inodes) {
+                printf("%llu\n", fsstatres.FSSTAT3res_u.resok.tfiles - fsstatres.FSSTAT3res_u.resok.ffiles);
+            } else {
+                /* bytes */
+                printf("%llu\n", fsstatres.FSSTAT3res_u.resok.tbytes - fsstatres.FSSTAT3res_u.resok.fbytes);
+            }
+        }
 
     } else {
-        printf("oops! %zi\n", strlen(fh));
+        printf("oops! %zi\n", fh_len);
     }
 }
