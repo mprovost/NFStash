@@ -158,7 +158,7 @@ int main(int argc, char **argv) {
     if (argc == 1)
         usage();
 
-    while ((ch = getopt(argc, argv, "i")) != -1) {
+    while ((ch = getopt(argc, argv, "hi")) != -1) {
         switch(ch) {
             /* display inodes */
             case 'i':
