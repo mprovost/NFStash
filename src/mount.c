@@ -1,7 +1,7 @@
 #include "nfsping.h"
 
 void usage() {
-    printf("Usage: nfsmount [options] target\n\
+    printf("Usage: nfsmount [options] host:mountpoint\n\
     -T    use TCP (default UDP)\n"
     );
 
@@ -54,50 +54,50 @@ mountres3 *get_root_filehandle(char *hostname, struct sockaddr_in *client_sock, 
     u_long version = 3;
     int i;
 
-    /* get mount port from portmapper */
-    client_sock->sin_port = htons(pmap_getport(client_sock, MOUNTPROG, version, IPPROTO_UDP));
-    if (client_sock->sin_port == 0) {
-        clnt_pcreateerror("pmap_getport");
-        mountres->fhs_status = MNT3ERR_SERVERFAULT; /* is this the most appropriate error code? */
-        return mountres;
-    }
-
     if (path[0] == '/') {
-        if (socktype == SOCK_DGRAM)
-            client = clntudp_create(client_sock, MOUNTPROG, version, timeout, &sock);
-        else
-            client = clnttcp_create(client_sock, MOUNTPROG, version, &sock, 0, 0);
-            
-        /* mounts don't need authentication because they return a list of authentication flavours supported */
-        client->cl_auth = authnone_create();
+        /* get mount port from portmapper */
+        client_sock->sin_port = htons(pmap_getport(client_sock, MOUNTPROG, version, IPPROTO_UDP));
+        if (client_sock->sin_port) {
+            if (socktype == SOCK_DGRAM)
+                client = clntudp_create(client_sock, MOUNTPROG, version, timeout, &sock);
+            else
+                client = clnttcp_create(client_sock, MOUNTPROG, version, &sock, 0, 0);
+                
+            /* mounts don't need authentication because they return a list of authentication flavours supported */
+            client->cl_auth = authnone_create();
 
-        mountres = mountproc_mnt_3(&path, client);
+            /* the actual RPC call */
+            mountres = mountproc_mnt_3(&path, client);
 
-        if (mountres) {
-            if (mountres->fhs_status == MNT3_OK) {
-                printf("%s:", hostname);
-                for (i = 0; i < mountres->mountres3_u.mountinfo.fhandle.fhandle3_len; i++) {
-                    printf("%02hhx", mountres->mountres3_u.mountinfo.fhandle.fhandle3_val[i]);
+            if (mountres) {
+                if (mountres->fhs_status == MNT3_OK) {
+                    printf("%s:", hostname);
+                    for (i = 0; i < mountres->mountres3_u.mountinfo.fhandle.fhandle3_len; i++) {
+                        printf("%02hhx", mountres->mountres3_u.mountinfo.fhandle.fhandle3_val[i]);
+                    }
+                    printf("\n");
+                } else {
+                    fprintf(stderr, "%s: ", hostname);
+                    mount_perror(mountres->fhs_status);
                 }
-                printf("\n");
             } else {
                 fprintf(stderr, "%s: ", hostname);
-                mount_perror(mountres->fhs_status);
+                clnt_geterr(client, &clnt_err);
+                /* check for authentication errors which probably mean it needs to come from a low port */
+                if (clnt_err.re_status == RPC_AUTHERROR)
+                   fprintf(stderr, "Unable to mount filesystem, consider running as root\n");
+
+                clnt_perror(client, "mountproc_mnt_3");
             }
         } else {
-            fprintf(stderr, "%s: ", hostname);
-            clnt_geterr(client, &clnt_err);
-            /* check for authentication errors which probably mean it needs a low port */
-            if (clnt_err.re_status == RPC_AUTHERROR)
-               fprintf(stderr, "Unable to mount filesystem, consider running as root\n");
-
-            clnt_perror(client, "mountproc_mnt_3");
+            clnt_pcreateerror("pmap_getport");
+            mountres->fhs_status = MNT3ERR_SERVERFAULT; /* is this the most appropriate error code? */
         }
     } else {
         fprintf(stderr, "%s: Invalid path: %s\n", hostname, path);
         mountres->fhs_status = MNT3ERR_INVAL;
     }
-        
+
     clnt_destroy(client);
     return mountres;
 }
@@ -126,7 +126,7 @@ int main(int argc, char **argv) {
     if (argc == 1)
         usage();
 
-    while ((ch = getopt(argc, argv, "T")) != -1) {
+    while ((ch = getopt(argc, argv, "hT")) != -1) {
         switch(ch) {
             /* use TCP */
             case 'T':
