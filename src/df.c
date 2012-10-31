@@ -131,16 +131,9 @@ FSSTAT3res get_fsstat(char *hostname, struct sockaddr_in *client_sock, FSSTAT3ar
 
 
 int main(int argc, char **argv) {
-    mountres3 *mountres;
-    int sock = RPC_ANYSOCK;
-    CLIENT *client;
     struct sockaddr_in client_sock;
-    struct sockaddr_in nfs_client_sock;
     char *error;
     char hostname[INET_ADDRSTRLEN];
-    fhstatus result;
-    int intresult;
-    bool_t dirpath;
     int i;
     int ch;
     int inodes;
