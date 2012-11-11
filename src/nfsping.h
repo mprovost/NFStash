@@ -25,6 +25,10 @@
 /* struct timespec */
 #define NFS_SLEEP { 1, 0 };
 
+/* filehandle string length */
+/* xxx.xxx.xxx.xxx:hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh\0 */
+#define FHSTR FHSIZE3 * 2 + 16 + 1
+
 typedef struct results {
     unsigned long us;
     struct results *next;

@@ -137,6 +137,7 @@ int main(int argc, char **argv) {
     int i;
     int ch;
     int inodes;
+    char *input_fh;
     char *host;
     char *fh;
     u_int fh_len;
@@ -146,10 +147,6 @@ int main(int argc, char **argv) {
 
     client_sock.sin_family = AF_INET;
     client_sock.sin_port = htons(NFS_PORT);
-
-    /* no arguments passed */
-    if (argc == 1)
-        usage();
 
     while ((ch = getopt(argc, argv, "hi")) != -1) {
         switch(ch) {
@@ -164,7 +161,21 @@ int main(int argc, char **argv) {
         }
     }
 
-    host = strtok(argv[optind], ":");
+    /* check if we don't have any command line targets */
+    if (optind == argc) {
+        /* use stdin */
+        input_fh = malloc(FHSTR);
+        if (fgets(input_fh, FHSTR, stdin)) {
+            /* chomp the newline */
+            if (input_fh[strlen(input_fh) - 1] == '\n')
+                input_fh[strlen(input_fh) - 1] == '\0';
+        }
+    } else {
+        input_fh = argv[optind];
+    }
+
+    /* split the input string into a host (IP address) and hex filehandle */
+    host = strtok(input_fh, ":");
     fh = strtok(NULL, ":");
 
     if (inet_pton(AF_INET, host, &client_sock.sin_addr)) {

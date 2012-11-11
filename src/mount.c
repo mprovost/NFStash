@@ -72,6 +72,7 @@ mountres3 *get_root_filehandle(char *hostname, struct sockaddr_in *client_sock, 
             if (mountres) {
                 if (mountres->fhs_status == MNT3_OK) {
                     printf("%s:", hostname);
+                    /* print the filehandle in hex */
                     for (i = 0; i < mountres->mountres3_u.mountinfo.fhandle.fhandle3_len; i++) {
                         printf("%02hhx", mountres->mountres3_u.mountinfo.fhandle.fhandle3_val[i]);
                     }
