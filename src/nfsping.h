@@ -28,9 +28,9 @@
 /* struct timespec */
 #define NFS_SLEEP { 1, 0 };
 
-/* filehandle string length */
+/* filehandle string length, including IP address and NUL */
 /* xxx.xxx.xxx.xxx:hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh\0 */
-#define FHSTR FHSIZE3 * 2 + 16 + 1
+#define FHMAX FHSIZE3 * 2 + 16 + 1
 
 typedef struct results {
     unsigned long us;

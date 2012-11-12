@@ -169,8 +169,8 @@ int main(int argc, char **argv) {
     /* check if we don't have any command line targets */
     if (optind == argc) {
         /* use stdin */
-        input_fh = malloc(FHSTR);
-        if (fgets(input_fh, FHSTR, stdin)) {
+        input_fh = malloc(FHMAX);
+        if (fgets(input_fh, FHMAX, stdin)) {
             /* chomp the newline */
             if (input_fh[strlen(input_fh) - 1] == '\n')
                 input_fh[strlen(input_fh) - 1] == '\0';
