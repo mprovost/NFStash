@@ -180,6 +180,9 @@ int main(int argc, char **argv) {
 
     if (inet_pton(AF_INET, host, &client_sock.sin_addr)) {
         inet_ntop(AF_INET, &client_sock.sin_addr, &hostname, INET_ADDRSTRLEN);
+    } else {
+        fprintf(stderr, "Invalid hostname: %s\n", host);
+        return EXIT_FAILURE;
     }
 
     /* hex takes two characters for each byte */
@@ -198,14 +201,20 @@ int main(int argc, char **argv) {
 
         if (fsstatres.status == NFS3_OK) {
             if (inodes) {
-                printf("%llu\n", fsstatres.FSSTAT3res_u.resok.tfiles - fsstatres.FSSTAT3res_u.resok.ffiles);
+                printf("%" PRIu64 "\n", fsstatres.FSSTAT3res_u.resok.tfiles - fsstatres.FSSTAT3res_u.resok.ffiles);
             } else {
                 /* bytes */
-                printf("%llu\n", fsstatres.FSSTAT3res_u.resok.tbytes - fsstatres.FSSTAT3res_u.resok.fbytes);
+                printf("%" PRIu64 "\n", fsstatres.FSSTAT3res_u.resok.tbytes - fsstatres.FSSTAT3res_u.resok.fbytes);
             }
+        } else {
+            /* get_fsstat will print the rpc error */
+            return EXIT_FAILURE;
         }
 
     } else {
-        printf("oops! %zi\n", fh_len);
+        fprintf(stderr, "Invalid filehandle: %s\n", fh);
+        return EXIT_FAILURE;
     }
+
+    return EXIT_SUCCESS;
 }

@@ -14,6 +14,9 @@
 #include <unistd.h>
 #include <math.h>
 #include <ctype.h>
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
+
 /* local copies */
 #include "nfs_prot.h"
 #include "mount.h"
