@@ -137,6 +137,7 @@ int main(int argc, char **argv) {
     int i;
     int ch;
     int inodes = 0;
+    int gigs   = 0;
     char *input_fh;
     char *host;
     char *fh;
@@ -148,8 +149,12 @@ int main(int argc, char **argv) {
     client_sock.sin_family = AF_INET;
     client_sock.sin_port = htons(NFS_PORT);
 
-    while ((ch = getopt(argc, argv, "hi")) != -1) {
+    while ((ch = getopt(argc, argv, "ghi")) != -1) {
         switch(ch) {
+            /* display gigabytes */
+            case 'g':
+                gigs = 1;
+                break;
             /* display inodes */
             case 'i':
                 inodes = 1; 
@@ -203,8 +208,15 @@ int main(int argc, char **argv) {
             if (inodes) {
                 printf("%" PRIu64 "\n", fsstatres.FSSTAT3res_u.resok.tfiles - fsstatres.FSSTAT3res_u.resok.ffiles);
             } else {
-                /* bytes */
-                printf("%" PRIu64 "\n", fsstatres.FSSTAT3res_u.resok.tbytes - fsstatres.FSSTAT3res_u.resok.fbytes);
+                if (gigs) {
+                    printf("%" PRIu64 "GB total %" PRIu64 "GB used %" PRIu64 "GB avail\n",
+                        fsstatres.FSSTAT3res_u.resok.tbytes >> 30,
+                        fsstatres.FSSTAT3res_u.resok.tbytes - fsstatres.FSSTAT3res_u.resok.fbytes >> 30,
+                        fsstatres.FSSTAT3res_u.resok.fbytes >> 30);
+                } else {
+                    /* bytes */
+                    printf("%" PRIu64 " used\n", fsstatres.FSSTAT3res_u.resok.tbytes - fsstatres.FSSTAT3res_u.resok.fbytes);
+                }
             }
         } else {
             /* get_fsstat will print the rpc error */
