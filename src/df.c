@@ -136,7 +136,7 @@ int main(int argc, char **argv) {
     char hostname[INET_ADDRSTRLEN];
     int i;
     int ch;
-    int inodes;
+    int inodes = 0;
     char *input_fh;
     char *host;
     char *fh;
