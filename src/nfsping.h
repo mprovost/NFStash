@@ -28,9 +28,16 @@
 /* struct timespec */
 #define NFS_SLEEP { 1, 0 };
 
-/* filehandle string length, including IP address and NUL */
-/* xxx.xxx.xxx.xxx:hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh\0 */
-#define FHMAX FHSIZE3 * 2 + 16 + 1
+/* filehandle string length, including IP address, path string, colon separators and NUL */
+/* xxx.xxx.xxx.xxx:/path:hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh\0 */
+/* this allows for 64 byte filehandles but most are 32 byte */
+#define FHMAX 16 + 1 + MNTPATHLEN + 1 + FHSIZE3 * 2 + 1
+
+/* for shifting */
+#define KILO 10
+#define MEGA 20
+#define GIGA 30
+#define TERA 40
 
 typedef struct results {
     unsigned long us;

@@ -71,18 +71,18 @@ mountres3 *get_root_filehandle(char *hostname, struct sockaddr_in *client_sock, 
 
             if (mountres) {
                 if (mountres->fhs_status == MNT3_OK) {
-                    printf("%s:", hostname);
+                    printf("%s:%s:", hostname, path);
                     /* print the filehandle in hex */
                     for (i = 0; i < mountres->mountres3_u.mountinfo.fhandle.fhandle3_len; i++) {
                         printf("%02hhx", mountres->mountres3_u.mountinfo.fhandle.fhandle3_val[i]);
                     }
                     printf("\n");
                 } else {
-                    fprintf(stderr, "%s: ", hostname);
+                    fprintf(stderr, "%s:%s ", hostname, path);
                     mount_perror(mountres->fhs_status);
                 }
             } else {
-                fprintf(stderr, "%s: ", hostname);
+                fprintf(stderr, "%s:%s ", hostname, path);
                 clnt_geterr(client, &clnt_err);
                 /* check for authentication errors which probably mean it needs to come from a low port */
                 if (clnt_err.re_status == RPC_AUTHERROR)

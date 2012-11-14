@@ -137,14 +137,18 @@ int main(int argc, char **argv) {
     int i;
     int ch;
     int inodes = 0;
-    int gigs   = 0;
+    int giga   = 0;
     char *input_fh;
     char *host;
+    char *path;
+    size_t max_path_len;
+    char *path_spacing;
     char *fh;
     u_int fh_len;
     char *fh_val;
     FSSTAT3args fsstatarg;
     FSSTAT3res  fsstatres;
+    double capacity;
 
     client_sock.sin_family = AF_INET;
     client_sock.sin_port = htons(NFS_PORT);
@@ -153,7 +157,7 @@ int main(int argc, char **argv) {
         switch(ch) {
             /* display gigabytes */
             case 'g':
-                gigs = 1;
+                giga = 1;
                 break;
             /* display inodes */
             case 'i':
@@ -181,6 +185,10 @@ int main(int argc, char **argv) {
 
     /* split the input string into a host (IP address) and hex filehandle */
     host = strtok(input_fh, ":");
+    /* path is just used for display */
+    path = strtok(NULL, ":");
+    max_path_len = strlen(path);
+    /* the root filehandle in hex */
     fh = strtok(NULL, ":");
 
     if (inet_pton(AF_INET, host, &client_sock.sin_addr)) {
@@ -208,14 +216,28 @@ int main(int argc, char **argv) {
             if (inodes) {
                 printf("%" PRIu64 "\n", fsstatres.FSSTAT3res_u.resok.tfiles - fsstatres.FSSTAT3res_u.resok.ffiles);
             } else {
-                if (gigs) {
-                    printf("%" PRIu64 "GB total %" PRIu64 "GB used %" PRIu64 "GB avail\n",
-                        fsstatres.FSSTAT3res_u.resok.tbytes >> 30,
-                        fsstatres.FSSTAT3res_u.resok.tbytes - fsstatres.FSSTAT3res_u.resok.fbytes >> 30,
-                        fsstatres.FSSTAT3res_u.resok.fbytes >> 30);
+                /* percent full */
+                capacity = (1 - ((double)fsstatres.FSSTAT3res_u.resok.fbytes / fsstatres.FSSTAT3res_u.resok.tbytes)) * 100;
+                if (giga) {
+                    /* gigabytes */
+                    printf("Filesystem               total       used      avail capacity\n");
+                    printf("%s:%s %" PRIu64 "GB %" PRIu64 "GB %" PRIu64 "GB  %.0f%%\n",
+                        host,
+                        path,
+                        fsstatres.FSSTAT3res_u.resok.tbytes >> GIGA,
+                        fsstatres.FSSTAT3res_u.resok.tbytes - fsstatres.FSSTAT3res_u.resok.fbytes >> GIGA,
+                        fsstatres.FSSTAT3res_u.resok.fbytes >> GIGA,
+                        capacity);
                 } else {
-                    /* bytes */
-                    printf("%" PRIu64 " used\n", fsstatres.FSSTAT3res_u.resok.tbytes - fsstatres.FSSTAT3res_u.resok.fbytes);
+                    /* kilobytes */
+                    printf("Filesystem              kbytes       used      avail capacity\n");
+                    printf("%s:%s %" PRIu64 " %" PRIu64 " %" PRIu64 " %.0f%%\n",
+                        host,
+                        path,
+                        fsstatres.FSSTAT3res_u.resok.tbytes >> KILO,
+                        fsstatres.FSSTAT3res_u.resok.tbytes - fsstatres.FSSTAT3res_u.resok.fbytes >> KILO,
+                        fsstatres.FSSTAT3res_u.resok.fbytes >> KILO,
+                        capacity);
                 }
             }
         } else {
