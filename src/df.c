@@ -132,9 +132,21 @@ FSSTAT3res get_fsstat(char *hostname, struct sockaddr_in *client_sock, FSSTAT3ar
 int prefix_print(size3 input, char *output, int prefix) {
     /* 13 is enough for a petabyte in kilobytes, plus three for the label and a trailing NUL */
     int index;
+    size3 shifted;
 
-    index = snprintf(output, 13, "%" PRIu64 "", input >> prefix); 
+    if (prefix == 0) {
+        /* try and find the best fit, starting with terabytes and working down */
+        prefix = TERA;
+        while (prefix) {
+            shifted = input >> prefix;
+            if (shifted && shifted > 10)
+                break;
+            prefix -= 10;
+        }
+    }
     
+    index = snprintf(output, 13, "%" PRIu64 "", input >> prefix); 
+
     switch (prefix) {
         case KILO:
             output[index] = 'K';
@@ -149,10 +161,8 @@ int prefix_print(size3 input, char *output, int prefix) {
             output[index] = 'T';
             break;
     }
-    index++;
-    output[index] = 'B';
-    index++;
-    output[index] = '\0';
+    output[++index] = 'B';
+    output[++index] = '\0';
 
     return index;
 }
