@@ -129,6 +129,33 @@ FSSTAT3res get_fsstat(char *hostname, struct sockaddr_in *client_sock, FSSTAT3ar
     return fsstatres;
 }
 
+int prefix_print(size3 input, char *output, int prefix) {
+    /* 13 is enough for a petabyte in kilobytes, plus three for the label and a trailing NUL */
+    int index;
+
+    index = snprintf(output, 13, "%" PRIu64 "", input >> prefix); 
+    
+    switch (prefix) {
+        case KILO:
+            output[index] = 'K';
+            break;
+        case MEGA:
+            output[index] = 'M';
+            break;
+        case GIGA:
+            output[index] = 'G';
+            break;
+        case TERA:
+            output[index] = 'T';
+            break;
+    }
+    index++;
+    output[index] = 'B';
+    index++;
+    output[index] = '\0';
+
+    return index;
+}
 
 int main(int argc, char **argv) {
     struct sockaddr_in client_sock;
@@ -137,7 +164,7 @@ int main(int argc, char **argv) {
     int i;
     int ch;
     int inodes = 0;
-    int giga   = 0;
+    int prefix = 0;
     char *input_fh;
     char *host;
     char *path;
@@ -148,20 +175,36 @@ int main(int argc, char **argv) {
     char *fh_val;
     FSSTAT3args fsstatarg;
     FSSTAT3res  fsstatres;
+    char total[16];
+    char used[16];
+    char avail[16];
     double capacity;
 
     client_sock.sin_family = AF_INET;
     client_sock.sin_port = htons(NFS_PORT);
 
-    while ((ch = getopt(argc, argv, "ghi")) != -1) {
+    while ((ch = getopt(argc, argv, "ghikmt")) != -1) {
         switch(ch) {
+        /*TODO check for multiple prefixes */
             /* display gigabytes */
             case 'g':
-                giga = 1;
+                prefix = GIGA;
                 break;
             /* display inodes */
             case 'i':
                 inodes = 1; 
+                break;
+            case 'k':
+                /* display kilobytes */
+                prefix = KILO;
+                break;
+            case 'm':
+                /* display megabytes */
+                prefix = MEGA;
+                break;
+            case 't':
+                /* display terabytes */
+                prefix = TERA;
                 break;
             case 'h':
             case '?':
@@ -216,29 +259,20 @@ int main(int argc, char **argv) {
             if (inodes) {
                 printf("%" PRIu64 "\n", fsstatres.FSSTAT3res_u.resok.tfiles - fsstatres.FSSTAT3res_u.resok.ffiles);
             } else {
+                prefix_print(fsstatres.FSSTAT3res_u.resok.tbytes, total, prefix),
+                prefix_print(fsstatres.FSSTAT3res_u.resok.tbytes - fsstatres.FSSTAT3res_u.resok.fbytes, used, prefix),
+                prefix_print(fsstatres.FSSTAT3res_u.resok.fbytes, avail, prefix),
                 /* percent full */
                 capacity = (1 - ((double)fsstatres.FSSTAT3res_u.resok.fbytes / fsstatres.FSSTAT3res_u.resok.tbytes)) * 100;
-                if (giga) {
-                    /* gigabytes */
-                    printf("Filesystem               total       used      avail capacity\n");
-                    printf("%s:%s %" PRIu64 "GB %" PRIu64 "GB %" PRIu64 "GB  %.0f%%\n",
-                        host,
-                        path,
-                        fsstatres.FSSTAT3res_u.resok.tbytes >> GIGA,
-                        fsstatres.FSSTAT3res_u.resok.tbytes - fsstatres.FSSTAT3res_u.resok.fbytes >> GIGA,
-                        fsstatres.FSSTAT3res_u.resok.fbytes >> GIGA,
-                        capacity);
-                } else {
-                    /* kilobytes */
-                    printf("Filesystem              kbytes       used      avail capacity\n");
-                    printf("%s:%s %" PRIu64 " %" PRIu64 " %" PRIu64 " %.0f%%\n",
-                        host,
-                        path,
-                        fsstatres.FSSTAT3res_u.resok.tbytes >> KILO,
-                        fsstatres.FSSTAT3res_u.resok.tbytes - fsstatres.FSSTAT3res_u.resok.fbytes >> KILO,
-                        fsstatres.FSSTAT3res_u.resok.fbytes >> KILO,
-                        capacity);
-                }
+
+                printf("Filesystem               total       used      avail capacity\n");
+                printf("%s:%s %s %s %s %.0f%%\n",
+                    host,
+                    path,
+                    total,
+                    used,
+                    avail,
+                    capacity);
             }
         } else {
             /* get_fsstat will print the rpc error */
