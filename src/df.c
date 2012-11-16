@@ -130,7 +130,6 @@ FSSTAT3res get_fsstat(char *hostname, struct sockaddr_in *client_sock, FSSTAT3ar
 }
 
 int prefix_print(size3 input, char *output, int prefix) {
-    /* 13 is enough for a petabyte in kilobytes, plus three for the label and a trailing NUL */
     int index;
     size3 shifted;
 
@@ -144,9 +143,11 @@ int prefix_print(size3 input, char *output, int prefix) {
             prefix -= 10;
         }
     }
-    
+   
+    /* TODO check the length */
     index = snprintf(output, 13, "%" PRIu64 "", input >> prefix); 
 
+    /* print the label */
     switch (prefix) {
         case KILO:
             output[index] = 'K';
@@ -161,6 +162,7 @@ int prefix_print(size3 input, char *output, int prefix) {
             output[index] = 'T';
             break;
     }
+    /* all of them end in B */
     output[++index] = 'B';
     output[++index] = '\0';
 
@@ -185,10 +187,16 @@ int main(int argc, char **argv) {
     char *fh_val;
     FSSTAT3args fsstatarg;
     FSSTAT3res  fsstatres;
+    int len;
+    /* 13 is enough for a petabyte in kilobytes, plus three for the label and a trailing NUL */
     char total[16];
+    int total_max_len = 6;
     char used[16];
+    int used_max_len = 5;
     char avail[16];
+    int avail_max_len = 6;
     double capacity;
+    char line[81];
 
     client_sock.sin_family = AF_INET;
     client_sock.sin_port = htons(NFS_PORT);
@@ -240,9 +248,9 @@ int main(int argc, char **argv) {
     host = strtok(input_fh, ":");
     /* path is just used for display */
     path = strtok(NULL, ":");
-    max_path_len = strlen(path);
     /* the root filehandle in hex */
     fh = strtok(NULL, ":");
+    max_path_len = strlen(host) + 1 + strlen(path) + 1;
 
     if (inet_pton(AF_INET, host, &client_sock.sin_addr)) {
         inet_ntop(AF_INET, &client_sock.sin_addr, &hostname, INET_ADDRSTRLEN);
@@ -269,18 +277,33 @@ int main(int argc, char **argv) {
             if (inodes) {
                 printf("%" PRIu64 "\n", fsstatres.FSSTAT3res_u.resok.tfiles - fsstatres.FSSTAT3res_u.resok.ffiles);
             } else {
-                prefix_print(fsstatres.FSSTAT3res_u.resok.tbytes, total, prefix),
-                prefix_print(fsstatres.FSSTAT3res_u.resok.tbytes - fsstatres.FSSTAT3res_u.resok.fbytes, used, prefix),
-                prefix_print(fsstatres.FSSTAT3res_u.resok.fbytes, avail, prefix),
+                /* format results by prefix */
+                /* keep track of the lengths for column layout */
+                len = prefix_print(fsstatres.FSSTAT3res_u.resok.tbytes, total, prefix);
+                if (len > total_max_len)
+                    total_max_len = len;
+                len = prefix_print(fsstatres.FSSTAT3res_u.resok.tbytes - fsstatres.FSSTAT3res_u.resok.fbytes, used, prefix);
+                if (len > used_max_len)
+                    used_max_len = len;
+                len = prefix_print(fsstatres.FSSTAT3res_u.resok.fbytes, avail, prefix);
+                if (len > avail_max_len)
+                    avail_max_len = len;
+
                 /* percent full */
                 capacity = (1 - ((double)fsstatres.FSSTAT3res_u.resok.fbytes / fsstatres.FSSTAT3res_u.resok.tbytes)) * 100;
 
-                printf("Filesystem               total       used      avail capacity\n");
-                printf("%s:%s %s %s %s %.0f%%\n",
+                len = total_max_len + used_max_len + avail_max_len + strlen(" capacity");
+
+                printf("%-*s %*s %*s %*s capacity\n",
+                    max_path_len, "Filesystem", total_max_len, "total", used_max_len, "used", avail_max_len, "avail");
+                printf("%s:%s  %*s %*s %*s %7.0f%%\n",
                     host,
                     path,
+                    total_max_len,
                     total,
+                    used_max_len,
                     used,
+                    avail_max_len,
                     avail,
                     capacity);
             }
