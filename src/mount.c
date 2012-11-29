@@ -48,21 +48,19 @@ u_int mount_perror(mountstat3 fhs_status) {
 mountres3 *get_root_filehandle(char *hostname, CLIENT *client, char *path) {
     struct rpc_err clnt_err;
     mountres3 *mountres;
-    exports *ex;
-    dirpath dp;
+    exports ex;
     int i;
 
     if (path[0] == '/') {
         /* the actual RPC call */
         mountres = mountproc_mnt_3(&path, client);
 
-        ex = mountproc_export_3(NULL, client);
+        ex = *mountproc_export_3(NULL, client);
 
-        /* ugh what is up with these pointers? */
         do {
-            printf("dirpath = %s\n", (*(ex))->ex_dir);
-            ex = &(*(ex))->ex_next;
-        } while ((*(ex))->ex_next);
+            printf("dirpath = %s\n", ex->ex_dir);
+            ex = ex->ex_next;
+        } while ((ex)->ex_next);
 
         if (mountres) {
             if (mountres->fhs_status == MNT3_OK) {
