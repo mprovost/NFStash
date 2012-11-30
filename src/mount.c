@@ -48,19 +48,11 @@ u_int mount_perror(mountstat3 fhs_status) {
 mountres3 *get_root_filehandle(char *hostname, CLIENT *client, char *path) {
     struct rpc_err clnt_err;
     mountres3 *mountres;
-    exports ex;
     int i;
 
     if (path[0] == '/') {
         /* the actual RPC call */
         mountres = mountproc_mnt_3(&path, client);
-
-        ex = *mountproc_export_3(NULL, client);
-
-        do {
-            printf("dirpath = %s\n", ex->ex_dir);
-            ex = ex->ex_next;
-        } while ((ex)->ex_next);
 
         if (mountres) {
             if (mountres->fhs_status == MNT3_OK) {
@@ -102,6 +94,7 @@ int main(int argc, char **argv) {
     struct addrinfo hints, *addr;
     char *host;
     char *path;
+    exports ex, oldex;
     int ch, first, index;
     CLIENT *client;
     u_long version = 3;
@@ -137,6 +130,7 @@ int main(int argc, char **argv) {
 
     /* DNS lookup */
     getaddr = getaddrinfo(host, "nfs", &hints, &addr);
+
     if (getaddr == 0) { /* success! */
         /* loop through possibly multiple DNS responses */
         while (addr) {
@@ -162,14 +156,23 @@ int main(int argc, char **argv) {
             client->cl_auth = authnone_create();
 
             if (inet_ntop(AF_INET, &((struct sockaddr_in *)addr->ai_addr)->sin_addr, hostname, INET_ADDRSTRLEN)) {
-                mountres = get_root_filehandle(hostname, client, path);
+                if (path) {
+                    mountres = get_root_filehandle(hostname, client, path);
+                } else {
+                    ex = *mountproc_export_3(NULL, client);
+
+                    while (ex) {
+                        get_root_filehandle(hostname, client, ex->ex_dir);
+                        oldex = ex;
+                        ex = ex->ex_next;
+                        free(oldex);
+                    }
+                }
             } else {
                 fprintf(stderr, "%s: ", hostname);
                 perror("inet_ntop");
                 return EXIT_FAILURE;
             }
-
-            clnt_destroy(client);
 
             addr = addr->ai_next;
         }
