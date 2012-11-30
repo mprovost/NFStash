@@ -105,7 +105,7 @@ u_int nfs_perror(nfsstat3 status) {
 }
 
 
-FSSTAT3res get_fsstat(char *hostname, struct sockaddr_in *client_sock, FSSTAT3args *fsstatargp) {
+FSSTAT3res get_fsstat(struct sockaddr_in *client_sock, FSSTAT3args *fsstatargp) {
     CLIENT client;
     FSSTAT3res fsstatres;
     const u_long version = 3;
@@ -169,24 +169,15 @@ int prefix_print(size3 input, char *output, int prefix) {
     return index;
 }
 
-int main(int argc, char **argv) {
-    struct sockaddr_in client_sock;
-    char *error;
-    char hostname[INET_ADDRSTRLEN];
+
+int print_df(char *input_fh, int inodes, int prefix) {
     int i;
-    int ch;
-    int inodes = 0;
-    int prefix = 0;
-    char *input_fh;
+    char hostname[INET_ADDRSTRLEN];
     char *host;
     char *path;
-    size_t max_path_len;
-    char *path_spacing;
     char *fh;
     u_int fh_len;
     char *fh_val;
-    FSSTAT3args fsstatarg;
-    FSSTAT3res  fsstatres;
     int len;
     /* 13 is enough for a petabyte in kilobytes, plus three for the label and a trailing NUL */
     char total[16];
@@ -197,9 +188,101 @@ int main(int argc, char **argv) {
     int avail_max_len = 6;
     double capacity;
     char line[81];
+    size_t max_path_len;
+    char *path_spacing;
+    FSSTAT3args fsstatarg;
+    FSSTAT3res  fsstatres;
+    struct sockaddr_in client_sock;
 
     client_sock.sin_family = AF_INET;
     client_sock.sin_port = htons(NFS_PORT);
+
+    /* split the input string into a host (IP address) and hex filehandle */
+    host = strtok(input_fh, ":");
+    /* path is just used for display */
+    path = strtok(NULL, ":");
+    /* the root filehandle in hex */
+    fh = strtok(NULL, ":");
+    max_path_len = strlen(host) + 1 + strlen(path) + 1;
+
+    if (inet_pton(AF_INET, host, &client_sock.sin_addr)) {
+        inet_ntop(AF_INET, &client_sock.sin_addr, &hostname, INET_ADDRSTRLEN);
+    } else {
+        fprintf(stderr, "Invalid hostname: %s\n", host);
+        return EXIT_FAILURE;
+    }
+
+    /* hex takes two characters for each byte */
+    fh_len = strlen(fh) / 2;
+
+    if (fh_len && fh_len % 2 == 0 && fh_len <= FHSIZE3) {
+        fsstatarg.fsroot.data.data_len = fh_len;
+        fsstatarg.fsroot.data.data_val = malloc(fsstatarg.fsroot.data.data_len);
+
+        /* convert from the hex string to a byte array */
+        for (i = 0; i <= fsstatarg.fsroot.data.data_len; i++) {
+            sscanf(&fh[i * 2], "%2hhx", &fsstatarg.fsroot.data.data_val[i]);
+        }
+
+        fsstatres = get_fsstat(&client_sock, &fsstatarg);
+
+        if (fsstatres.status == NFS3_OK) {
+            if (inodes) {
+                printf("%" PRIu64 "\n", fsstatres.FSSTAT3res_u.resok.tfiles - fsstatres.FSSTAT3res_u.resok.ffiles);
+            } else {
+                /* format results by prefix */
+                /* keep track of the lengths for column layout */
+                len = prefix_print(fsstatres.FSSTAT3res_u.resok.tbytes, total, prefix);
+                if (len > total_max_len)
+                    total_max_len = len;
+                len = prefix_print(fsstatres.FSSTAT3res_u.resok.tbytes - fsstatres.FSSTAT3res_u.resok.fbytes, used, prefix);
+                if (len > used_max_len)
+                    used_max_len = len;
+                len = prefix_print(fsstatres.FSSTAT3res_u.resok.fbytes, avail, prefix);
+                if (len > avail_max_len)
+                    avail_max_len = len;
+
+                /* percent full */
+                capacity = (1 - ((double)fsstatres.FSSTAT3res_u.resok.fbytes / fsstatres.FSSTAT3res_u.resok.tbytes)) * 100;
+
+                /* TODO check max line length < 80 or truncate path */
+                len = total_max_len + used_max_len + avail_max_len + strlen(" capacity");
+
+                /*
+                printf("%-*s %*s %*s %*s capacity\n",
+                    max_path_len, "Filesystem", total_max_len, "total", used_max_len, "used", avail_max_len, "avail");
+                */
+                printf("%s:%s  %*s %*s %*s %7.0f%%\n",
+                    host,
+                    path,
+                    total_max_len,
+                    total,
+                    used_max_len,
+                    used,
+                    avail_max_len,
+                    avail,
+                    capacity);
+            }
+        } else {
+            /* get_fsstat will print the rpc error */
+            return EXIT_FAILURE;
+        }
+
+    } else {
+        fprintf(stderr, "Invalid filehandle: %s\n", fh);
+        return EXIT_FAILURE;
+    }
+
+    return EXIT_SUCCESS;
+}
+
+
+int main(int argc, char **argv) {
+    char *error;
+    int ch;
+    int inodes = 0;
+    int prefix = 0;
+    char *input_fh;
 
     while ((ch = getopt(argc, argv, "ghikmt")) != -1) {
         switch(ch) {
@@ -231,91 +314,26 @@ int main(int argc, char **argv) {
         }
     }
 
+    /* header */
+    printf("%-*s %*s %*s %*s capacity\n",
+        20, "Filesystem", 6, "total", 5, "used", 6, "avail");
     /* check if we don't have any command line targets */
     if (optind == argc) {
         /* use stdin */
         input_fh = malloc(FHMAX);
-        if (fgets(input_fh, FHMAX, stdin)) {
-            /* chomp the newline */
-            if (input_fh[strlen(input_fh) - 1] == '\n')
-                input_fh[strlen(input_fh) - 1] == '\0';
+        while (!feof(stdin)) {
+            if (fgets(input_fh, FHMAX, stdin)) {
+                /* chomp the newline */
+                if (input_fh[strlen(input_fh) - 1] == '\n')
+                    input_fh[strlen(input_fh) - 1] == '\0';
+                print_df(input_fh, inodes, prefix);
+            }
         }
     } else {
         input_fh = argv[optind];
+        print_df(input_fh, inodes, prefix);
     }
 
-    /* split the input string into a host (IP address) and hex filehandle */
-    host = strtok(input_fh, ":");
-    /* path is just used for display */
-    path = strtok(NULL, ":");
-    /* the root filehandle in hex */
-    fh = strtok(NULL, ":");
-    max_path_len = strlen(host) + 1 + strlen(path) + 1;
-
-    if (inet_pton(AF_INET, host, &client_sock.sin_addr)) {
-        inet_ntop(AF_INET, &client_sock.sin_addr, &hostname, INET_ADDRSTRLEN);
-    } else {
-        fprintf(stderr, "Invalid hostname: %s\n", host);
-        return EXIT_FAILURE;
-    }
-
-    /* hex takes two characters for each byte */
-    fh_len = strlen(fh) / 2;
-
-    if (fh_len && fh_len % 2 == 0 && fh_len <= FHSIZE3) {
-        fsstatarg.fsroot.data.data_len = fh_len;
-        fsstatarg.fsroot.data.data_val = malloc(fsstatarg.fsroot.data.data_len);
-
-        /* convert from the hex string to a byte array */
-        for (i = 0; i <= fsstatarg.fsroot.data.data_len; i++) {
-            sscanf(&fh[i * 2], "%2hhx", &fsstatarg.fsroot.data.data_val[i]);
-        }
-
-        fsstatres = get_fsstat(hostname, &client_sock, &fsstatarg);
-
-        if (fsstatres.status == NFS3_OK) {
-            if (inodes) {
-                printf("%" PRIu64 "\n", fsstatres.FSSTAT3res_u.resok.tfiles - fsstatres.FSSTAT3res_u.resok.ffiles);
-            } else {
-                /* format results by prefix */
-                /* keep track of the lengths for column layout */
-                len = prefix_print(fsstatres.FSSTAT3res_u.resok.tbytes, total, prefix);
-                if (len > total_max_len)
-                    total_max_len = len;
-                len = prefix_print(fsstatres.FSSTAT3res_u.resok.tbytes - fsstatres.FSSTAT3res_u.resok.fbytes, used, prefix);
-                if (len > used_max_len)
-                    used_max_len = len;
-                len = prefix_print(fsstatres.FSSTAT3res_u.resok.fbytes, avail, prefix);
-                if (len > avail_max_len)
-                    avail_max_len = len;
-
-                /* percent full */
-                capacity = (1 - ((double)fsstatres.FSSTAT3res_u.resok.fbytes / fsstatres.FSSTAT3res_u.resok.tbytes)) * 100;
-
-                len = total_max_len + used_max_len + avail_max_len + strlen(" capacity");
-
-                printf("%-*s %*s %*s %*s capacity\n",
-                    max_path_len, "Filesystem", total_max_len, "total", used_max_len, "used", avail_max_len, "avail");
-                printf("%s:%s  %*s %*s %*s %7.0f%%\n",
-                    host,
-                    path,
-                    total_max_len,
-                    total,
-                    used_max_len,
-                    used,
-                    avail_max_len,
-                    avail,
-                    capacity);
-            }
-        } else {
-            /* get_fsstat will print the rpc error */
-            return EXIT_FAILURE;
-        }
-
-    } else {
-        fprintf(stderr, "Invalid filehandle: %s\n", fh);
-        return EXIT_FAILURE;
-    }
 
     return EXIT_SUCCESS;
 }
