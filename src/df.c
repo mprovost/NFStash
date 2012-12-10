@@ -105,9 +105,9 @@ u_int nfs_perror(nfsstat3 status) {
 }
 
 
-FSSTAT3res get_fsstat(struct sockaddr_in *client_sock, FSSTAT3args *fsstatargp) {
+FSSTAT3res *get_fsstat(struct sockaddr_in *client_sock, FSSTAT3args *fsstatargp) {
     CLIENT client;
-    FSSTAT3res fsstatres;
+    FSSTAT3res *fsstatres;
     const u_long version = 3;
     struct timeval timeout = NFS_TIMEOUT;
     int nfs_sock = RPC_ANYSOCK;
@@ -116,14 +116,18 @@ FSSTAT3res get_fsstat(struct sockaddr_in *client_sock, FSSTAT3args *fsstatargp) 
     client = *clntudp_create(client_sock, NFS_PROGRAM, version, timeout, &nfs_sock);
     client.cl_auth = authunix_create_default();
 
-    fsstatres = *nfsproc3_fsstat_3(fsstatargp, &client);
+    fsstatres = nfsproc3_fsstat_3(fsstatargp, &client);
 
-    if (fsstatres.status != NFS3_OK) {
-        clnt_geterr(&client, &clnt_err);
-        if (clnt_err.re_status)
-            clnt_perror(&client, "nfsproc3_fsstat_3");
-        else
-            nfs_perror(fsstatres.status);
+    if (fsstatres) {
+        if (fsstatres->status != NFS3_OK) {
+            clnt_geterr(&client, &clnt_err);
+            if (clnt_err.re_status)
+                clnt_perror(&client, "nfsproc3_fsstat_3");
+            else
+                nfs_perror(fsstatres->status);
+        }
+    } else {
+        clnt_perror(&client, "nfsproc3_fsstat_3");
     }
 
     return fsstatres;
@@ -190,8 +194,8 @@ int print_df(char *input_fh, int inodes, int prefix) {
     char line[81];
     size_t max_path_len;
     char *path_spacing;
-    FSSTAT3args fsstatarg;
-    FSSTAT3res  fsstatres;
+    FSSTAT3args  fsstatarg;
+    FSSTAT3res  *fsstatres;
     struct sockaddr_in client_sock;
 
     client_sock.sin_family = AF_INET;
@@ -226,24 +230,24 @@ int print_df(char *input_fh, int inodes, int prefix) {
 
         fsstatres = get_fsstat(&client_sock, &fsstatarg);
 
-        if (fsstatres.status == NFS3_OK) {
+        if (fsstatres && fsstatres->status == NFS3_OK) {
             if (inodes) {
-                printf("%" PRIu64 "\n", fsstatres.FSSTAT3res_u.resok.tfiles - fsstatres.FSSTAT3res_u.resok.ffiles);
+                printf("%" PRIu64 "\n", fsstatres->FSSTAT3res_u.resok.tfiles - fsstatres->FSSTAT3res_u.resok.ffiles);
             } else {
                 /* format results by prefix */
                 /* keep track of the lengths for column layout */
-                len = prefix_print(fsstatres.FSSTAT3res_u.resok.tbytes, total, prefix);
+                len = prefix_print(fsstatres->FSSTAT3res_u.resok.tbytes, total, prefix);
                 if (len > total_max_len)
                     total_max_len = len;
-                len = prefix_print(fsstatres.FSSTAT3res_u.resok.tbytes - fsstatres.FSSTAT3res_u.resok.fbytes, used, prefix);
+                len = prefix_print(fsstatres->FSSTAT3res_u.resok.tbytes - fsstatres->FSSTAT3res_u.resok.fbytes, used, prefix);
                 if (len > used_max_len)
                     used_max_len = len;
-                len = prefix_print(fsstatres.FSSTAT3res_u.resok.fbytes, avail, prefix);
+                len = prefix_print(fsstatres->FSSTAT3res_u.resok.fbytes, avail, prefix);
                 if (len > avail_max_len)
                     avail_max_len = len;
 
                 /* percent full */
-                capacity = (1 - ((double)fsstatres.FSSTAT3res_u.resok.fbytes / fsstatres.FSSTAT3res_u.resok.tbytes)) * 100;
+                capacity = (1 - ((double)fsstatres->FSSTAT3res_u.resok.fbytes / fsstatres->FSSTAT3res_u.resok.tbytes)) * 100;
 
                 /* TODO check max line length < 80 or truncate path */
                 len = total_max_len + used_max_len + avail_max_len + strlen(" capacity");
