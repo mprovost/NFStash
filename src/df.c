@@ -249,7 +249,7 @@ int print_df(char *input_fh, int inodes, int prefix) {
                 /* percent full */
                 capacity = (1 - ((double)fsstatres->FSSTAT3res_u.resok.fbytes / fsstatres->FSSTAT3res_u.resok.tbytes)) * 100;
 
-                /* TODO check max line length < 80 or truncate path */
+                /* TODO check max line length < 80 or truncate path (or -w option for wide?) */
                 len = total_max_len + used_max_len + avail_max_len + strlen(" capacity");
 
                 /*
@@ -329,7 +329,7 @@ int main(int argc, char **argv) {
             if (fgets(input_fh, FHMAX, stdin)) {
                 /* chomp the newline */
                 if (input_fh[strlen(input_fh) - 1] == '\n')
-                    input_fh[strlen(input_fh) - 1] == '\0';
+                    input_fh[strlen(input_fh) - 1] = '\0';
                 print_df(input_fh, inodes, prefix);
             }
         }
