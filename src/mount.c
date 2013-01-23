@@ -72,8 +72,8 @@ mountres3 *get_root_filehandle(char *hostname, CLIENT *client, char *path) {
             /* check for authentication errors which probably mean it needs to come from a low port */
             if (clnt_err.re_status == RPC_AUTHERROR)
                fprintf(stderr, "Unable to mount filesystem, consider running as root\n");
-
-            clnt_perror(client, "mountproc_mnt_3");
+            else
+                clnt_perror(client, "mountproc_mnt_3");
         }
     } else {
         fprintf(stderr, "%s: Invalid path: %s\n", hostname, path);
