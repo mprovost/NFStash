@@ -54,3 +54,10 @@ typedef struct targets {
     unsigned int sent, received;
     float min, max, avg;
 } targets_t;
+
+typedef struct fsroots {
+    char *host;
+    char *path;
+    char *fsroot;
+    struct fsroots *next;
+} fsroots_t;
