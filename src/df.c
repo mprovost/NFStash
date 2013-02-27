@@ -367,6 +367,7 @@ int main(int argc, char **argv) {
                 maxpath = pathlen;
 
             tail = tail->next;
+            optind++;
         }
     }
 
