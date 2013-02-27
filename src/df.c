@@ -137,25 +137,32 @@ size_t parse_fh(char *input, fsroots_t **next) {
                     }
                 } else {
                     fprintf(stderr, "Invalid filehandle: %s\n", orig_input);
+                    fsroot->path = NULL;
                 }
             } else {
                 fprintf(stderr, "Invalid fsroot: %s\n", orig_input);
+                fsroot->path = NULL;
             }
         } else {
             fprintf(stderr, "Invalid path: %s\n", orig_input);
+            fsroot->path = NULL;
         }
     } else {
         fprintf(stderr, "Invalid hostname: %s\n", orig_input);
+        fsroot->path = NULL;
     }
 
     /* TODO check for junk at end of input string */
 
-    *next = fsroot;
 
-    if (fsroot->path)
+    if (fsroot->path) {
+        *next = fsroot;
         return strlen(fsroot->path);
-    else
+    } else {
+        free(fsroot->client_sock);
+        free(fsroot);
         return 0;
+    }
 }
 
 
