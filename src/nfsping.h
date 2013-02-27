@@ -56,8 +56,8 @@ typedef struct targets {
 } targets_t;
 
 typedef struct fsroots {
-    char *host;
+    struct sockaddr_in *client_sock;
     char *path;
-    char *fsroot;
+    nfs_fh3 fsroot;
     struct fsroots *next;
 } fsroots_t;
