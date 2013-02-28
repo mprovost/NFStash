@@ -120,8 +120,11 @@ size_t parse_fh(char *input, fsroots_t **next) {
     /* host first */
     tmp = strtok(input, ":");
     if (tmp && inet_pton(AF_INET, tmp, &((struct sockaddr_in *)fsroot->client_sock)->sin_addr)) {
+        fsroot->host = tmp;
         /* path is just used for display */
-        if (fsroot->path = strtok(NULL, ":")) {
+        tmp = strtok(NULL, ":");
+        if (tmp) {
+            fsroot->path = tmp;
             /* the root filehandle in hex */
             if (tmp = strtok(NULL, ":")) {
                 /* hex takes two characters for each byte */
@@ -156,6 +159,7 @@ size_t parse_fh(char *input, fsroots_t **next) {
 
 
     if (fsroot->path) {
+        fsroot->next = *next;
         *next = fsroot;
         return strlen(fsroot->path);
     } else {
@@ -166,7 +170,7 @@ size_t parse_fh(char *input, fsroots_t **next) {
 }
 
 
-FSSTAT3res *get_fsstat(struct sockaddr_in *client_sock, fsroots_t *fsroot) {
+FSSTAT3res *get_fsstat(struct sockaddr_in *client_sock, nfs_fh3 *fsroot) {
     CLIENT client;
     FSSTAT3args fsstatarg;
     FSSTAT3res  *fsstatres;
@@ -178,9 +182,10 @@ FSSTAT3res *get_fsstat(struct sockaddr_in *client_sock, fsroots_t *fsroot) {
     client_sock->sin_family = AF_INET;
     client_sock->sin_port = htons(NFS_PORT);
 
-
     client = *clntudp_create(client_sock, NFS_PROGRAM, version, timeout, &nfs_sock);
     client.cl_auth = authunix_create_default();
+
+    fsstatarg.fsroot = *fsroot;
 
     fsstatres = nfsproc3_fsstat_3(&fsstatarg, &client);
 
@@ -198,6 +203,7 @@ FSSTAT3res *get_fsstat(struct sockaddr_in *client_sock, fsroots_t *fsroot) {
 
     return fsstatres;
 }
+
 
 int prefix_print(size3 input, char *output, int prefix) {
     int index;
@@ -296,7 +302,6 @@ int print_df(char *host, char *path, FSSTAT3res *fsstatres, const int inodes, co
         return EXIT_FAILURE;
     }
 
-
     return EXIT_SUCCESS;
 }
 
@@ -310,6 +315,8 @@ int main(int argc, char **argv) {
     fsroots_t *current, *tail, dummy;
     int maxpath = 0;
     int pathlen = 0;
+    int maxhost = 0;
+    FSSTAT3res *fsstatres;
 
     while ((ch = getopt(argc, argv, "ghikmt")) != -1) {
         switch(ch) {
@@ -364,11 +371,14 @@ int main(int argc, char **argv) {
     } else {
         while (optind < argc) {
             pathlen = parse_fh(argv[optind], &(tail->next));
+            tail = tail->next;
 
             if (pathlen > maxpath)
                 maxpath = pathlen;
 
-            tail = tail->next;
+            if (strlen(tail->host) > maxhost)
+                maxhost = strlen(tail->host);
+
             optind++;
         }
     }
@@ -376,6 +386,8 @@ int main(int argc, char **argv) {
     current = dummy.next;
     while (current) {
         printf("%s\n", current->path);
+        fsstatres = get_fsstat(current->client_sock, &current->fsroot);
+        print_df(current->host, current->path, fsstatres, inodes, prefix);
         current = current->next;
     }
 
