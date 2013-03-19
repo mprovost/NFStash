@@ -124,12 +124,13 @@ size_t parse_fh(char *input, fsroots_t **next) {
         /* path is just used for display */
         tmp = strtok(NULL, ":");
         if (tmp) {
-            fsroot->path = tmp;
+            fsroot->path = strdup(tmp);
             /* the root filehandle in hex */
             if (tmp = strtok(NULL, ":")) {
                 /* hex takes two characters for each byte */
                 fsroot_len = strlen(tmp) / 2;
 
+                /* sanity check the hex - make sure it's even and a valid size */
                 if (fsroot_len && fsroot_len % 2 == 0 && fsroot_len <= FHSIZE3) {
                     fsroot->fsroot.data.data_len = fsroot_len;
                     fsroot->fsroot.data.data_val = malloc(fsroot_len);
@@ -156,7 +157,6 @@ size_t parse_fh(char *input, fsroots_t **next) {
     }
 
     /* TODO check for junk at end of input string */
-
 
     if (fsroot->path) {
         fsroot->next = *next;
@@ -224,6 +224,7 @@ int prefix_print(size3 input, char *output, int prefix) {
     index = snprintf(output, 13, "%" PRIu64 "", input >> prefix); 
 
     /* print the label */
+    /* TODO PETA */
     switch (prefix) {
         case KILO:
             output[index] = 'K';
@@ -238,7 +239,7 @@ int prefix_print(size3 input, char *output, int prefix) {
             output[index] = 'T';
             break;
     }
-    /* all of them end in B */
+    /* all of them end in B(ytes) */
     output[++index] = 'B';
     output[++index] = '\0';
 
@@ -363,10 +364,13 @@ int main(int argc, char **argv) {
                 input_fh[strlen(input_fh) - 1] = '\0';
 
             pathlen = parse_fh(input_fh, &(tail->next));
+            tail = tail->next;
+
             if (pathlen > maxpath)
                 maxpath = pathlen;
 
-            tail = tail->next;
+            if (strlen(tail->host) > maxhost)
+                maxhost = strlen(tail->host);
         }
     } else {
         while (optind < argc) {
@@ -383,9 +387,20 @@ int main(int argc, char **argv) {
         }
     }
 
+    /* header */
+    /* The longest output for each column (up to 9 petabytes in KB) is 13 digits plus two for label*/
+    if (prefix) {
+        printf("%-*s %*s %*s %*s capacity\n",
+            maxhost + 1 + maxpath, "Filesystem", 16, "total", 16, "used", 16, "avail");
+    /* if we're using human output the column will never be longer than 4 digits plus two for label */
+    } else {
+        printf("%-*s %*s %*s %*s capacity\n",
+            maxhost + 0 + maxpath, "Filesystem", 7, "total", 7, "used", 7, "avail");
+    }
+
+    /* skip the first empty struct */
     current = dummy.next;
     while (current) {
-        printf("%s\n", current->path);
         fsstatres = get_fsstat(current->client_sock, &current->fsroot);
         print_df(current->host, current->path, fsstatres, inodes, prefix);
         current = current->next;
@@ -394,9 +409,6 @@ int main(int argc, char **argv) {
             /* reverse lookup */
             //inet_ntop(AF_INET, &(fsroot->client_sock.sin_addr), fsroot->hostname, INET_ADDRSTRLEN);
 
-    /* header */
-    printf("%-*s %*s %*s %*s capacity\n",
-        20, "Filesystem", 6, "total", 5, "used", 6, "avail");
 
     return EXIT_SUCCESS;
 }
