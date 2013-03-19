@@ -247,15 +247,12 @@ int prefix_print(size3 input, char *output, int prefix) {
 }
 
 
-int print_df(char *host, char *path, FSSTAT3res *fsstatres, const int inodes, const int prefix) {
+int print_df(int offset, char *host, char *path, FSSTAT3res *fsstatres, const int inodes, const int prefix) {
     int len;
     /* 13 is enough for a petabyte in kilobytes, plus three for the label and a trailing NUL */
     char total[16];
-    int total_max_len = 6;
     char used[16];
-    int used_max_len = 5;
     char avail[16];
-    int avail_max_len = 6;
     double capacity;
     char line[81];
     size_t max_path_len;
@@ -266,37 +263,15 @@ int print_df(char *host, char *path, FSSTAT3res *fsstatres, const int inodes, co
             printf("%" PRIu64 "\n", fsstatres->FSSTAT3res_u.resok.tfiles - fsstatres->FSSTAT3res_u.resok.ffiles);
         } else {
             /* format results by prefix */
-            /* keep track of the lengths for column layout */
-            len = prefix_print(fsstatres->FSSTAT3res_u.resok.tbytes, total, prefix);
-            if (len > total_max_len)
-                total_max_len = len;
-            len = prefix_print(fsstatres->FSSTAT3res_u.resok.tbytes - fsstatres->FSSTAT3res_u.resok.fbytes, used, prefix);
-            if (len > used_max_len)
-                used_max_len = len;
-            len = prefix_print(fsstatres->FSSTAT3res_u.resok.fbytes, avail, prefix);
-            if (len > avail_max_len)
-                avail_max_len = len;
+            prefix_print(fsstatres->FSSTAT3res_u.resok.tbytes, total, prefix);
+            prefix_print(fsstatres->FSSTAT3res_u.resok.tbytes - fsstatres->FSSTAT3res_u.resok.fbytes, used, prefix);
+            prefix_print(fsstatres->FSSTAT3res_u.resok.fbytes, avail, prefix);
 
             /* percent full */
             capacity = (1 - ((double)fsstatres->FSSTAT3res_u.resok.fbytes / fsstatres->FSSTAT3res_u.resok.tbytes)) * 100;
 
-            /* TODO check max line length < 80 or truncate path (or -w option for wide?) */
-            len = total_max_len + used_max_len + avail_max_len + strlen(" capacity");
-
-            /*
-            printf("%-*s %*s %*s %*s capacity\n",
-                max_path_len, "Filesystem", total_max_len, "total", used_max_len, "used", avail_max_len, "avail");
-            */
-            printf("%s:%s  %*s %*s %*s %7.0f%%\n",
-                host,
-                path,
-                total_max_len,
-                total,
-                used_max_len,
-                used,
-                avail_max_len,
-                avail,
-                capacity);
+            printf("%-*s %*s %*s %*s %7.0f%%\n",
+                offset, path, 7, total, 7, used, 7, avail, capacity);
         }
     } else {
         /* get_fsstat will print the rpc error */
@@ -388,21 +363,22 @@ int main(int argc, char **argv) {
     }
 
     /* header */
+    /* TODO check max line length < 80 or truncate path (or -w option for wide?) */
     /* The longest output for each column (up to 9 petabytes in KB) is 13 digits plus two for label*/
     if (prefix) {
         printf("%-*s %*s %*s %*s capacity\n",
-            maxhost + 1 + maxpath, "Filesystem", 16, "total", 16, "used", 16, "avail");
+            maxpath, "Filesystem", 16, "total", 16, "used", 16, "avail");
     /* if we're using human output the column will never be longer than 4 digits plus two for label */
     } else {
         printf("%-*s %*s %*s %*s capacity\n",
-            maxhost + 0 + maxpath, "Filesystem", 7, "total", 7, "used", 7, "avail");
+            maxpath, "Filesystem", 7, "total", 7, "used", 7, "avail");
     }
 
     /* skip the first empty struct */
     current = dummy.next;
     while (current) {
         fsstatres = get_fsstat(current->client_sock, &current->fsroot);
-        print_df(current->host, current->path, fsstatres, inodes, prefix);
+        print_df(maxpath, current->host, current->path, fsstatres, inodes, prefix);
         current = current->next;
     }
 
