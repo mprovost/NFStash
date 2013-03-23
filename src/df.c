@@ -221,10 +221,12 @@ int prefix_print(size3 input, char *output, int prefix) {
     }
    
     /* TODO check the length */
-    index = snprintf(output, 13, "%" PRIu64 "", input >> prefix); 
+    index = snprintf(output, 13, "%" PRIu64 "", input >> prefix);
 
     /* print the label */
-    /* TODO PETA */
+    /* TODO PETA (and BYTE?) */
+    /* FIXME only print this for prefix=0 aka human mode otherwise stuff the prefix in the header */
+    /* TODO replace with enum? */
     switch (prefix) {
         case KILO:
             output[index] = 'K';
@@ -247,16 +249,13 @@ int prefix_print(size3 input, char *output, int prefix) {
 }
 
 
-int print_df(int offset, char *host, char *path, FSSTAT3res *fsstatres, const int inodes, const int prefix) {
+int print_df(int offset, int width, char *host, char *path, FSSTAT3res *fsstatres, const int inodes, const int prefix) {
     int len;
     /* 13 is enough for a petabyte in kilobytes, plus three for the label and a trailing NUL */
     char total[16];
     char used[16];
     char avail[16];
     double capacity;
-    char line[81];
-    size_t max_path_len;
-    char *path_spacing;
 
     if (fsstatres && fsstatres->status == NFS3_OK) {
         if (inodes) {
@@ -271,7 +270,7 @@ int print_df(int offset, char *host, char *path, FSSTAT3res *fsstatres, const in
             capacity = (1 - ((double)fsstatres->FSSTAT3res_u.resok.fbytes / fsstatres->FSSTAT3res_u.resok.tbytes)) * 100;
 
             printf("%-*s %*s %*s %*s %7.0f%%\n",
-                offset, path, 7, total, 7, used, 7, avail, capacity);
+                offset, path, width, total, width, used, width, avail, capacity);
         }
     } else {
         /* get_fsstat will print the rpc error */
@@ -287,6 +286,7 @@ int main(int argc, char **argv) {
     int ch;
     int inodes = 0;
     int prefix = 0;
+    int width  = 0;
     char input_fh[FHMAX];
     fsroots_t *current, *tail, dummy;
     int maxpath = 0;
@@ -365,20 +365,40 @@ int main(int argc, char **argv) {
     /* header */
     /* TODO check max line length < 80 or truncate path (or -w option for wide?) */
     /* The longest output for each column (up to 9 petabytes in KB) is 13 digits plus two for label*/
-    if (prefix) {
-        printf("%-*s %*s %*s %*s capacity\n",
-            maxpath, "Filesystem", 16, "total", 16, "used", 16, "avail");
-    /* if we're using human output the column will never be longer than 4 digits plus two for label */
-    } else {
-        printf("%-*s %*s %*s %*s capacity\n",
-            maxpath, "Filesystem", 7, "total", 7, "used", 7, "avail");
+    /* TODO enum! */
+    switch (prefix) {
+        case KILO:
+            /* 9PB in KB = 9.8956e12 */
+            width = 13;
+            break;
+        case MEGA:
+            /* 9PB in MB = 9.664e+9 */
+            width = 10;
+            break;
+        case GIGA:
+            /* 9PB in GB = 9.437e+6 */
+            width = 7;
+            break;
+        case TERA:
+            /* 9PB in TB = 9216 */
+            width = 4;
+            break;
+        default:
+            /* if we're using human output the column will never be longer than 4 digits plus two for label */
+            width = 6;
     }
+    /* extra space for gap between columns */
+    width++;
+
+    /* FIXME print prefix in total column */
+    printf("%-*s %*s %*s %*s capacity\n",
+        maxpath, "Filesystem", width, "total", width, "used", width, "avail");
 
     /* skip the first empty struct */
     current = dummy.next;
     while (current) {
         fsstatres = get_fsstat(current->client_sock, &current->fsroot);
-        print_df(maxpath, current->host, current->path, fsstatres, inodes, prefix);
+        print_df(maxpath, width, current->host, current->path, fsstatres, inodes, prefix);
         current = current->next;
     }
 
