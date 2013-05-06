@@ -73,7 +73,7 @@ void print_summary(targets_t targets) {
 }
 
 /* TODO target output spacing */
-void print_verbose_summary(targets_t targets) {
+void print_fping_summary(targets_t targets) {
     targets_t *target = &targets;
     results_t *current;
 
@@ -107,6 +107,7 @@ int main(int argc, char **argv) {
     int getaddr;
     unsigned long us;
     double loss;
+    enum outputs format;
     targets_t *targets;
     targets_t *target;
     results_t *results;
@@ -114,7 +115,7 @@ int main(int argc, char **argv) {
     int ch;
     unsigned long count = 0;
     /* command-line options */
-    int dns = 0, verbose = 0, loop = 0, ip = 0, quiet = 0, multiple = 0;
+    int dns = 0, loop = 0, ip = 0, quiet = 0, multiple = 0;
     /* default to NFS v3 */
     u_long version = 3;
     int first, index;
@@ -140,7 +141,7 @@ int main(int argc, char **argv) {
                 break;
             /* number of pings per target, parseable summary */
             case 'C':
-                verbose = 1;
+                format = fping;
                 /* fall through to regular count */
             /* number of pings per target */
             case 'c':
@@ -247,7 +248,7 @@ int main(int argc, char **argv) {
 
         target->name = argv[index];
 
-        if (verbose) {
+        if (format == fping) {
             target->results = calloc(1, sizeof(results_t));
             target->current = target->results;
         }
@@ -288,7 +289,7 @@ int main(int argc, char **argv) {
                             target->next = NULL;
                             target->name = argv[index];
 
-                            if (verbose) {
+                            if (format == fping) {
                                 target->results = calloc(1, sizeof(results_t));
                                 target->current = target->results;
                             }
@@ -403,7 +404,7 @@ int main(int argc, char **argv) {
                 if (target->received == 1) {
                     target->min = target->max = target->avg = us;
                 } else {
-                    if (verbose) {
+                    if (format == fping) {
                         target->current->next = calloc(1, sizeof(results_t));
                         target->current = target->current->next;
                     }
@@ -413,7 +414,7 @@ int main(int argc, char **argv) {
                     target->avg = (target->avg * (target->received - 1) + us) / target->received;
                 }
 
-                if (verbose)
+                if (format == fping)
                     target->current->us = us;
 
                 if (!quiet)
@@ -434,7 +435,7 @@ int main(int argc, char **argv) {
                 if (!count && !loop) {
                     printf("%s is dead\n", target->name);
                 }
-                if (verbose && target->sent > 1) {
+                if (format == fping && target->sent > 1) {
                     target->current->next = calloc(1, sizeof(results_t));
                     target->current = target->current->next;
                 }
@@ -472,8 +473,8 @@ int main(int argc, char **argv) {
     /* these print to stderr */
     if (!quiet)
         fprintf(stderr, "\n");
-    if (verbose)
-        print_verbose_summary(*targets);
+    if (format == fping)
+        print_fping_summary(*targets);
     else
         print_summary(*targets);
     /* loop through the targets and find any that didn't get a response

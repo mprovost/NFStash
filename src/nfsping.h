@@ -62,3 +62,11 @@ typedef struct fsroots {
     nfs_fh3 fsroot;
     struct fsroots *next;
 } fsroots_t;
+
+enum outputs {
+    human,
+    fping,
+    graphite,
+    statsd,
+    opentsdb
+};
