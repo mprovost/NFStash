@@ -49,6 +49,7 @@ void usage() {
     -m    use multiple target IP addresses if found\n\
     -M    use the portmapper (default: NFS no, mount yes)\n\
     -n    check the mount protocol (default NFS)\n\
+    -o    output format ([G]raphite, [S]tatsd, Open[T]sdb, default human readable)\n\
     -p n  pause between pings to target (in ms, default %lu)\n\
     -P n  specify port (default: NFS %i)\n\
     -q    quiet, only print summary\n\
@@ -107,7 +108,7 @@ int main(int argc, char **argv) {
     int getaddr;
     unsigned long us;
     double loss;
-    enum outputs format;
+    enum outputs format = human;
     targets_t *targets;
     targets_t *target;
     results_t *results;
@@ -133,7 +134,7 @@ int main(int argc, char **argv) {
     if (argc == 1)
         usage();
 
-    while ((ch = getopt(argc, argv, "Ac:C:dhi:lmnMp:P:qt:TV:")) != -1) {
+    while ((ch = getopt(argc, argv, "Ac:C:dhi:lmnMo:p:P:qt:TV:")) != -1) {
         switch(ch) {
             /* show IP addresses */
             case 'A':
@@ -141,7 +142,12 @@ int main(int argc, char **argv) {
                 break;
             /* number of pings per target, parseable summary */
             case 'C':
-                format = fping;
+                if (format == human) {
+                    format = fping;
+                } else {
+                    fprintf(stderr, "nfsping: Can't specify both -C and -o!\n");
+                    usage();
+                }
                 /* fall through to regular count */
             /* number of pings per target */
             case 'c':
@@ -181,6 +187,23 @@ int main(int argc, char **argv) {
             /* check mount protocol */
             case 'n':
                 prognum = MOUNTPROG;
+                break;
+            /* output format */
+            case 'o':
+                if (format == fping) {
+                    fprintf(stderr, "nfsping: Can't specify both -C and -o!\n");
+                    usage();
+                }
+                if (strcmp(optarg, "G") == 0) {
+                    format = graphite;
+                } else if (strcmp(optarg, "S") == 0) {
+                    format = statsd;
+                } else if (strcmp(optarg, "T") == 0) {
+                    format = opentsdb;
+                } else {
+                    fprintf(stderr, "nfsping: unknown output format \"%s\"!\n", optarg);
+                    usage();
+                }
                 break;
             /* time between pings to target */
             case 'p':
