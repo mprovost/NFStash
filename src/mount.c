@@ -63,13 +63,15 @@ mountres3 *get_root_filehandle(char *hostname, CLIENT *client, char *path) {
                 }
                 printf("\n");
             } else {
-                fprintf(stderr, "%s:%s ", hostname, path);
+                fprintf(stderr, "%s:%s: ", hostname, path);
                 mount_perror(mountres->fhs_status);
             }
         } else {
-            fprintf(stderr, "%s:%s ", hostname, path);
+            fprintf(stderr, "%s:%s: ", hostname, path);
             clnt_geterr(client, &clnt_err);
             /* check for authentication errors which probably mean it needs to come from a low port */
+            /* TODO just print one error and exit? */
+            /* TODO check if we are root already */
             if (clnt_err.re_status == RPC_AUTHERROR)
                fprintf(stderr, "Unable to mount filesystem, consider running as root\n");
             else
