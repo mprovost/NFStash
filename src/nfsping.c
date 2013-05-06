@@ -74,6 +74,7 @@ void print_summary(targets_t targets) {
 }
 
 /* TODO target output spacing */
+/* print a parseable summary string when finished in fping-compatible format */
 void print_fping_summary(targets_t targets) {
     targets_t *target = &targets;
     results_t *current;
@@ -93,6 +94,19 @@ void print_fping_summary(targets_t targets) {
     }
 }
 
+/* print formatted output after each ping */
+void print_output(enum outputs format, targets_t *target, struct timeval now, unsigned long us) {
+    double loss;
+
+    if (format == human || format == fping) {
+        loss = (target->sent - target->received) / (double)target->sent * 100;
+        printf("%s : [%u], %03.2f ms (%03.2f avg, %.0f%% loss)\n", target->name, target->sent - 1, us / 1000.0, target->avg / 1000.0, loss);
+    } else if (format == graphite) {
+        printf("nfs.%s.ping.usec %lu %li\n", target->name, us, now.tv_sec);
+        /* TODO print lost packets */
+    }
+}
+
 int main(int argc, char **argv) {
     void *status;
     char *error;
@@ -107,7 +121,6 @@ int main(int argc, char **argv) {
     struct rpc_err clnt_err;
     int getaddr;
     unsigned long us;
-    double loss;
     enum outputs format = human;
     targets_t *targets;
     targets_t *target;
@@ -220,6 +233,7 @@ int main(int argc, char **argv) {
                 }    
                 break;
             /* quiet, only print summary */
+            /* TODO error if output also specified? */
             case 'q':
                 quiet = 1;
                 break;
@@ -420,7 +434,6 @@ int main(int argc, char **argv) {
                     continue;
                 }
 
-                loss = (target->sent - target->received) / (double)target->sent * 100;
                 us = tv2us(call_end) - tv2us(call_start);
 
                 /* first result is a special case */
@@ -441,7 +454,8 @@ int main(int argc, char **argv) {
                     target->current->us = us;
 
                 if (!quiet)
-                    printf("%s : [%u], %03.2f ms (%03.2f avg, %.0f%% loss)\n", target->name, target->sent - 1, us / 1000.0, target->avg / 1000.0, loss);
+                    /* TODO estimate the time by getting the midpoint of call_start and call_end? */
+                    print_output(format, target, call_end, us);
             } else {
                 clnt_geterr(target->client, &clnt_err);
                 if (prognum == MOUNTPROG)
@@ -494,11 +508,12 @@ int main(int argc, char **argv) {
     }
     fflush(stdout);
     /* these print to stderr */
-    if (!quiet)
+    if (!quiet && (format == human || format == fping))
         fprintf(stderr, "\n");
+    /* don't print summary for formatted output */
     if (format == fping)
         print_fping_summary(*targets);
-    else
+    else if (format == human)
         print_summary(*targets);
     /* loop through the targets and find any that didn't get a response
      * exit with a failure if there were any missing responses */
