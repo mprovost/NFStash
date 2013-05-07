@@ -137,6 +137,8 @@ int main(int argc, char **argv) {
         /* loop through possibly multiple DNS responses */
         while (addr) {
             client_sock.sin_addr = ((struct sockaddr_in *)addr->ai_addr)->sin_addr;
+            /* new socket for each connection */
+            sock = RPC_ANYSOCK;
 
             /* get mount port from portmapper */
             if (hints.ai_socktype == SOCK_DGRAM) {
