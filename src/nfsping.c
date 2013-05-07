@@ -285,7 +285,6 @@ int main(int argc, char **argv) {
         }
 
         target->name = argv[index];
-        printf("%s\n", target->name);
 
         if (format == fping) {
             target->results = calloc(1, sizeof(results_t));
@@ -353,6 +352,9 @@ int main(int argc, char **argv) {
 
                     /* create the RPC client */
                     target->client_sock->sin_family = AF_INET;
+                    /* make sure and set this for each new connection so it gets a new socket */
+                    /* clnttcp_create will happily reuse sockets */
+                    sock = RPC_ANYSOCK;
 
                     if (port)
                         target->client_sock->sin_port = port;
@@ -408,7 +410,9 @@ int main(int argc, char **argv) {
         target = targets;
 
         while (target) {
+            /* first time marker */
             gettimeofday(&call_start, NULL);
+            /* the actual ping */
             if (prognum == MOUNTPROG)
                 /* TODO version 2 */
                 status = mountproc_null_3(NULL, target->client);
@@ -416,6 +420,7 @@ int main(int argc, char **argv) {
                 /* TODO version 2 */
                 /* this might work for both versions */
                 status = nfsproc3_null_3(NULL, target->client);
+            /* second time marker */
             gettimeofday(&call_end, NULL);
             target->sent++;
 
