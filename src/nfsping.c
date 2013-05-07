@@ -276,6 +276,7 @@ int main(int argc, char **argv) {
     targets = calloc(1, sizeof(targets_t));
     target = targets;
 
+    /* process the targets from the command line */
     for (index = optind; index < argc; index++) {
         if (index > first) {
             target->next = calloc(1, sizeof(targets_t));
@@ -284,6 +285,7 @@ int main(int argc, char **argv) {
         }
 
         target->name = argv[index];
+        printf("%s\n", target->name);
 
         if (format == fping) {
             target->results = calloc(1, sizeof(results_t));
@@ -348,6 +350,46 @@ int main(int argc, char **argv) {
                         }
                     }
                     addr = addr->ai_next;
+
+                    /* create the RPC client */
+                    target->client_sock->sin_family = AF_INET;
+
+                    if (port)
+                        target->client_sock->sin_port = port;
+
+                    /* TCP */
+                    if (hints.ai_socktype == SOCK_STREAM) {
+                        /* check the portmapper */
+                        if (port == 0)
+                            target->client_sock->sin_port = htons(pmap_getport(target->client_sock, prognum, version, IPPROTO_TCP));
+                        target->client = clnttcp_create(target->client_sock, prognum, version, &sock, 0, 0);
+
+                        if (target->client == NULL) {
+                            clnt_pcreateerror("clnttcp_create");
+                            exit(EXIT_FAILURE);
+                        }
+                    /* UDP */
+                    } else {
+                        /* check the portmapper */
+                        if (port == 0)
+                            target->client_sock->sin_port = htons(pmap_getport(target->client_sock, prognum, version, IPPROTO_UDP));
+                        target->client = clntudp_create(target->client_sock, prognum, version, timeout, &sock);
+
+                        if (target->client == NULL) {
+                            clnt_pcreateerror("clntudp_create");
+                            exit(EXIT_FAILURE);
+                        }
+                    }
+
+                    /* check if the portmapper failed */
+                    /* by this point we should know which port we're talking to */
+                    if (target->client_sock->sin_port == 0) {
+                        clnt_pcreateerror("pmap_getport");
+                        exit(EXIT_FAILURE);
+                    }
+
+                    target->client->cl_auth = authnone_create();
+                    clnt_control(target->client, CLSET_TIMEOUT, (char *)&timeout);
                 }
             } else {
                 fprintf(stderr, "%s: %s\n", target->name, gai_strerror(getaddr));
@@ -356,61 +398,14 @@ int main(int argc, char **argv) {
         }
     }
 
-    /* reset back to start of list */
-    target = targets;
-
-    /* loop through the targets and create the rpc client */
-    /* TODO should we exit on failure or just skip to the next target? */
-    while (target) {
-        target->client_sock->sin_family = AF_INET;
-
-        if (port)
-            target->client_sock->sin_port = port;
-
-        /* TCP */
-        if (hints.ai_socktype == SOCK_STREAM) {
-            /* check the portmapper */
-            if (port == 0)
-                target->client_sock->sin_port = htons(pmap_getport(target->client_sock, prognum, version, IPPROTO_TCP));
-            target->client = clnttcp_create(target->client_sock, prognum, version, &sock, 0, 0);
-
-            if (target->client == NULL) {
-                clnt_pcreateerror("clnttcp_create");
-                exit(EXIT_FAILURE);
-            }
-        /* UDP */
-        } else {
-            /* check the portmapper */
-            if (port == 0)
-                target->client_sock->sin_port = htons(pmap_getport(target->client_sock, prognum, version, IPPROTO_UDP));
-            target->client = clntudp_create(target->client_sock, prognum, version, timeout, &sock);
-
-            if (target->client == NULL) {
-                clnt_pcreateerror("clntudp_create");
-                exit(EXIT_FAILURE);
-            }
-        }
-
-        /* check if the portmapper failed */
-        /* by this point we should know which port we're talking to */
-        if (target->client_sock->sin_port == 0) {
-            clnt_pcreateerror("pmap_getport");
-            exit(EXIT_FAILURE);
-        }
-
-        target->client->cl_auth = authnone_create();
-        clnt_control(target->client, CLSET_TIMEOUT, (char *)&timeout);
-
-        target = target->next;
-    }
-
-    /* reset back to start of list */
-    target = targets;
-
+    /* the main loop */
     while(1) {
         if (quitting) {
             break;
         }
+
+        /* reset back to start of list */
+        target = targets;
 
         while (target) {
             gettimeofday(&call_start, NULL);
@@ -500,7 +495,8 @@ int main(int argc, char **argv) {
             exit(EXIT_SUCCESS);
         }
 
-        if (count && target->sent >= count) {
+        /* check the first target */
+        if (count && targets->sent >= count) {
             break;
         }
 
