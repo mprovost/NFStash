@@ -103,7 +103,15 @@ void print_output(enum outputs format, targets_t *target, struct timeval now, un
         printf("%s : [%u], %03.2f ms (%03.2f avg, %.0f%% loss)\n", target->name, target->sent - 1, us / 1000.0, target->avg / 1000.0, loss);
     } else if (format == graphite) {
         printf("nfs.%s.ping.usec %lu %li\n", target->name, us, now.tv_sec);
-        /* TODO print lost packets */
+    }
+}
+
+/* print missing packets for formatted output */
+void print_lost(enum outputs format, targets_t *target, struct timeval now) {
+    /* send to stdout even though it could be considered an error, presumably these are being piped somewhere */
+    /* stderr prints the errors themselves which can be discarded */
+    if (format == graphite) {
+        printf("nfs.%s.ping.lost 1 %li\n", target->name, now.tv_sec);
     }
 }
 
@@ -462,7 +470,11 @@ int main(int argc, char **argv) {
                     clnt_perror(target->client, "mountproc_null_3");
                 else
                     clnt_perror(target->client, "nfsproc3_null_3");
-                fprintf(stderr, "\n");
+                //fprintf(stderr, "\n");
+
+                if (format != human && format != fping) {
+                    print_lost(format, target, call_end);
+                }
 
                 /* TODO is this needed with portmapper on by default? */
                 /* mount port isn't very standard so print a warning */
