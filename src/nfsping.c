@@ -460,6 +460,7 @@ int main(int argc, char **argv) {
                     /* TODO estimate the time by getting the midpoint of call_start and call_end? */
                     print_output(format, target, call_end, us);
             } else {
+                fprintf(stderr, "%s : ", target->name);
                 clnt_geterr(target->client, &clnt_err);
                 if (prognum == MOUNTPROG)
                     clnt_perror(target->client, "mountproc_null_3");
