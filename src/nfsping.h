@@ -39,17 +39,11 @@
 #define GIGA 30
 #define TERA 40
 
-typedef struct results {
-    unsigned long us;
-    struct results *next;
-} results_t;
-
 typedef struct targets {
     char *name;
     struct sockaddr_in *client_sock;
     CLIENT *client;
-    struct results *results;
-    struct results *current;
+    unsigned long *results;
     struct targets *next;
     unsigned int sent, received;
     float min, max, avg;

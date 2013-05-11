@@ -77,17 +77,15 @@ void print_summary(targets_t targets) {
 /* print a parseable summary string when finished in fping-compatible format */
 void print_fping_summary(targets_t targets) {
     targets_t *target = &targets;
-    results_t *current;
+    unsigned long i;
 
     while (target) {
         fprintf(stderr, "%s :", target->name);
-        current = target->results;
-        while (current) {
-            if (current->us)
-                fprintf(stderr, " %.2f", current->us / 1000.0);
+        for (i = 0; i < target->sent; i++) {
+            if (target->results[i])
+                fprintf(stderr, " %.2f", target->results[i] / 1000.0);
             else
                 fprintf(stderr, " -");
-            current = current->next;
         }
         fprintf(stderr, "\n");
         target = target->next;
@@ -132,8 +130,6 @@ int main(int argc, char **argv) {
     enum outputs format = human;
     targets_t *targets;
     targets_t *target;
-    results_t *results;
-    results_t *current;
     int ch;
     unsigned long count = 0;
     /* command-line options */
@@ -294,11 +290,6 @@ int main(int argc, char **argv) {
 
         target->name = argv[index];
 
-        if (format == fping) {
-            target->results = calloc(1, sizeof(results_t));
-            target->current = target->results;
-        }
-
         target->client_sock = calloc(1, sizeof(struct sockaddr_in));
 
         /* first try treating the hostname as an IP address */
@@ -334,11 +325,6 @@ int main(int argc, char **argv) {
                             target = target->next;
                             target->next = NULL;
                             target->name = argv[index];
-
-                            if (format == fping) {
-                                target->results = calloc(1, sizeof(results_t));
-                                target->current = target->results;
-                            }
 
                             target->client_sock = calloc(1, sizeof(struct sockaddr_in));
                         } else {
@@ -408,6 +394,19 @@ int main(int argc, char **argv) {
         }
     }
 
+    /* allocate space for printing out a summary of all ping times at the end */
+    if (format == fping) {
+        target = targets;
+        while (target) {
+            target->results = calloc(count, sizeof(unsigned long));
+            if (target->results == NULL) {
+                fprintf(stderr, "nfsping: couldn't allocate memory for results!\n");
+                exit(3);
+            }
+            target = target->next;
+        }
+    }
+
     /* the main loop */
     while(1) {
         if (quitting) {
@@ -448,10 +447,6 @@ int main(int argc, char **argv) {
                 if (target->received == 1) {
                     target->min = target->max = target->avg = us;
                 } else {
-                    if (format == fping) {
-                        target->current->next = calloc(1, sizeof(results_t));
-                        target->current = target->current->next;
-                    }
                     if (us < target->min) target->min = us;
                     if (us > target->max) target->max = us;
                     /* calculate the average time */
@@ -459,7 +454,7 @@ int main(int argc, char **argv) {
                 }
 
                 if (format == fping)
-                    target->current->us = us;
+                    target->results[target->sent - 1] = us;
 
                 if (!quiet)
                     /* TODO estimate the time by getting the midpoint of call_start and call_end? */
@@ -483,10 +478,6 @@ int main(int argc, char **argv) {
                 }
                 if (!count && !loop) {
                     printf("%s is dead\n", target->name);
-                }
-                if (format == fping && target->sent > 1) {
-                    target->current->next = calloc(1, sizeof(results_t));
-                    target->current = target->current->next;
                 }
             }
 
