@@ -264,6 +264,12 @@ int main(int argc, char **argv) {
         }
     }
 
+    /* output formatting doesn't make sense for the simple check */
+    if (count == 0 && loop == 0 && format != human) {
+        fprintf(stderr, "Can't specify output format without ping count!\n");
+        exit(3);
+    }
+
     /* if we're checking mount instead of nfs, default to using the portmapper */
     if (prognum == MOUNTPROG && port == htons(NFS_PORT)) {
         port = 0;
