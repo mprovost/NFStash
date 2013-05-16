@@ -113,6 +113,53 @@ void print_lost(enum outputs format, targets_t *target, struct timeval now) {
     }
 }
 
+/* create an RPC client in a target */
+CLIENT *create_rpc_client(targets_t *target, struct addrinfo *hints, uint16_t port, unsigned long prognum, unsigned long version, struct timeval timeout) {
+    /* make sure and set this for each new connection so it gets a new socket */
+    /* clnttcp_create will happily reuse sockets */
+    int sock = RPC_ANYSOCK;
+
+    target->client_sock->sin_family = AF_INET;
+
+    if (port)
+        target->client_sock->sin_port = port;
+
+    /* TCP */
+    if (hints->ai_socktype == SOCK_STREAM) {
+        /* check the portmapper */
+        if (port == 0)
+            target->client_sock->sin_port = htons(pmap_getport(target->client_sock, prognum, version, IPPROTO_TCP));
+        target->client = clnttcp_create(target->client_sock, prognum, version, &sock, 0, 0);
+
+        if (target->client == NULL) {
+            clnt_pcreateerror("clnttcp_create");
+        }
+    /* UDP */
+    } else {
+        /* check the portmapper */
+        if (port == 0)
+            target->client_sock->sin_port = htons(pmap_getport(target->client_sock, prognum, version, IPPROTO_UDP));
+        target->client = clntudp_create(target->client_sock, prognum, version, timeout, &sock);
+
+        if (target->client == NULL) {
+            clnt_pcreateerror("clntudp_create");
+        }
+    }
+
+    /* check if the portmapper failed */
+    /* by this point we should know which port we're talking to */
+    if (target->client_sock->sin_port == 0) {
+        clnt_pcreateerror("pmap_getport");
+    }
+
+    if (target->client) {
+        target->client->cl_auth = authnone_create();
+        clnt_control(target->client, CLSET_TIMEOUT, (char *)&timeout);
+    }
+
+    return target->client;
+}
+
 int main(int argc, char **argv) {
     void *status;
     char *error;
@@ -120,7 +167,6 @@ int main(int argc, char **argv) {
     struct timeval call_start, call_end;
     struct timespec sleep_time = NFS_SLEEP;
     struct timespec wait_time = NFS_WAIT;
-    int sock = RPC_ANYSOCK;
     uint16_t port = htons(NFS_PORT);
     unsigned long prognum = NFS_PROGRAM;
     struct addrinfo hints, *addr;
@@ -283,6 +329,7 @@ int main(int argc, char **argv) {
         usage();
     }
 
+    /* pointer to head of list */
     targets = calloc(1, sizeof(targets_t));
     target = targets;
 
@@ -309,6 +356,8 @@ int main(int argc, char **argv) {
                     exit(EXIT_FAILURE);
                 }
             }
+            if (create_rpc_client(target, &hints, port, prognum, version, timeout) == NULL)
+                exit(EXIT_FAILURE);
         } else {
             /* if that fails, do a DNS lookup */
             /* we don't call freeaddrinfo because we keep a pointer to the sin_addr in the target */
@@ -322,6 +371,9 @@ int main(int argc, char **argv) {
                         target->name = calloc(1, INET_ADDRSTRLEN);
                         inet_ntop(AF_INET, &((struct sockaddr_in *)addr->ai_addr)->sin_addr, target->name, INET_ADDRSTRLEN);
                     }
+
+                    if (create_rpc_client(target, &hints, port, prognum, version, timeout) == NULL)
+                        exit(EXIT_FAILURE);
 
                     /* multiple results */
                     if (addr->ai_next) {
@@ -349,49 +401,6 @@ int main(int argc, char **argv) {
                         }
                     }
                     addr = addr->ai_next;
-
-                    /* create the RPC client */
-                    target->client_sock->sin_family = AF_INET;
-                    /* make sure and set this for each new connection so it gets a new socket */
-                    /* clnttcp_create will happily reuse sockets */
-                    sock = RPC_ANYSOCK;
-
-                    if (port)
-                        target->client_sock->sin_port = port;
-
-                    /* TCP */
-                    if (hints.ai_socktype == SOCK_STREAM) {
-                        /* check the portmapper */
-                        if (port == 0)
-                            target->client_sock->sin_port = htons(pmap_getport(target->client_sock, prognum, version, IPPROTO_TCP));
-                        target->client = clnttcp_create(target->client_sock, prognum, version, &sock, 0, 0);
-
-                        if (target->client == NULL) {
-                            clnt_pcreateerror("clnttcp_create");
-                            exit(EXIT_FAILURE);
-                        }
-                    /* UDP */
-                    } else {
-                        /* check the portmapper */
-                        if (port == 0)
-                            target->client_sock->sin_port = htons(pmap_getport(target->client_sock, prognum, version, IPPROTO_UDP));
-                        target->client = clntudp_create(target->client_sock, prognum, version, timeout, &sock);
-
-                        if (target->client == NULL) {
-                            clnt_pcreateerror("clntudp_create");
-                            exit(EXIT_FAILURE);
-                        }
-                    }
-
-                    /* check if the portmapper failed */
-                    /* by this point we should know which port we're talking to */
-                    if (target->client_sock->sin_port == 0) {
-                        clnt_pcreateerror("pmap_getport");
-                        exit(EXIT_FAILURE);
-                    }
-
-                    target->client->cl_auth = authnone_create();
-                    clnt_control(target->client, CLSET_TIMEOUT, (char *)&timeout);
                 }
             } else {
                 fprintf(stderr, "%s: %s\n", target->name, gai_strerror(getaddr));
@@ -450,6 +459,7 @@ int main(int argc, char **argv) {
                 us = tv2us(call_end) - tv2us(call_start);
 
                 /* first result is a special case */
+                /* TODO discard first ping in case of ARP delay? Only for TCP for handshake? */
                 if (target->received == 1) {
                     target->min = target->max = target->avg = us;
                 } else {
