@@ -2,7 +2,11 @@
 
 void usage() {
     printf("Usage: nfsdf [options] [filehandle...]\n\
+    -g    display sizes in gigabytes\n\
     -i    display inodes\n\
+    -k    display sizes in kilobytes\n\
+    -m    display sizes in megabytes\n\
+    -t    display sizes in terabytes\n\
     ");
 
     exit(3);
