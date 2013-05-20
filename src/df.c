@@ -253,8 +253,7 @@ int prefix_print(size3 input, char *output, int prefix) {
 }
 
 
-int print_df(int offset, int width, char *host, char *path, FSSTAT3res *fsstatres, const int inodes, const int prefix) {
-    int len;
+int print_df(int offset, int width, char *host, char *path, FSSTAT3res *fsstatres, const int prefix) {
     /* 13 is enough for a petabyte in kilobytes, plus three for the label and a trailing NUL */
     char total[16];
     char used[16];
@@ -262,26 +261,37 @@ int print_df(int offset, int width, char *host, char *path, FSSTAT3res *fsstatre
     double capacity;
 
     if (fsstatres && fsstatres->status == NFS3_OK) {
-        if (inodes) {
-            printf("%" PRIu64 "\n", fsstatres->FSSTAT3res_u.resok.tfiles - fsstatres->FSSTAT3res_u.resok.ffiles);
-        } else {
-            /* format results by prefix */
-            prefix_print(fsstatres->FSSTAT3res_u.resok.tbytes, total, prefix);
-            prefix_print(fsstatres->FSSTAT3res_u.resok.tbytes - fsstatres->FSSTAT3res_u.resok.fbytes, used, prefix);
-            prefix_print(fsstatres->FSSTAT3res_u.resok.fbytes, avail, prefix);
+        /* format results by prefix */
+        prefix_print(fsstatres->FSSTAT3res_u.resok.tbytes, total, prefix);
+        prefix_print(fsstatres->FSSTAT3res_u.resok.tbytes - fsstatres->FSSTAT3res_u.resok.fbytes, used, prefix);
+        prefix_print(fsstatres->FSSTAT3res_u.resok.fbytes, avail, prefix);
 
-            /* percent full */
-            capacity = (1 - ((double)fsstatres->FSSTAT3res_u.resok.fbytes / fsstatres->FSSTAT3res_u.resok.tbytes)) * 100;
+        /* percent full */
+        capacity = (1 - ((double)fsstatres->FSSTAT3res_u.resok.fbytes / fsstatres->FSSTAT3res_u.resok.tbytes)) * 100;
 
-            printf("%-*s %*s %*s %*s %7.0f%%\n",
-                offset, path, width, total, width, used, width, avail, capacity);
-        }
+        printf("%-*s %*s %*s %*s %7.0f%%\n",
+            offset, path, width, total, width, used, width, avail, capacity);
     } else {
         /* get_fsstat will print the rpc error */
         return EXIT_FAILURE;
     }
 
     return EXIT_SUCCESS;
+}
+
+
+void print_inodes(int offset, int width, char *host, char *path, FSSTAT3res *fsstatres) {
+    double capacity;
+
+    /* percent used */
+    capacity = (1 - ((double)fsstatres->FSSTAT3res_u.resok.ffiles / fsstatres->FSSTAT3res_u.resok.tfiles)) * 100;
+
+    printf("%-*s %*" PRIu64 " %*" PRIu64 " %*" PRIu64 " %7.0f%%\n",
+        offset, path,
+        width, fsstatres->FSSTAT3res_u.resok.tfiles,
+        width, fsstatres->FSSTAT3res_u.resok.tfiles - fsstatres->FSSTAT3res_u.resok.ffiles,
+        width, fsstatres->FSSTAT3res_u.resok.ffiles,
+        capacity);
 }
 
 
@@ -365,31 +375,41 @@ int main(int argc, char **argv) {
             optind++;
         }
     }
-
+    
     /* header */
+    /* Print the header before sending any RPCs, this means we have to guess about the size of the results
+       but it lets the user know that the program is running. Then we can print the results as they come in
+       which will also give a visual indication of which filesystems are slow to respond */
     /* TODO check max line length < 80 or truncate path (or -w option for wide?) */
-    /* The longest output for each column (up to 9 petabytes in KB) is 13 digits plus two for label*/
-    /* TODO enum! */
-    switch (prefix) {
-        case KILO:
-            /* 9PB in KB = 9.8956e12 */
-            width = 13;
-            break;
-        case MEGA:
-            /* 9PB in MB = 9.664e+9 */
-            width = 10;
-            break;
-        case GIGA:
-            /* 9PB in GB = 9.437e+6 */
-            width = 7;
-            break;
-        case TERA:
-            /* 9PB in TB = 9216 */
-            width = 4;
-            break;
-        default:
-            /* if we're using human output the column will never be longer than 4 digits plus two for label */
-            width = 6;
+    if (inodes) {
+        /* with 32 bit inodes you can have 2^32 per filesystem = 4294967296 = 10 digits */
+        /* ZFS can have 2^48 inodes which is 15 digits */
+        /* let's assume 32 bits is enough for now */
+        width = 10;
+    } else {
+        /* The longest output for each column (up to 9 petabytes in KB) is 13 digits plus two for label*/
+        /* TODO enum! */
+        switch (prefix) {
+            case KILO:
+                /* 9PB in KB = 9.8956e12 */
+                width = 13;
+                break;
+            case MEGA:
+                /* 9PB in MB = 9.664e+9 */
+                width = 10;
+                break;
+            case GIGA:
+                /* 9PB in GB = 9.437e+6 */
+                width = 7;
+                break;
+            case TERA:
+                /* 9PB in TB = 9216 */
+                width = 4;
+                break;
+            default:
+                /* if we're using human output the column will never be longer than 4 digits plus two for label */
+                width = 6;
+        }
     }
     /* extra space for gap between columns */
     width++;
@@ -397,18 +417,19 @@ int main(int argc, char **argv) {
     /* FIXME print prefix in total column */
     printf("%-*s %*s %*s %*s capacity\n",
         maxpath, "Filesystem", width, "total", width, "used", width, "avail");
-
+    
     /* skip the first empty struct */
     current = dummy.next;
     while (current) {
         fsstatres = get_fsstat(current->client_sock, &current->fsroot);
-        print_df(maxpath, width, current->host, current->path, fsstatres, inodes, prefix);
+        if (fsstatres && fsstatres->status == NFS3_OK) {
+            if (inodes)
+                print_inodes(maxpath, width, current->host, current->path, fsstatres);
+            else
+                print_df(maxpath, width, current->host, current->path, fsstatres, prefix);
+        }
         current = current->next;
     }
-
-            /* reverse lookup */
-            //inet_ntop(AF_INET, &(fsroot->client_sock.sin_addr), fsroot->hostname, INET_ADDRSTRLEN);
-
 
     return EXIT_SUCCESS;
 }
