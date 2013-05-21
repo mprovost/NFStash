@@ -64,7 +64,7 @@ filer1 : [4], 0.18 ms (0.51 avg, 0% loss)
 
 filer1 : 1.96 0.11 0.12 0.16 0.18
 
-Missed responses are indicated with a dash (-) in the summary output.
+Missed responses are indicated with a dash (-) in the summary output. This form uses more memory since it stores all of the results. In all forms memory is allocated during startup so there should be no increase in memory consumption once running.
 
 To only show the summary line, use the -q (quiet) option.
 
