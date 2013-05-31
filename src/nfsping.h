@@ -1,3 +1,6 @@
+#ifndef NFSPING_H
+#define NFSPING_H
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -64,3 +67,5 @@ enum outputs {
     statsd,
     opentsdb
 };
+
+#endif /* NFSPING_H */
