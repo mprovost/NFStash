@@ -44,6 +44,7 @@
 
 typedef struct targets {
     char *name;
+    char *ndqf; /* reversed name */
     struct sockaddr_in *client_sock;
     CLIENT *client;
     unsigned long *results;

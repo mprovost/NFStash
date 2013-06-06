@@ -1,4 +1,5 @@
 #include "nfsping.h"
+#include "util.h"
 
 volatile sig_atomic_t quitting;
 
@@ -100,7 +101,7 @@ void print_output(enum outputs format, targets_t *target, struct timeval now, un
         loss = (target->sent - target->received) / (double)target->sent * 100;
         printf("%s : [%u], %03.2f ms (%03.2f avg, %.0f%% loss)\n", target->name, target->sent - 1, us / 1000.0, target->avg / 1000.0, loss);
     } else if (format == graphite) {
-        printf("nfs.%s.ping.usec %lu %li\n", target->name, us, now.tv_sec);
+        printf("nfs.%s.ping.usec %lu %li\n", target->ndqf, us, now.tv_sec);
     }
 }
 
@@ -355,6 +356,10 @@ int main(int argc, char **argv) {
                     fprintf(stderr, "%s: %s\n", target->name, gai_strerror(getaddr));
                     exit(EXIT_FAILURE);
                 }
+                target->ndqf = reverse_fqdn(target->name);
+            } else {
+                /* don't reverse an IP address */
+                target->ndqf = target->name;
             }
             if (create_rpc_client(target, &hints, port, prognum, version, timeout) == NULL)
                 exit(EXIT_FAILURE);
@@ -371,6 +376,7 @@ int main(int argc, char **argv) {
                         target->name = calloc(1, INET_ADDRSTRLEN);
                         inet_ntop(AF_INET, &((struct sockaddr_in *)addr->ai_addr)->sin_addr, target->name, INET_ADDRSTRLEN);
                     }
+                    target->ndqf = reverse_fqdn(target->name);
 
                     if (create_rpc_client(target, &hints, port, prognum, version, timeout) == NULL)
                         exit(EXIT_FAILURE);
@@ -383,6 +389,7 @@ int main(int argc, char **argv) {
                             target = target->next;
                             target->next = NULL;
                             target->name = argv[index];
+                            if (format == graphite) { target->ndqf = reverse_fqdn(target->name); }
 
                             target->client_sock = calloc(1, sizeof(struct sockaddr_in));
                         } else {
@@ -397,6 +404,7 @@ int main(int argc, char **argv) {
                                 free(target->name);
                                 target->name = argv[index];
                             }
+                            target->ndqf = reverse_fqdn(target->name);
                             break;
                         }
                     }
