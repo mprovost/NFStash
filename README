@@ -68,6 +68,26 @@ Missed responses are indicated with a dash (-) in the summary output. This form 
 
 To only show the summary line, use the -q (quiet) option.
 
+NFSping can also output stats in a variety of formats for putting into time series databases. Currently only Graphite is supported:
+
+$ nfsping -c 5 -oG filer1
+nfs.filer1.ping.usec 401 1370501562
+nfs.filer1.ping.usec 416 1370501563
+nfs.filer1.ping.usec 403 1370501564
+nfs.filer1.ping.usec 410 1370501565
+nfs.filer1.ping.usec 399 1370501566
+
+This is the Graphite plaintext protocol which is <path> <metric> <timestamp>. To avoid floating point numbers, nfsping reports the response time in microseconds.
+
+This output can be easily redirected to a Carbon server using nc (netcat):
+
+$ nfsping -l -t1000 -oG filer1 filer2 | nc carbon1 2003
+
+This will send a result every second. Because nfsping is single threaded it's best to set a timeout to stop unresponsive NFS servers from affecting the results when specifying multiple targets. Lost requests will be reported under a separate path, nfs.$target.ping.lost, with a metric of 1.
+
+nc will exit if the TCP connection is reset (such as if the Carbon server is restarted) which will also cause nfsping to exit with a broken pipe. To retry, start a persistent process under something like daemontools or runit which will restart the process if it exits for any reason.
+
+
 This is a list of the available command-line options:
 
 Usage: nfsping [options] [targets...]
@@ -80,6 +100,7 @@ Usage: nfsping [options] [targets...]
     -m    use multiple target IP addresses if found
     -M    use the portmapper (default: NFS no, mount yes)
     -n    check the mount protocol (default NFS)
+    -o    output format ([G]raphite, [S]tatsd, Open[T]sdb, default human readable)
     -p n  pause between pings to target (in ms, default 1000)
     -P n  specify port (default: NFS 2049)
     -q    quiet, only print summary
