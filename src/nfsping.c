@@ -480,9 +480,11 @@ int main(int argc, char **argv) {
                 if (format == fping)
                     target->results[target->sent - 1] = us;
 
-                if (!quiet)
+                if (!quiet) {
                     /* TODO estimate the time by getting the midpoint of call_start and call_end? */
                     print_output(format, target, call_end, us);
+                    fflush(stdout);
+                }
             } else {
                 fprintf(stderr, "%s : ", target->name);
                 clnt_geterr(target->client, &clnt_err);
@@ -490,11 +492,10 @@ int main(int argc, char **argv) {
                     clnt_perror(target->client, "mountproc_null_3");
                 else
                     clnt_perror(target->client, "nfsproc3_null_3");
-                //fprintf(stderr, "\n");
+                fflush(stderr);
 
-                if (format != human && format != fping) {
-                    print_lost(format, target, call_end);
-                }
+                print_lost(format, target, call_end);
+                fflush(stdout);
 
                 /* TODO is this needed with portmapper on by default? */
                 /* mount port isn't very standard so print a warning */
