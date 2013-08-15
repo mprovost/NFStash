@@ -66,7 +66,8 @@ enum outputs {
     fping,
     graphite,
     statsd,
-    opentsdb
+    opentsdb,
+    unixtime
 };
 
 #endif /* NFSPING_H */

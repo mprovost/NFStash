@@ -45,6 +45,7 @@ void usage() {
     -c n  count of pings to send to target\n\
     -C n  same as -c, output parseable format\n\
     -d    reverse DNS lookups for targets\n\
+    -D    print timestamp (unix time) before each line\n\
     -i n  interval between targets (in ms, default %lu)\n\
     -l    loop forever\n\
     -m    use multiple target IP addresses if found\n\
@@ -97,8 +98,13 @@ void print_fping_summary(targets_t targets) {
 void print_output(enum outputs format, targets_t *target, struct timeval now, unsigned long us) {
     double loss;
 
-    if (format == human || format == fping) {
-        loss = (target->sent - target->received) / (double)target->sent * 100;
+    loss = (target->sent - target->received) / (double)target->sent * 100;
+
+    if (format == unixtime) {
+        /* FIXME these casts to long aren't great */
+        printf("[%ld.%06ld] ", (long)now.tv_sec, (long)now.tv_usec);
+        printf("%s : [%u], %03.2f ms (%03.2f avg, %.0f%% loss)\n", target->name, target->sent - 1, us / 1000.0, target->avg / 1000.0, loss);
+    } else if (format == human || format == fping) {
         printf("%s : [%u], %03.2f ms (%03.2f avg, %.0f%% loss)\n", target->name, target->sent - 1, us / 1000.0, target->avg / 1000.0, loss);
     } else if (format == graphite) {
         printf("nfs.%s.ping.usec %lu %li\n", target->ndqf, us, now.tv_sec);
@@ -198,7 +204,7 @@ int main(int argc, char **argv) {
     if (argc == 1)
         usage();
 
-    while ((ch = getopt(argc, argv, "Ac:C:dhi:lmnMo:p:P:qt:TV:")) != -1) {
+    while ((ch = getopt(argc, argv, "Ac:C:dDhi:lmnMo:p:P:qt:TV:")) != -1) {
         switch(ch) {
             /* show IP addresses */
             case 'A':
@@ -224,6 +230,18 @@ int main(int argc, char **argv) {
             /* do reverse dns lookups for IP addresses */
             case 'd':
                 dns = 1;
+                break;
+            case 'D':
+                if (format == human) {
+                    format = unixtime;
+                /* TODO this should probably work, maybe a format=fpingunix? */
+                } else if (format == fping) {
+                    fprintf(stderr, "nfsping: Can't specify both -C and -D!\n");
+                    usage();
+                } else {
+                    fprintf(stderr, "nfsping: Can't specify both -D and -o!\n");
+                    usage();
+                }
                 break;
             /* interval between targets */
             case 'i':
@@ -257,7 +275,11 @@ int main(int argc, char **argv) {
                 if (format == fping) {
                     fprintf(stderr, "nfsping: Can't specify both -C and -o!\n");
                     usage();
+                } else if (format == unixtime) {
+                    fprintf(stderr, "nfsping: Can't specify both -D and -o!\n");
+                    usage();
                 }
+
                 if (strcmp(optarg, "G") == 0) {
                     format = graphite;
                 } else if (strcmp(optarg, "S") == 0) {
@@ -538,12 +560,12 @@ int main(int argc, char **argv) {
     }
     fflush(stdout);
     /* these print to stderr */
-    if (!quiet && (format == human || format == fping))
+    if (!quiet && (format == human || format == fping || format == unixtime))
         fprintf(stderr, "\n");
     /* don't print summary for formatted output */
     if (format == fping)
         print_fping_summary(*targets);
-    else if (format == human)
+    else if (format == human || format == unixtime)
         print_summary(*targets);
     /* loop through the targets and find any that didn't get a response
      * exit with a failure if there were any missing responses */
