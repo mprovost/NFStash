@@ -11,6 +11,8 @@ READ3res *do_read(fsroots_t *dir) {
     struct rpc_err clnt_err;
     int i;
     unsigned int count = 0;
+    struct timeval call_start, call_end;
+    unsigned long us;
 
     dir->client_sock->sin_family = AF_INET;
     dir->client_sock->sin_port = htons(NFS_PORT);
@@ -49,7 +51,12 @@ READ3res *do_read(fsroots_t *dir) {
                     count += res->READ3res_u.resok.count;
                     fprintf(stderr, "count = %u\n", count);
                     args.offset += res->READ3res_u.resok.count;
+                    gettimeofday(&call_start, NULL);
                     res = nfsproc3_read_3(&args, &client);
+                    gettimeofday(&call_end, NULL);
+
+                    us = tv2us(call_end) - tv2us(call_start);
+                    fprintf(stderr, "%s:%s %03.2f ms\n", dir->host, dir->path, us / 1000.0);
                 }
             }
         }
