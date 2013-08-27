@@ -20,6 +20,9 @@ nfsdf: src/df.c src/nfsping.h src/nfs_prot_clnt.c src/nfs_prot_xdr.c src/util.c
 nfsreaddir: src/readdir.c src/nfs_prot_clnt.c src/nfs_prot_xdr.c src/util.c 
 	gcc ${CFLAGS} $^ -o $@
 
+nfsread: src/read.c src/nfs_prot_clnt.c src/nfs_prot_xdr.c src/util.c 
+	gcc ${CFLAGS} $^ -o $@
+
 tests: tests/util_tests
 
 tests/util_tests: tests/util_tests.c tests/minunit.h src/util.c src/util.h
