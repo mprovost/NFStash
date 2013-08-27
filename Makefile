@@ -14,8 +14,8 @@ mount.h mount_clnt.c mount_svc.c mount_xdr.c: mount.x
 nfsmount: mount.c nfsping.h
 	gcc ${CFLAGS} mount.c mount_clnt.c mount_xdr.c -o $@
 
-nfsdf: df.c nfsping.h
-	gcc ${CFLAGS} df.c nfs_prot_clnt.c nfs_prot_xdr.c -o $@
+nfsdf: src/df.c src/nfsping.h
+	gcc ${CFLAGS} src/df.c src/nfs_prot_clnt.c src/nfs_prot_xdr.c src/util.c -o $@
 
 tests: tests/util_tests
 
