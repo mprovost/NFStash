@@ -109,6 +109,10 @@ size_t parse_fh(char *input, fsroots_t **next) {
     fsroot = malloc(sizeof(fsroots_t));
     fsroot->client_sock = malloc(sizeof(struct sockaddr_in));
 
+    /* chomp the newline */
+    if (input[strlen(input) - 1] == '\n')
+        input[strlen(input) - 1] = '\0';
+
     /* split the input string into a host (IP address), path and hex filehandle */
     /* host first */
     tmp = strtok(input, ":");

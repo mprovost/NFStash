@@ -187,10 +187,6 @@ int main(int argc, char **argv) {
         /* use stdin */
 
         while (fgets(input_fh, FHMAX, stdin)) {
-            /* chomp the newline */
-            if (input_fh[strlen(input_fh) - 1] == '\n')
-                input_fh[strlen(input_fh) - 1] = '\0';
-
             pathlen = parse_fh(input_fh, &(tail->next));
             tail = tail->next;
 
