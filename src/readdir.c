@@ -1,7 +1,7 @@
 #include "nfsping.h"
 
 
-READDIRPLUS3res *do_readdirplus(struct sockaddr_in *client_sock, nfs_fh3 *dir) {
+READDIRPLUS3res *do_readdirplus(fsroots_t *dir) {
     READDIRPLUS3res *res;
     READDIRPLUS3args args;
     CLIENT client;
@@ -10,14 +10,15 @@ READDIRPLUS3res *do_readdirplus(struct sockaddr_in *client_sock, nfs_fh3 *dir) {
     struct timeval timeout = NFS_TIMEOUT;
     int nfs_sock = RPC_ANYSOCK;
     struct rpc_err clnt_err;
+    int i;
 
-    client_sock->sin_family = AF_INET;
-    client_sock->sin_port = htons(NFS_PORT);
+    dir->client_sock->sin_family = AF_INET;
+    dir->client_sock->sin_port = htons(NFS_PORT);
                                            
-    client = *clntudp_create(client_sock, NFS_PROGRAM, version, timeout, &nfs_sock);
+    client = *clntudp_create(dir->client_sock, NFS_PROGRAM, version, timeout, &nfs_sock);
     client.cl_auth = authunix_create_default();
 
-    args.dir = *dir;
+    args.dir = dir->fsroot;
     args.cookie = 0;
     //args.cookieverf = "";
     args.dircount = 512;
@@ -36,7 +37,13 @@ READDIRPLUS3res *do_readdirplus(struct sockaddr_in *client_sock, nfs_fh3 *dir) {
             } else {
                 entry = res->READDIRPLUS3res_u.resok.reply.entries;
                 while (entry) {
-                    printf("%s\n", entry->name);
+                    printf("%s:%s:", dir->host, entry->name);
+                    /* print the filehandle in hex */
+                    for (i = 0; i < entry->name_handle.post_op_fh3_u.handle.data.data_len; i++) {
+                        printf("%02hhx", entry->name_handle.post_op_fh3_u.handle.data.data_val[i]);
+                    }
+                    printf("\n");
+
                     args.cookie = entry->cookie;
                     entry = entry->nextentry;
                 }
@@ -72,7 +79,7 @@ int main(int argc, char **argv) {
     /* skip the first empty struct */
     current = dummy.next;
     while (current) {
-        do_readdirplus(current->client_sock, &current->fsroot);
+        do_readdirplus(current);
         current = current->next;
     }
 }
