@@ -37,7 +37,12 @@ READDIRPLUS3res *do_readdirplus(fsroots_t *dir) {
             } else {
                 entry = res->READDIRPLUS3res_u.resok.reply.entries;
                 while (entry) {
-                    printf("%s:%s:", dir->host, entry->name);
+                    printf("%s:%s", dir->host, entry->name);
+                    /* if it's a directory print a trailing slash */
+                    if (entry->name_attributes.post_op_attr_u.attributes.type == NF3DIR)
+                        printf("/");
+                    printf(":");
+
                     /* print the filehandle in hex */
                     for (i = 0; i < entry->name_handle.post_op_fh3_u.handle.data.data_len; i++) {
                         printf("%02hhx", entry->name_handle.post_op_fh3_u.handle.data.data_val[i]);
