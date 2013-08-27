@@ -17,10 +17,10 @@ nfsmount: src/mount.c src/nfsping.h src/mount_clnt.c src/mount_xdr.c
 nfsdf: src/df.c src/nfsping.h src/nfs_prot_clnt.c src/nfs_prot_xdr.c src/util.c 
 	gcc ${CFLAGS} $^ -o $@
 
-nfsreaddir: src/readdir.c src/nfs_prot_clnt.c src/nfs_prot_xdr.c src/util.c 
+nfsls: src/ls.c src/nfs_prot_clnt.c src/nfs_prot_xdr.c src/util.c 
 	gcc ${CFLAGS} $^ -o $@
 
-nfsread: src/read.c src/nfs_prot_clnt.c src/nfs_prot_xdr.c src/util.c 
+nfscat: src/cat.c src/nfs_prot_clnt.c src/nfs_prot_xdr.c src/util.c 
 	gcc ${CFLAGS} $^ -o $@
 
 tests: tests/util_tests
