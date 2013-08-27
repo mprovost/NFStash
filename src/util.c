@@ -197,3 +197,37 @@ char* reverse_fqdn(char *fqdn) {
 
     return ndqf;
 }
+
+
+/* convert a timeval to microseconds */
+unsigned long tv2us(struct timeval tv) {
+    return tv.tv_sec * 1000000 + tv.tv_usec;
+}
+
+
+/* convert a timeval to milliseconds */
+unsigned long tv2ms(struct timeval tv) {
+    return tv.tv_sec * 1000 + tv.tv_usec / 1000;
+}
+
+
+/* convert milliseconds to a timeval */
+void ms2tv(struct timeval *tv, unsigned long ms) {
+    tv->tv_sec = ms / 1000;
+    tv->tv_usec = (ms % 1000) * 1000;
+}
+
+
+/* convert milliseconds to a timespec */
+void ms2ts(struct timespec *ts, unsigned long ms) {
+    ts->tv_sec = ms / 1000;
+    ts->tv_nsec = (ms % 1000) * 1000000;
+}
+
+
+/*convert a timespec to milliseconds */
+unsigned long ts2ms(struct timespec ts) {
+    unsigned long ms = ts.tv_sec * 1000;
+    ms += ts.tv_nsec / 1000000;
+    return ms;
+}
