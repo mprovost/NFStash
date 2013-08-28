@@ -1,7 +1,7 @@
 #include "nfsping.h"
 
 
-READ3res *do_read(fsroots_t *dir) {
+unsigned int do_read(fsroots_t *dir) {
     READ3res *res;
     READ3args args;
     CLIENT client;
@@ -13,6 +13,10 @@ READ3res *do_read(fsroots_t *dir) {
     unsigned int count = 0;
     struct timeval call_start, call_end;
     unsigned long us;
+    unsigned long sent = 0, received = 0;
+    unsigned long min = ULONG_MAX, max = 0;
+    float avg;
+    double loss;
 
     dir->client_sock->sin_family = AF_INET;
     dir->client_sock->sin_port = htons(NFS_PORT);
@@ -24,10 +28,16 @@ READ3res *do_read(fsroots_t *dir) {
     args.offset = 0;
     args.count = 8192;
 
-    res = nfsproc3_read_3(&args, &client);
+    do {
+        gettimeofday(&call_start, NULL);
+        res = nfsproc3_read_3(&args, &client);
+        gettimeofday(&call_end, NULL);
+        sent++;
 
-    if (res) {
-        while (res) {
+        us = tv2us(call_end) - tv2us(call_start);
+        fprintf(stderr, "%s:%s %03.2f ms\n", dir->host, dir->path, us / 1000.0);
+
+        if (res) {
             if (res->status != NFS3_OK) {
                 clnt_geterr(&client, &clnt_err);                                                                                                                     
                 if (clnt_err.re_status)
@@ -36,35 +46,35 @@ READ3res *do_read(fsroots_t *dir) {
                     nfs_perror(res->status);
                 break;
             } else {
-                /* print the data in hex */
-                /*
-                for (i = 0; i < res->READ3res_u.resok.data.data_len; i++) {
-                    printf("%02hhx", res->READ3res_u.resok.data.data_val[i]);
-                }
-                printf("\n");
-                */
+                received++;
+                loss = (sent - received) / (double)sent * 100;
+                /* TODO the final read could be short and take less time, discard? */
+                /* what about files that come back in a single packet? */
+                if (us < min) min = us;
+                if (us > max) max = us;
+                /* calculate the average time */
+                avg = (avg * (received - 1) + us) / received;
+
+                count += res->READ3res_u.resok.count;
+
+                fprintf(stderr, "%s: %u bytes xmt/rcv/%%loss = %lu/%lu/%.0f%%, min/avg/max = %.2f/%.2f/%.2f\n",
+                    dir->path, count, sent, received, loss, min / 1000.0, avg / 1000.0, max / 1000.0);
+
+                /* write to stdout */
                 fwrite(res->READ3res_u.resok.data.data_val, 1, res->READ3res_u.resok.data.data_len, stdout);
 
                 if (res->READ3res_u.resok.eof) {
                     break;
                 } else {
-                    count += res->READ3res_u.resok.count;
-                    fprintf(stderr, "count = %u\n", count);
                     args.offset += res->READ3res_u.resok.count;
-                    gettimeofday(&call_start, NULL);
-                    res = nfsproc3_read_3(&args, &client);
-                    gettimeofday(&call_end, NULL);
-
-                    us = tv2us(call_end) - tv2us(call_start);
-                    fprintf(stderr, "%s:%s %03.2f ms\n", dir->host, dir->path, us / 1000.0);
                 }
             }
-        }
-    } else {
-        clnt_perror(&client, "nfsproc3_read_3");
-    }  
+        } else {
+            clnt_perror(&client, "nfsproc3_read_3");
+        }  
+    } while (res);
 
-    return res;
+    return count;
 }
 
 
