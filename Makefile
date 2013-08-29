@@ -1,11 +1,11 @@
 all: nfsping
 
-CFLAGS=-Werror -g -I src
+CFLAGS=-Werror -g -I src -I.
 
 nfsping: src/nfsping.c src/nfsping.h src/nfs_prot_clnt.c src/mount_clnt.c src/util.c
 	gcc ${CFLAGS} src/nfsping.c src/nfs_prot_clnt.c src/nfs_prot_xdr.c src/mount_clnt.c src/mount_xdr.c src/util.c -o $@
 
-nfs_prot.h nfs_prot_clnt.c nfs_prot_svc.c nfs_prot_xdr.c: nfs_prot.x
+src/nfs_prot.h src/nfs_prot_clnt.c src/nfs_prot_svc.c src/nfs_prot_xdr.c: src/nfs_prot.x
 	rpcgen -DWANT_NFS3 $<
 
 mount.h mount_clnt.c mount_svc.c mount_xdr.c: mount.x
