@@ -8,7 +8,7 @@ nfsping: src/nfsping.c src/nfsping.h src/nfs_prot_clnt.c src/mount_clnt.c src/ut
 src/nfs_prot.h src/nfs_prot_clnt.c src/nfs_prot_svc.c src/nfs_prot_xdr.c: src/nfs_prot.x
 	rpcgen -DWANT_NFS3 $<
 
-mount.h mount_clnt.c mount_svc.c mount_xdr.c: mount.x
+src/mount.h src/mount_clnt.c src/mount_svc.c src/mount_xdr.c: src/mount.x
 	rpcgen -DWANT_NFS3 $<
 
 nfsmount: src/mount.c src/nfsping.h src/mount_clnt.c src/mount_xdr.c
