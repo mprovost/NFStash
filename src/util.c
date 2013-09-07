@@ -98,16 +98,16 @@ u_int nfs_perror(nfsstat3 status) {
 
 
 /* break up a string filehandle into parts */
-size_t parse_fh(char *input, fsroots_t **next) {
+size_t parse_fh(char *input, fsroots_t *next) {
     int i;
-    fsroots_t *fsroot;
     char *tmp;
-    /* keep a copy of the original input around for error messages */
-    char *orig_input = input;
+    char *copy;
     u_int fsroot_len;
 
-    fsroot = malloc(sizeof(fsroots_t));
-    fsroot->client_sock = malloc(sizeof(struct sockaddr_in));
+    next->client_sock = malloc(sizeof(struct sockaddr_in));
+
+    /* keep a copy of the original input around for error messages */
+    copy = strdup(input);
 
     /* chomp the newline */
     if (input[strlen(input) - 1] == '\n')
@@ -116,52 +116,49 @@ size_t parse_fh(char *input, fsroots_t **next) {
     /* split the input string into a host (IP address), path and hex filehandle */
     /* host first */
     tmp = strtok(input, ":");
-    if (tmp && inet_pton(AF_INET, tmp, &((struct sockaddr_in *)fsroot->client_sock)->sin_addr)) {
-        fsroot->host = tmp;
+    if (tmp && inet_pton(AF_INET, tmp, &((struct sockaddr_in *)next->client_sock)->sin_addr)) {
+        next->host = strdup(tmp);
         /* path is just used for display */
         tmp = strtok(NULL, ":");
         if (tmp) {
-            fsroot->path = tmp;
+            next->path = strdup(tmp);
             /* the root filehandle in hex */
             if (tmp = strtok(NULL, ":")) {
                 /* hex takes two characters for each byte */
                 fsroot_len = strlen(tmp) / 2;
 
                 if (fsroot_len && fsroot_len % 2 == 0 && fsroot_len <= FHSIZE3) {
-                    fsroot->fsroot.data.data_len = fsroot_len;
-                    fsroot->fsroot.data.data_val = malloc(fsroot_len);
+                    next->fsroot.data.data_len = fsroot_len;
+                    next->fsroot.data.data_val = malloc(fsroot_len);
 
                     /* convert from the hex string to a byte array */
-                    for (i = 0; i <= fsroot->fsroot.data.data_len; i++) {
-                        sscanf(&tmp[i * 2], "%2hhx", &fsroot->fsroot.data.data_val[i]);
+                    for (i = 0; i <= next->fsroot.data.data_len; i++) {
+                        sscanf(&tmp[i * 2], "%2hhx", &next->fsroot.data.data_val[i]);
                     }
                 } else {
-                    fprintf(stderr, "Invalid filehandle: %s\n", orig_input);
-                    fsroot->path = NULL;
+                    fprintf(stderr, "Invalid filehandle: %s\n", copy);
+                    next->path = NULL;
                 }
             } else {
-                fprintf(stderr, "Invalid fsroot: %s\n", orig_input);
-                fsroot->path = NULL;
+                fprintf(stderr, "Invalid fsroot: %s\n", copy);
+                next->path = NULL;
             }
         } else {
-            fprintf(stderr, "Invalid path: %s\n", orig_input);
-            fsroot->path = NULL;
+            fprintf(stderr, "Invalid path: %s\n", copy);
+            next->path = NULL;
         }
     } else {
-        fprintf(stderr, "Invalid hostname: %s\n", orig_input);
-        fsroot->path = NULL;
+        fprintf(stderr, "Invalid hostname: %s\n", copy);
+        next->path = NULL;
     }
 
     /* TODO check for junk at end of input string */
 
 
-    if (fsroot->path) {
-        //fsroot->next = *next;
-        *next = fsroot;
-        return strlen(fsroot->path);
+    if (next->path) {
+        return strlen(next->path);
     } else {
-        free(fsroot->client_sock);
-        free(fsroot);
+        free(next->client_sock);
         return 0;
     }
 }
