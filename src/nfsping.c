@@ -1,5 +1,6 @@
 #include "nfsping.h"
 #include "util.h"
+#include "rpc.h"
 
 volatile sig_atomic_t quitting;
 
@@ -93,52 +94,6 @@ void print_lost(enum outputs format, targets_t *target, struct timeval now) {
     }
 }
 
-/* create an RPC client in a target */
-CLIENT *create_rpc_client(targets_t *target, struct addrinfo *hints, uint16_t port, unsigned long prognum, unsigned long version, struct timeval timeout) {
-    /* make sure and set this for each new connection so it gets a new socket */
-    /* clnttcp_create will happily reuse sockets */
-    int sock = RPC_ANYSOCK;
-
-    target->client_sock->sin_family = AF_INET;
-
-    if (port)
-        target->client_sock->sin_port = port;
-
-    /* TCP */
-    if (hints->ai_socktype == SOCK_STREAM) {
-        /* check the portmapper */
-        if (port == 0)
-            target->client_sock->sin_port = htons(pmap_getport(target->client_sock, prognum, version, IPPROTO_TCP));
-        target->client = clnttcp_create(target->client_sock, prognum, version, &sock, 0, 0);
-
-        if (target->client == NULL) {
-            clnt_pcreateerror("clnttcp_create");
-        }
-    /* UDP */
-    } else {
-        /* check the portmapper */
-        if (port == 0)
-            target->client_sock->sin_port = htons(pmap_getport(target->client_sock, prognum, version, IPPROTO_UDP));
-        target->client = clntudp_create(target->client_sock, prognum, version, timeout, &sock);
-
-        if (target->client == NULL) {
-            clnt_pcreateerror("clntudp_create");
-        }
-    }
-
-    /* check if the portmapper failed */
-    /* by this point we should know which port we're talking to */
-    if (target->client_sock->sin_port == 0) {
-        clnt_pcreateerror("pmap_getport");
-    }
-
-    if (target->client) {
-        target->client->cl_auth = authnone_create();
-        clnt_control(target->client, CLSET_TIMEOUT, (char *)&timeout);
-    }
-
-    return target->client;
-}
 
 int main(int argc, char **argv) {
     void *status;
@@ -168,7 +123,6 @@ int main(int argc, char **argv) {
     quitting = 0;
     signal(SIGINT, int_handler);
 
-    memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;
     /* default to UDP */
     hints.ai_socktype = SOCK_DGRAM;
@@ -356,7 +310,8 @@ int main(int argc, char **argv) {
                 /* don't reverse an IP address */
                 target->ndqf = target->name;
             }
-            if (create_rpc_client(target, &hints, port, prognum, version, timeout) == NULL)
+            target->client = create_rpc_client(target->client_sock, &hints, port, prognum, version, timeout);
+            if (target->client == NULL)
                 exit(EXIT_FAILURE);
         } else {
             /* if that fails, do a DNS lookup */
@@ -373,7 +328,8 @@ int main(int argc, char **argv) {
                     }
                     target->ndqf = reverse_fqdn(target->name);
 
-                    if (create_rpc_client(target, &hints, port, prognum, version, timeout) == NULL)
+                    target->client = create_rpc_client(target->client_sock, &hints, port, prognum, version, timeout);
+                    if (target->client == NULL)
                         exit(EXIT_FAILURE);
 
                     /* multiple results */
