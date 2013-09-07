@@ -187,8 +187,11 @@ int main(int argc, char **argv) {
         /* use stdin */
 
         while (fgets(input_fh, FHMAX, stdin)) {
-            pathlen = parse_fh(input_fh, &(tail->next));
+            tail->next = malloc(sizeof(fsroots_t));
             tail = tail->next;
+            tail->next = NULL;
+
+            pathlen = parse_fh(input_fh, tail);
 
             if (pathlen > maxpath)
                 maxpath = pathlen;
@@ -198,8 +201,11 @@ int main(int argc, char **argv) {
         }
     } else {
         while (optind < argc) {
-            pathlen = parse_fh(argv[optind], &(tail->next));
+            tail->next = malloc(sizeof(fsroots_t));
             tail = tail->next;
+            tail->next = NULL;
+
+            pathlen = parse_fh(argv[optind], tail);
 
             if (pathlen > maxpath)
                 maxpath = pathlen;

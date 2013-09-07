@@ -15,7 +15,8 @@ READDIRPLUS3res *do_readdirplus(fsroots_t *dir) {
     dir->client_sock->sin_family = AF_INET;
     dir->client_sock->sin_port = htons(NFS_PORT);
                                            
-    client = *clntudp_create(dir->client_sock, NFS_PROGRAM, version, timeout, &nfs_sock);
+    //client = *clntudp_create(dir->client_sock, NFS_PROGRAM, version, timeout, &nfs_sock);
+    client = *clnttcp_create(dir->client_sock, NFS_PROGRAM, version, &nfs_sock, 0, 0);
     client.cl_auth = authunix_create_default();
 
     args.dir = dir->fsroot;
@@ -77,8 +78,11 @@ int main(int argc, char **argv) {
     tail = &dummy;
 
     while (fgets(input_fh, FHMAX, stdin)) {
-        parse_fh(input_fh, &(tail->next));
+        tail->next = malloc(sizeof(fsroots_t));
         tail = tail->next;
+        tail->next = NULL;
+
+        parse_fh(input_fh, tail);
     }
 
     /* skip the first empty struct */
