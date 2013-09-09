@@ -2,6 +2,14 @@
 #include "rpc.h"
 
 
+void usage() {
+    printf("Usage: nfscat [options] [targets...]\n\
+        -T    use TCP (default UDP)\n");
+
+    exit(3);
+}
+
+
 /* the NFS READ call */
 unsigned int do_read(fsroots_t *dir, struct addrinfo *hints, uint16_t port, unsigned long version, struct timeval timeout) {
     READ3res *res;
@@ -79,6 +87,7 @@ unsigned int do_read(fsroots_t *dir, struct addrinfo *hints, uint16_t port, unsi
 
 
 int main(int argc, char **argv) {
+    int ch;
     char input_fh[FHMAX];
     fsroots_t *current, *tail, dummy;
     READ3res *res;
@@ -93,6 +102,18 @@ int main(int argc, char **argv) {
     hints.ai_family = AF_INET;
     /* default to UDP */
     hints.ai_socktype = SOCK_DGRAM;
+
+    while ((ch = getopt(argc, argv, "hT")) != -1) {
+        switch(ch) {
+            /* use TCP */
+            case 'T':
+                hints.ai_socktype = SOCK_STREAM;
+                break;
+            default:
+                usage();
+        }
+
+    }
 
     while (fgets(input_fh, FHMAX, stdin)) {
         tail->next = malloc(sizeof(fsroots_t));
