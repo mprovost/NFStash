@@ -104,7 +104,7 @@ int main(int argc, char **argv) {
     struct timespec wait_time = NFS_WAIT;
     uint16_t port = htons(NFS_PORT);
     unsigned long prognum = NFS_PROGRAM;
-    struct addrinfo hints, *addr;
+    struct addrinfo hints = {0}, *addr;
     struct rpc_err clnt_err;
     int getaddr;
     unsigned long us;
@@ -362,7 +362,7 @@ int main(int argc, char **argv) {
                     addr = addr->ai_next;
                 }
             } else {
-                fprintf(stderr, "%s: %s\n", target->name, gai_strerror(getaddr));
+                fprintf(stderr, "getaddrinfo error (%s): %s\n", target->name, gai_strerror(getaddr));
                 exit(EXIT_FAILURE);
             }
         }
