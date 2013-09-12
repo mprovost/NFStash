@@ -69,7 +69,7 @@ void print_fping_summary(targets_t targets) {
 }
 
 /* print formatted output after each ping */
-void print_output(enum outputs format, targets_t *target, struct timeval now, unsigned long us) {
+void print_output(enum outputs format, targets_t *target, unsigned long prognum, struct timeval now, unsigned long us) {
     double loss;
 
     loss = (target->sent - target->received) / (double)target->sent * 100;
@@ -81,7 +81,11 @@ void print_output(enum outputs format, targets_t *target, struct timeval now, un
     } else if (format == human || format == fping) {
         printf("%s : [%u], %03.2f ms (%03.2f avg, %.0f%% loss)\n", target->name, target->sent - 1, us / 1000.0, target->avg / 1000.0, loss);
     } else if (format == graphite) {
-        printf("nfs.%s.ping.usec %lu %li\n", target->ndqf, us, now.tv_sec);
+        if (prognum == MOUNTPROG) {
+            printf("nfs.%s.mount.usec %lu %li\n", target->ndqf, us, now.tv_sec);
+        } else {
+            printf("nfs.%s.nfs.usec %lu %li\n", target->ndqf, us, now.tv_sec);
+        }
     }
 }
 
@@ -433,7 +437,7 @@ int main(int argc, char **argv) {
 
                 if (!quiet) {
                     /* TODO estimate the time by getting the midpoint of call_start and call_end? */
-                    print_output(format, target, call_end, us);
+                    print_output(format, target, prognum, call_end, us);
                     fflush(stdout);
                 }
             } else {
