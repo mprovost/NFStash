@@ -4,14 +4,15 @@
 
 void usage() {
     printf("Usage: nfscat [options] [targets...]\n\
-        -T    use TCP (default UDP)\n");
+    -b    blocksize (in bytes, default 8192)\n\
+    -T    use TCP (default UDP)\n");
 
     exit(3);
 }
 
 
 /* the NFS READ call */
-unsigned int do_read(fsroots_t *dir, struct addrinfo *hints, uint16_t port, unsigned long version, struct timeval timeout) {
+unsigned int do_read(fsroots_t *dir, const unsigned long blocksize, struct addrinfo *hints, uint16_t port, unsigned long version, struct timeval timeout) {
     READ3res *res;
     READ3args args;
     CLIENT *client;
@@ -34,7 +35,7 @@ unsigned int do_read(fsroots_t *dir, struct addrinfo *hints, uint16_t port, unsi
 
     args.file = dir->fsroot;
     args.offset = 0;
-    args.count = 8192;
+    args.count = blocksize;
 
     do {
         gettimeofday(&call_start, NULL);
@@ -43,7 +44,7 @@ unsigned int do_read(fsroots_t *dir, struct addrinfo *hints, uint16_t port, unsi
         sent++;
 
         us = tv2us(call_end) - tv2us(call_start);
-        fprintf(stderr, "%s:%s %03.2f ms\n", dir->host, dir->path, us / 1000.0);
+        //fprintf(stderr, "%s:%s %03.2f ms\n", dir->host, dir->path, us / 1000.0);
 
         if (res) {
             if (res->status != NFS3_OK) {
@@ -65,8 +66,8 @@ unsigned int do_read(fsroots_t *dir, struct addrinfo *hints, uint16_t port, unsi
 
                 count += res->READ3res_u.resok.count;
 
-                //fprintf(stderr, "%s: %u bytes xmt/rcv/%%loss = %lu/%lu/%.0f%%, min/avg/max = %.2f/%.2f/%.2f\n",
-                    //dir->path, count, sent, received, loss, min / 1000.0, avg / 1000.0, max / 1000.0);
+                fprintf(stderr, "%s:%s: [%lu] %u bytes %03.2f ms (xmt/rcv/%%loss = %lu/%lu/%.0f%%, min/avg/max = %.2f/%.2f/%.2f)\n",
+                    dir->host, dir->path, received - 1, count, us / 1000.0, sent, received, loss, min / 1000.0, avg / 1000.0, max / 1000.0);
 
                 /* write to stdout */
                 fwrite(res->READ3res_u.resok.data.data_val, 1, res->READ3res_u.resok.data.data_len, stdout);
@@ -94,6 +95,7 @@ int main(int argc, char **argv) {
     struct addrinfo hints;
     uint16_t port = htons(NFS_PORT);
     unsigned long version = 3;
+    unsigned long blocksize = 8192;
     struct timeval timeout = NFS_TIMEOUT;
 
     dummy.next = NULL;
@@ -103,8 +105,12 @@ int main(int argc, char **argv) {
     /* default to UDP */
     hints.ai_socktype = SOCK_DGRAM;
 
-    while ((ch = getopt(argc, argv, "hT")) != -1) {
+    while ((ch = getopt(argc, argv, "b:hT")) != -1) {
         switch(ch) {
+            /* blocksize */
+            case 'b':
+                blocksize = strtoul(optarg, NULL, 10); 
+                break;
             /* use TCP */
             case 'T':
                 hints.ai_socktype = SOCK_STREAM;
@@ -126,7 +132,7 @@ int main(int argc, char **argv) {
     /* skip the first empty struct */
     current = dummy.next;
     while (current) {
-        do_read(current, &hints, port, version, timeout);
+        do_read(current, blocksize, &hints, port, version, timeout);
         current = current->next;
     }
 }
