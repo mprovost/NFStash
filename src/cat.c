@@ -29,7 +29,6 @@ unsigned int do_read(fsroots_t *dir, const unsigned long blocksize, struct addri
     dir->client_sock->sin_family = AF_INET;
     dir->client_sock->sin_port = htons(NFS_PORT);
 
-    //client = *clntudp_create(dir->client_sock, NFS_PROGRAM, version, timeout, &nfs_sock);
     client = create_rpc_client(dir->client_sock, hints, port, NFS_PROGRAM, version, timeout);
     client->cl_auth = authunix_create_default();
 
@@ -44,7 +43,6 @@ unsigned int do_read(fsroots_t *dir, const unsigned long blocksize, struct addri
         sent++;
 
         us = tv2us(call_end) - tv2us(call_start);
-        //fprintf(stderr, "%s:%s %03.2f ms\n", dir->host, dir->path, us / 1000.0);
 
         if (res) {
             if (res->status != NFS3_OK) {
@@ -58,7 +56,7 @@ unsigned int do_read(fsroots_t *dir, const unsigned long blocksize, struct addri
                 received++;
                 loss = (sent - received) / (double)sent * 100;
                 /* TODO the final read could be short and take less time, discard? */
-                /* what about files that come back in a single packet? */
+                /* what about files that come back in a single RPC? */
                 if (us < min) min = us;
                 if (us > max) max = us;
                 /* calculate the average time */
@@ -92,7 +90,11 @@ int main(int argc, char **argv) {
     char input_fh[FHMAX];
     fsroots_t *current, *tail, dummy;
     READ3res *res;
-    struct addrinfo hints;
+    struct addrinfo hints = {
+        .ai_family = AF_INET,
+        /* default to UDP */
+        .ai_socktype = SOCK_DGRAM,
+    };
     uint16_t port = htons(NFS_PORT);
     unsigned long version = 3;
     unsigned long blocksize = 8192;
@@ -100,10 +102,6 @@ int main(int argc, char **argv) {
 
     dummy.next = NULL;
     tail = &dummy;
-
-    hints.ai_family = AF_INET;
-    /* default to UDP */
-    hints.ai_socktype = SOCK_DGRAM;
 
     while ((ch = getopt(argc, argv, "b:hT")) != -1) {
         switch(ch) {
