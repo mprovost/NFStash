@@ -29,6 +29,7 @@ void usage() {
     -p n  pause between pings to target (in ms, default %lu)\n\
     -P n  specify port (default: NFS %i)\n\
     -q    quiet, only print summary\n\
+    -r n  reconnect to server every n pings\n\
     -t n  timeout (in ms, default %lu)\n\
     -T    use TCP (default UDP)\n\
     -V n  specify NFS version (2 or 3, default 3)\n",
@@ -117,6 +118,7 @@ int main(int argc, char **argv) {
     targets_t *target;
     int ch;
     unsigned long count = 0;
+    unsigned long reconnect = 0;
     /* command-line options */
     int dns = 0, loop = 0, ip = 0, quiet = 0, multiple = 0;
     /* default to NFS v3 */
@@ -135,7 +137,7 @@ int main(int argc, char **argv) {
     if (argc == 1)
         usage();
 
-    while ((ch = getopt(argc, argv, "Ac:C:dDhi:lmnMo:p:P:qt:TV:")) != -1) {
+    while ((ch = getopt(argc, argv, "Ac:C:dDhi:lmnMo:p:P:qr:t:TV:")) != -1) {
         switch(ch) {
             /* show IP addresses */
             case 'A':
@@ -240,6 +242,9 @@ int main(int argc, char **argv) {
             /* TODO error if output also specified? */
             case 'q':
                 quiet = 1;
+                break;
+            case 'r':
+                reconnect = strtoul(optarg, NULL, 10);
                 break;
             /* timeout */
             case 't':
@@ -487,6 +492,14 @@ int main(int argc, char **argv) {
         /* check the first target */
         if (count && targets->sent >= count) {
             break;
+        }
+
+        /* see if we should disconnect and reconnect */
+        if (reconnect && targets->sent % reconnect == 0) {
+            destroy_rpc_client(target->client);
+            target->client = create_rpc_client(target->client_sock, &hints, port, prognum, version, timeout);
+            if (target->client == NULL)
+                exit(EXIT_FAILURE);
         }
 
         nanosleep(&sleep_time, NULL);
