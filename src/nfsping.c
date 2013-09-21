@@ -1,8 +1,10 @@
 #include "nfsping.h"
 #include "util.h"
 #include "rpc.h"
+#include "string.h"
 
 volatile sig_atomic_t quitting;
+char prefix[255] = "nfs";
 
 
 void int_handler(int sig) {
@@ -26,6 +28,7 @@ void usage() {
     -M    use the portmapper (default: NFS no, mount yes)\n\
     -n    check the mount protocol (default NFS)\n\
     -o    output format ([G]raphite, [S]tatsd, Open[T]sdb, default human readable)\n\
+    -g string  prefix for graphite metric names (default nfs)\n\
     -p n  pause between pings to target (in ms, default %lu)\n\
     -P n  specify port (default: NFS %i)\n\
     -q    quiet, only print summary\n\
@@ -83,9 +86,9 @@ void print_output(enum outputs format, targets_t *target, unsigned long prognum,
         printf("%s : [%u], %03.2f ms (%03.2f avg, %.0f%% loss)\n", target->name, target->sent - 1, us / 1000.0, target->avg / 1000.0, loss);
     } else if (format == graphite) {
         if (prognum == MOUNTPROG) {
-            printf("nfs.%s.mount.usec %lu %li\n", target->ndqf, us, now.tv_sec);
+            printf("%s.%s.mount.usec %lu %li\n", prefix, target->ndqf, us, now.tv_sec);
         } else {
-            printf("nfs.%s.nfs.usec %lu %li\n", target->ndqf, us, now.tv_sec);
+            printf("%s.%s.nfs.usec %lu %li\n", prefix, target->ndqf, us, now.tv_sec);
         }
     }
 }
@@ -95,7 +98,7 @@ void print_lost(enum outputs format, targets_t *target, struct timeval now) {
     /* send to stdout even though it could be considered an error, presumably these are being piped somewhere */
     /* stderr prints the errors themselves which can be discarded */
     if (format == graphite) {
-        printf("nfs.%s.ping.lost 1 %li\n", target->name, now.tv_sec);
+        printf("%s.%s.ping.lost 1 %li\n", prefix, target->name, now.tv_sec);
     }
 }
 
@@ -137,7 +140,7 @@ int main(int argc, char **argv) {
     if (argc == 1)
         usage();
 
-    while ((ch = getopt(argc, argv, "Ac:C:dDhi:lmnMo:p:P:qr:t:TV:")) != -1) {
+    while ((ch = getopt(argc, argv, "Ac:C:dDg:hi:lmnMo:p:P:qr:t:TV:")) != -1) {
         switch(ch) {
             /* show IP addresses */
             case 'A':
@@ -175,6 +178,10 @@ int main(int argc, char **argv) {
                     fprintf(stderr, "nfsping: Can't specify both -D and -o!\n");
                     usage();
                 }
+                break;
+            /* prefix to use for graphite metrics */
+            case 'g':
+                strncpy(prefix, optarg, sizeof(prefix));
                 break;
             /* interval between targets */
             case 'i':
