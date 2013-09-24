@@ -4,8 +4,6 @@
 #include "string.h"
 
 volatile sig_atomic_t quitting;
-char prefix[255] = "nfs";
-
 
 void int_handler(int sig) {
     quitting = 1;
@@ -17,25 +15,25 @@ void usage() {
     struct timespec sleep_time = NFS_SLEEP;
 
     printf("Usage: nfsping [options] [targets...]\n\
-    -A    show IP addresses\n\
-    -c n  count of pings to send to target\n\
-    -C n  same as -c, output parseable format\n\
-    -d    reverse DNS lookups for targets\n\
-    -D    print timestamp (unix time) before each line\n\
-    -i n  interval between targets (in ms, default %lu)\n\
-    -l    loop forever\n\
-    -m    use multiple target IP addresses if found\n\
-    -M    use the portmapper (default: NFS no, mount yes)\n\
-    -n    check the mount protocol (default NFS)\n\
-    -o    output format ([G]raphite, [S]tatsd, Open[T]sdb, default human readable)\n\
-    -g string  prefix for graphite metric names (default nfs)\n\
-    -p n  pause between pings to target (in ms, default %lu)\n\
-    -P n  specify port (default: NFS %i)\n\
-    -q    quiet, only print summary\n\
-    -r n  reconnect to server every n pings\n\
-    -t n  timeout (in ms, default %lu)\n\
-    -T    use TCP (default UDP)\n\
-    -V n  specify NFS version (2 or 3, default 3)\n",
+    -A         show IP addresses\n\
+    -c n       count of pings to send to target\n\
+    -C n       same as -c, output parseable format\n\
+    -d         reverse DNS lookups for targets\n\
+    -D         print timestamp (unix time) before each line\n\
+    -g string  prefix for graphite metric names (default \"nfs\")\n\
+    -i n       interval between targets (in ms, default %lu)\n\
+    -l         loop forever\n\
+    -m         use multiple target IP addresses if found\n\
+    -M         use the portmapper (default: NFS no, mount yes)\n\
+    -n         check the mount protocol (default NFS)\n\
+    -o         output format ([G]raphite, [S]tatsd, Open[T]sdb, default human readable)\n\
+    -p n       pause between pings to target (in ms, default %lu)\n\
+    -P n       specify port (default: NFS %i)\n\
+    -q         quiet, only print summary\n\
+    -r n       reconnect to server every n pings\n\
+    -t n       timeout (in ms, default %lu)\n\
+    -T         use TCP (default UDP)\n\
+    -V n       specify NFS version (2 or 3, default 3)\n",
     ts2ms(wait_time), ts2ms(sleep_time), NFS_PORT, tv2ms(timeout));
 
     exit(3);
@@ -73,7 +71,7 @@ void print_fping_summary(targets_t targets) {
 }
 
 /* print formatted output after each ping */
-void print_output(enum outputs format, targets_t *target, unsigned long prognum, struct timeval now, unsigned long us) {
+void print_output(enum outputs format, char *prefix, targets_t *target, unsigned long prognum, struct timeval now, unsigned long us) {
     double loss;
 
     loss = (target->sent - target->received) / (double)target->sent * 100;
@@ -94,7 +92,7 @@ void print_output(enum outputs format, targets_t *target, unsigned long prognum,
 }
 
 /* print missing packets for formatted output */
-void print_lost(enum outputs format, targets_t *target, struct timeval now) {
+void print_lost(enum outputs format, char *prefix, targets_t *target, struct timeval now) {
     /* send to stdout even though it could be considered an error, presumably these are being piped somewhere */
     /* stderr prints the errors themselves which can be discarded */
     if (format == graphite) {
@@ -117,6 +115,7 @@ int main(int argc, char **argv) {
     int getaddr;
     unsigned long us;
     enum outputs format = human;
+    char prefix[255] = "nfs";
     targets_t *targets;
     targets_t *target;
     int ch;
@@ -449,7 +448,7 @@ int main(int argc, char **argv) {
 
                 if (!quiet) {
                     /* TODO estimate the time by getting the midpoint of call_start and call_end? */
-                    print_output(format, target, prognum, call_end, us);
+                    print_output(format, prefix, target, prognum, call_end, us);
                     fflush(stdout);
                 }
             } else {
@@ -461,7 +460,7 @@ int main(int argc, char **argv) {
                     clnt_perror(target->client, "nfsproc3_null_3");
                 fflush(stderr);
 
-                print_lost(format, target, call_end);
+                print_lost(format, prefix, target, call_end);
                 fflush(stdout);
 
                 /* TODO is this needed with portmapper on by default? */
