@@ -2,6 +2,7 @@
 
 void usage() {
     printf("Usage: nfsmount [options] host:mountpoint\n\
+    -m    use multiple target IP addresses if found\n\
     -T    use TCP (default UDP)\n"
     );
 
@@ -98,6 +99,7 @@ int main(int argc, char **argv) {
     char *path;
     exports ex, oldex;
     int ch, first, index;
+    int multiple = 0;
     CLIENT *client;
     u_long version = 3;
     struct timeval timeout = NFS_TIMEOUT;
@@ -114,8 +116,12 @@ int main(int argc, char **argv) {
     if (argc == 1)
         usage();
 
-    while ((ch = getopt(argc, argv, "hT")) != -1) {
+    while ((ch = getopt(argc, argv, "hmT")) != -1) {
         switch(ch) {
+            /* use multiple IP addresses */
+            case 'm':
+                multiple = 1;
+                break;
             /* use TCP */
             case 'T':
                 hints.ai_socktype = SOCK_STREAM;
@@ -166,7 +172,7 @@ int main(int argc, char **argv) {
                     ex = *mountproc_export_3(NULL, client);
 
                     while (ex) {
-                        get_root_filehandle(hostname, client, ex->ex_dir);
+                        mountres = get_root_filehandle(hostname, client, ex->ex_dir);
                         oldex = ex;
                         ex = ex->ex_next;
                         free(oldex);
@@ -178,7 +184,10 @@ int main(int argc, char **argv) {
                 return EXIT_FAILURE;
             }
 
-            addr = addr->ai_next;
+            if (multiple)
+                addr = addr->ai_next;
+            else
+                addr = NULL;
         }
     } else {
         fprintf(stderr, "%s: %s\n", host, gai_strerror(getaddr));
