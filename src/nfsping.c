@@ -86,7 +86,7 @@ void print_output(enum outputs format, char *prefix, targets_t *target, unsigned
         if (prognum == MOUNTPROG) {
             printf("%s.%s.mount.usec %lu %li\n", prefix, target->ndqf, us, now.tv_sec);
         } else {
-            printf("%s.%s.nfs.usec %lu %li\n", prefix, target->ndqf, us, now.tv_sec);
+            printf("%s.%s.ping.usec %lu %li\n", prefix, target->ndqf, us, now.tv_sec);
         }
     }
 }
