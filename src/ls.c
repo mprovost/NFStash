@@ -1,38 +1,36 @@
 #include "nfsping.h"
+#include "rpc.h"
 
 
-READDIRPLUS3res *do_readdirplus(fsroots_t *dir) {
+void usage() {
+    printf("Usage: nfsls [options] [filehandle...]\n\
+    -T   use TCP (default UDP)\n"); 
+
+    exit(3);
+}
+
+
+READDIRPLUS3res *do_readdirplus(CLIENT *client, fsroots_t *dir) {
     READDIRPLUS3res *res;
-    READDIRPLUS3args args;
-    CLIENT client;
+    READDIRPLUS3args args = {
+        .dir = dir->fsroot,
+        .cookie = 0,
+        .dircount = 512,
+        .maxcount = 8192,
+    };
     entryplus3 *entry;
-    const u_long version = 3;
-    struct timeval timeout = NFS_TIMEOUT;
-    int nfs_sock = RPC_ANYSOCK;
     struct rpc_err clnt_err;
     int i;
 
-    dir->client_sock->sin_family = AF_INET;
-    dir->client_sock->sin_port = htons(NFS_PORT);
-                                           
-    //client = *clntudp_create(dir->client_sock, NFS_PROGRAM, version, timeout, &nfs_sock);
-    client = *clnttcp_create(dir->client_sock, NFS_PROGRAM, version, &nfs_sock, 0, 0);
-    client.cl_auth = authunix_create_default();
-
-    args.dir = dir->fsroot;
-    args.cookie = 0;
-    //args.cookieverf = "";
-    args.dircount = 512;
-    args.maxcount = 8192;
-
-    res = nfsproc3_readdirplus_3(&args, &client);
+    /* the RPC call */
+    res = nfsproc3_readdirplus_3(&args, client);
 
     if (res) {
         while (res) {
             if (res->status != NFS3_OK) {
-                clnt_geterr(&client, &clnt_err);                                                                                                                     
+                clnt_geterr(client, &clnt_err);                                                                                                                     
                 if (clnt_err.re_status)
-                    clnt_perror(&client, "nfsproc3_readdirplus_3");
+                    clnt_perror(client, "nfsproc3_readdirplus_3");
                 else
                     nfs_perror(res->status);
             } else {
@@ -57,12 +55,12 @@ READDIRPLUS3res *do_readdirplus(fsroots_t *dir) {
                     break;
                 } else {
                     memcpy(args.cookieverf, res->READDIRPLUS3res_u.resok.cookieverf, NFS3_COOKIEVERFSIZE);
-                    res = nfsproc3_readdirplus_3(&args, &client);
+                    res = nfsproc3_readdirplus_3(&args, client);
                 }
             }
         }
     } else {
-        clnt_perror(&client, "nfsproc3_readdirplus_3");
+        clnt_perror(client, "nfsproc3_readdirplus_3");
     }  
 
     return res;
@@ -70,9 +68,34 @@ READDIRPLUS3res *do_readdirplus(fsroots_t *dir) {
 
 
 int main(int argc, char **argv) {
+    int ch;
     char input_fh[FHMAX];
     fsroots_t *current, *tail, dummy;
+    struct addrinfo hints = {
+        .ai_family = AF_INET,
+        /* default to UDP */
+        .ai_socktype = SOCK_DGRAM,
+    };
+    CLIENT *client = NULL;
+    struct sockaddr_in clnt_info;
+    uint16_t port = htons(NFS_PORT);
+    unsigned long version = 3;
+    struct timeval timeout = NFS_TIMEOUT;
+
+    struct rpc_err clnt_err;
     READDIRPLUS3res *res;
+
+    while ((ch = getopt(argc, argv, "hT")) != -1) {
+        switch(ch) {
+            /* use TCP */
+            case 'T':
+                hints.ai_socktype = SOCK_STREAM;
+                break;
+            case 'h':
+            default:
+                usage();
+        }
+    }
 
     dummy.next = NULL;
     tail = &dummy;
@@ -83,12 +106,28 @@ int main(int argc, char **argv) {
         tail->next = NULL;
 
         parse_fh(input_fh, tail);
+
+        tail->client_sock->sin_family = AF_INET;
+        tail->client_sock->sin_port = htons(NFS_PORT);
     }
 
     /* skip the first empty struct */
     current = dummy.next;
     while (current) {
-        do_readdirplus(current);
-        current = current->next;
+        while (client) {
+            clnt_control(client, CLGET_SERVER_ADDR, (char *)&clnt_info);
+            if (clnt_info.sin_addr.s_addr != current->client_sock->sin_addr.s_addr) {
+                destroy_rpc_client(client);
+                break;
+            }
+            do_readdirplus(client, current);
+            current = current->next;
+            if (current == NULL)
+                break;
+        }
+        if (current) {
+            client = create_rpc_client(current->client_sock, &hints, port, NFS_PROGRAM, version, timeout);
+            client->cl_auth = authunix_create_default();
+        }
     }
 }
