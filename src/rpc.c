@@ -20,6 +20,7 @@ CLIENT *create_rpc_client(struct sockaddr_in *client_sock, struct addrinfo *hint
         /* check the portmapper */
         if (port == 0)
             client_sock->sin_port = htons(pmap_getport(client_sock, prognum, version, IPPROTO_TCP));
+        /* TODO set recvsz and sendsz to the NFS blocksize */
         client = clnttcp_create(client_sock, prognum, version, &sock, 0, 0);
 
         if (client == NULL) {
@@ -53,11 +54,13 @@ CLIENT *create_rpc_client(struct sockaddr_in *client_sock, struct addrinfo *hint
 
 
 /* destroy an RPC client */
-void destroy_rpc_client(CLIENT *client) {
+CLIENT *destroy_rpc_client(CLIENT *client) {
     if (client) {
         /* have to clean this up first */
         auth_destroy(client->cl_auth);
         /* this should close the socket */
         clnt_destroy(client);
     }
+
+    return NULL;
 }
