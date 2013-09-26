@@ -116,12 +116,14 @@ int main(int argc, char **argv) {
     while (current) {
         while (client) {
             clnt_control(client, CLGET_SERVER_ADDR, (char *)&clnt_info);
-            if (clnt_info.sin_addr.s_addr != current->client_sock->sin_addr.s_addr) {
-                destroy_rpc_client(client);
-                break;
+            while (current) {
+                if (clnt_info.sin_addr.s_addr != current->client_sock->sin_addr.s_addr) {
+                    client = destroy_rpc_client(client);
+                    break;
+                }
+                do_readdirplus(client, current);
+                current = current->next;
             }
-            do_readdirplus(client, current);
-            current = current->next;
             if (current == NULL)
                 break;
         }
