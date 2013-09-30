@@ -113,21 +113,28 @@ int main(int argc, char **argv) {
 
     /* skip the first empty struct */
     current = dummy.next;
+
+    /* loop through the list of targets */
     while (current) {
+        /* check if we can use the same client connection as the previous target */
         while (client) {
+            /* get the server address out of the client */
             clnt_control(client, CLGET_SERVER_ADDR, (char *)&clnt_info);
             while (current) {
-                if (clnt_info.sin_addr.s_addr != current->client_sock->sin_addr.s_addr) {
+                if (clnt_info.sin_addr.s_addr == current->client_sock->sin_addr.s_addr) {
+                    do_readdirplus(client, current);
+                    current = current->next;
+                } else {
                     client = destroy_rpc_client(client);
                     break;
                 }
-                do_readdirplus(client, current);
-                current = current->next;
             }
+            /* end of target list */
             if (current == NULL)
                 break;
         }
         if (current) {
+            /* connect to server */
             client = create_rpc_client(current->client_sock, &hints, port, NFS_PROGRAM, version, timeout);
             client->cl_auth = authunix_create_default();
         }
