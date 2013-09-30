@@ -1,4 +1,5 @@
 #include "nfsping.h"
+#include "rpc.h"
 
 void usage() {
     printf("Usage: nfsmount [options] host[:mountpoint]\n\
@@ -139,7 +140,7 @@ int main(int argc, char **argv) {
     struct addrinfo hints, *addr;
     char *host;
     char *path;
-    exports ex, oldex;
+    exports ex;
     int ch, first, index;
     int multiple = 0;
     int showmount = 0;
@@ -189,45 +190,32 @@ int main(int argc, char **argv) {
     if (getaddr == 0) { /* success! */
         /* loop through possibly multiple DNS responses */
         while (addr) {
-            client_sock.sin_addr = ((struct sockaddr_in *)addr->ai_addr)->sin_addr;
-            /* new socket for each connection */
-            sock = RPC_ANYSOCK;
-
-            /* get mount port from portmapper */
-            if (hints.ai_socktype == SOCK_DGRAM) {
-                client_sock.sin_port = htons(pmap_getport(&client_sock, MOUNTPROG, version, IPPROTO_UDP));
-                /* TODO check sin_port */
-                client = clntudp_create(&client_sock, MOUNTPROG, version, timeout, &sock);
-            } else {
-                client_sock.sin_port = htons(pmap_getport(&client_sock, MOUNTPROG, version, IPPROTO_TCP));
-                /* TODO check sin_port */
-                client = clnttcp_create(&client_sock, MOUNTPROG, version, &sock, 0, 0);
-            }
-
-            if (client_sock.sin_port == 0) {
-                clnt_pcreateerror("pmap_getport");
-                mountres->fhs_status = MNT3ERR_SERVERFAULT; /* is this the most appropriate error code? */
-            }
-                    
-            /* mounts don't need authentication because they return a list of authentication flavours supported */
-            client->cl_auth = authnone_create();
-
             if (inet_ntop(AF_INET, &((struct sockaddr_in *)addr->ai_addr)->sin_addr, hostname, INET_ADDRSTRLEN)) {
-                if (path) {
-                    mountres = get_root_filehandle(hostname, client, path);
-                } else {
-                    ex = *mountproc_export_3(NULL, client);
+                client_sock.sin_addr = ((struct sockaddr_in *)addr->ai_addr)->sin_addr;
 
-                    if (showmount) {
-                        print_exports(ex);
+                /* use the portmapper to create an rpc connection */
+                client = create_rpc_client(&client_sock, &hints, 0, MOUNTPROG, version, timeout);
+                /* mounts don't need authentication because they return a list of authentication flavours supported */
+                client->cl_auth = authnone_create();
+
+                if (client_sock.sin_port) {
+                    if (path) {
+                        mountres = get_root_filehandle(hostname, client, path);
                     } else {
-                        while (ex) {
+                        ex = *mountproc_export_3(NULL, client);
+
+                        if (showmount) {
+                            print_exports(ex);
+                        } else {
+                            while (ex) {
                                 mountres = get_root_filehandle(hostname, client, ex->ex_dir);
-                            oldex = ex;
-                            ex = ex->ex_next;
-                            free(oldex);
+                                ex = ex->ex_next;
+                            }
                         }
                     }
+                } else {
+                    clnt_pcreateerror("pmap_getport");
+                    mountres->fhs_status = MNT3ERR_SERVERFAULT; /* is this the most appropriate error code? */
                 }
             } else {
                 fprintf(stderr, "%s: ", hostname);
