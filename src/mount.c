@@ -1,7 +1,8 @@
 #include "nfsping.h"
 
 void usage() {
-    printf("Usage: nfsmount [options] host:mountpoint\n\
+    printf("Usage: nfsmount [options] host[:mountpoint]\n\
+    -e    print exports (like showmount -e)\n\
     -m    use multiple target IP addresses if found\n\
     -T    use TCP (default UDP)\n"
     );
@@ -87,6 +88,47 @@ mountres3 *get_root_filehandle(char *hostname, CLIENT *client, char *path) {
 }
 
 
+/* print a list of exports, like showmount -e */
+int print_exports(struct exportnode *ex) {
+    int i = 0;
+    size_t max = 0;
+    exports first = ex;
+    groups gr;
+
+    while (ex) {
+        i++;
+        if (strlen(ex->ex_dir) > max) {
+            max = strlen(ex->ex_dir);
+        }
+
+        ex = ex->ex_next; 
+    }
+
+    ex = first;
+    max++; /* spacing */
+    
+    while (ex) {
+        printf("%-*s", (int)max, ex->ex_dir);
+        gr = ex->ex_groups;
+        if (gr) {
+            printf("%s", gr->gr_name);
+            gr = gr->gr_next;
+            while (gr) {
+                printf(",%s", gr->gr_name);
+                gr = gr->gr_next;
+            }
+        } else {
+            /* no groups means open to everyone */
+            printf("(everyone)");
+        }
+        printf("\n");
+        ex = ex->ex_next; 
+    }
+
+    return i;
+}
+
+
 int main(int argc, char **argv) {
     mountres3 *mountres;
     struct sockaddr_in client_sock;
@@ -100,6 +142,7 @@ int main(int argc, char **argv) {
     exports ex, oldex;
     int ch, first, index;
     int multiple = 0;
+    int showmount = 0;
     CLIENT *client;
     u_long version = 3;
     struct timeval timeout = NFS_TIMEOUT;
@@ -116,8 +159,12 @@ int main(int argc, char **argv) {
     if (argc == 1)
         usage();
 
-    while ((ch = getopt(argc, argv, "hmT")) != -1) {
+    while ((ch = getopt(argc, argv, "ehmT")) != -1) {
         switch(ch) {
+            /* output like showmount -e */
+            case 'e':
+                showmount = 1;
+                break;
             /* use multiple IP addresses */
             case 'm':
                 multiple = 1;
@@ -171,11 +218,15 @@ int main(int argc, char **argv) {
                 } else {
                     ex = *mountproc_export_3(NULL, client);
 
-                    while (ex) {
-                        mountres = get_root_filehandle(hostname, client, ex->ex_dir);
-                        oldex = ex;
-                        ex = ex->ex_next;
-                        free(oldex);
+                    if (showmount) {
+                        print_exports(ex);
+                    } else {
+                        while (ex) {
+                                mountres = get_root_filehandle(hostname, client, ex->ex_dir);
+                            oldex = ex;
+                            ex = ex->ex_next;
+                            free(oldex);
+                        }
                     }
                 }
             } else {
