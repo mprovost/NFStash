@@ -117,7 +117,7 @@ int main(int argc, char **argv) {
     /* loop through the list of targets */
     while (current) {
         /* check if we can use the same client connection as the previous target */
-        while (client) {
+        while (client && current) {
             /* get the server address out of the client */
             clnt_control(client, CLGET_SERVER_ADDR, (char *)&clnt_info);
             while (current) {
@@ -129,9 +129,6 @@ int main(int argc, char **argv) {
                     break;
                 }
             }
-            /* end of target list */
-            if (current == NULL)
-                break;
         }
         if (current) {
             /* connect to server */
