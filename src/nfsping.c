@@ -281,11 +281,6 @@ int main(int argc, char **argv) {
         exit(3);
     }
 
-    /* if we're checking mount instead of nfs, default to using the portmapper */
-    if (prognum == MOUNTPROG && port == htons(NFS_PORT)) {
-        port = 0;
-    }
-
     /* mark the first non-option argument */
     first = optind;
 
@@ -309,6 +304,14 @@ int main(int argc, char **argv) {
         target->name = argv[index];
 
         target->client_sock = calloc(1, sizeof(struct sockaddr_in));
+        target->client_sock->sin_family = AF_INET;
+
+        /* if we're checking mount instead of nfs, default to using the portmapper */
+        if (prognum == MOUNTPROG && port == htons(NFS_PORT)) {
+            target->client_sock->sin_port = 0;
+        } else {
+            target->client_sock->sin_port = port;
+        }
 
         /* first try treating the hostname as an IP address */
         if (inet_pton(AF_INET, target->name, &((struct sockaddr_in *)target->client_sock)->sin_addr)) {
@@ -325,7 +328,7 @@ int main(int argc, char **argv) {
                 /* don't reverse an IP address */
                 target->ndqf = target->name;
             }
-            target->client = create_rpc_client(target->client_sock, &hints, port, prognum, version, timeout);
+            target->client = create_rpc_client(target->client_sock, &hints, prognum, version, timeout);
             if (target->client == NULL)
                 exit(EXIT_FAILURE);
         } else {
@@ -343,7 +346,7 @@ int main(int argc, char **argv) {
                     }
                     target->ndqf = reverse_fqdn(target->name);
 
-                    target->client = create_rpc_client(target->client_sock, &hints, port, prognum, version, timeout);
+                    target->client = create_rpc_client(target->client_sock, &hints, prognum, version, timeout);
                     if (target->client == NULL)
                         exit(EXIT_FAILURE);
 
@@ -503,7 +506,7 @@ int main(int argc, char **argv) {
         /* see if we should disconnect and reconnect */
         if (reconnect && targets->sent % reconnect == 0) {
             destroy_rpc_client(target->client);
-            target->client = create_rpc_client(target->client_sock, &hints, port, prognum, version, timeout);
+            target->client = create_rpc_client(target->client_sock, &hints, prognum, version, timeout);
             if (target->client == NULL)
                 exit(EXIT_FAILURE);
         }

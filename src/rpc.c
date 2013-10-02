@@ -3,22 +3,18 @@
 #include "nfsping.h"
 
 /* create an RPC client */
-CLIENT *create_rpc_client(struct sockaddr_in *client_sock, struct addrinfo *hints, uint16_t port, unsigned long prognum, unsigned long version, struct timeval timeout) {
+/* takes an initialised sockaddr_in with the address and port */
+CLIENT *create_rpc_client(struct sockaddr_in *client_sock, struct addrinfo *hints, unsigned long prognum, unsigned long version, struct timeval timeout) {
     CLIENT *client;
 
     /* make sure and set this for each new connection so it gets a new socket */
     /* clnttcp_create will happily reuse sockets */
     int sock = RPC_ANYSOCK;
 
-    client_sock->sin_family = AF_INET;
-
-    if (port)
-        client_sock->sin_port = port;
-
     /* TCP */
     if (hints->ai_socktype == SOCK_STREAM) {
         /* check the portmapper */
-        if (port == 0)
+        if (client_sock->sin_port == 0)
             client_sock->sin_port = htons(pmap_getport(client_sock, prognum, version, IPPROTO_TCP));
         /* TODO set recvsz and sendsz to the NFS blocksize */
         client = clnttcp_create(client_sock, prognum, version, &sock, 0, 0);
@@ -29,7 +25,7 @@ CLIENT *create_rpc_client(struct sockaddr_in *client_sock, struct addrinfo *hint
     /* UDP */
     } else {
         /* check the portmapper */
-        if (port == 0)
+        if (client_sock->sin_port == 0)
             client_sock->sin_port = htons(pmap_getport(client_sock, prognum, version, IPPROTO_UDP));
         client = clntudp_create(client_sock, prognum, version, timeout, &sock);
 

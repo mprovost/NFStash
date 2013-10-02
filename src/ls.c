@@ -78,7 +78,6 @@ int main(int argc, char **argv) {
     };
     CLIENT *client = NULL;
     struct sockaddr_in clnt_info;
-    uint16_t port = htons(NFS_PORT);
     unsigned long version = 3;
     struct timeval timeout = NFS_TIMEOUT;
 
@@ -132,7 +131,7 @@ int main(int argc, char **argv) {
         }
         if (current) {
             /* connect to server */
-            client = create_rpc_client(current->client_sock, &hints, port, NFS_PROGRAM, version, timeout);
+            client = create_rpc_client(current->client_sock, &hints, NFS_PROGRAM, version, timeout);
             client->cl_auth = authunix_create_default();
         }
     }

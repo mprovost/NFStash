@@ -192,9 +192,11 @@ int main(int argc, char **argv) {
         while (addr) {
             if (inet_ntop(AF_INET, &((struct sockaddr_in *)addr->ai_addr)->sin_addr, hostname, INET_ADDRSTRLEN)) {
                 client_sock.sin_addr = ((struct sockaddr_in *)addr->ai_addr)->sin_addr;
+                client_sock.sin_family = AF_INET;
+                client_sock.sin_port = 0; /* use portmapper */
 
-                /* use the portmapper to create an rpc connection */
-                client = create_rpc_client(&client_sock, &hints, 0, MOUNTPROG, version, timeout);
+                /* create an rpc connection */
+                client = create_rpc_client(&client_sock, &hints, MOUNTPROG, version, timeout);
                 /* mounts don't need authentication because they return a list of authentication flavours supported */
                 client->cl_auth = authnone_create();
 
