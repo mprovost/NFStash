@@ -27,17 +27,17 @@ READDIRPLUS3res *do_readdirplus(CLIENT *client, fsroots_t *dir) {
 
     if (res) {
         while (res) {
-            if (res->status != NFS3_OK) {
-                clnt_geterr(client, &clnt_err);                                                                                                                     
-                if (clnt_err.re_status)
-                    clnt_perror(client, "nfsproc3_readdirplus_3");
-                else
-                    nfs_perror(res->status);
-            } else {
+            if (res->status == NFS3_OK) {
                 entry = res->READDIRPLUS3res_u.resok.reply.entries;
                 while (entry) {
-                    printf("%s:%s", dir->host, entry->name);
+                    printf("%s:%s", dir->host, dir->path);
+                    /* if the path doesn't already end in /, print one now */
+                    if (dir->path[strlen(dir->path) - 1] != '/')
+                        printf("/");
+                    /* the filename */
+                    printf("%s", entry->name);
                     /* if it's a directory print a trailing slash */
+                    /* TODO this seems to be 0 sometimes */
                     if (entry->name_attributes.post_op_attr_u.attributes.type == NF3DIR)
                         printf("/");
                     printf(":");
@@ -57,6 +57,14 @@ READDIRPLUS3res *do_readdirplus(CLIENT *client, fsroots_t *dir) {
                     memcpy(args.cookieverf, res->READDIRPLUS3res_u.resok.cookieverf, NFS3_COOKIEVERFSIZE);
                     res = nfsproc3_readdirplus_3(&args, client);
                 }
+            } else {
+                fprintf(stderr, "%s:%s: ", dir->host, dir->path);
+                clnt_geterr(client, &clnt_err);                                                                                                                     
+                if (clnt_err.re_status)
+                    clnt_perror(client, "nfsproc3_readdirplus_3");
+                else
+                    nfs_perror(res->status);
+                break;
             }
         }
     } else {
