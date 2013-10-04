@@ -321,7 +321,7 @@ int main(int argc, char **argv) {
                 getaddr = getnameinfo((struct sockaddr *)target->client_sock, sizeof(struct sockaddr_in), target->name, NI_MAXHOST, NULL, 0, 0);
                 if (getaddr > 0) { /* failure! */
                     fprintf(stderr, "%s: %s\n", target->name, gai_strerror(getaddr));
-                    exit(EXIT_FAILURE);
+                    exit(2); /* ping and fping return 2 for name resolution failures */
                 }
                 target->ndqf = reverse_fqdn(target->name);
             } else {
@@ -381,7 +381,7 @@ int main(int argc, char **argv) {
                 }
             } else {
                 fprintf(stderr, "getaddrinfo error (%s): %s\n", target->name, gai_strerror(getaddr));
-                exit(EXIT_FAILURE);
+                exit(2); /* ping and fping return 2 for name resolution failures */
             }
         }
     }
