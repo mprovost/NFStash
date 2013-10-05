@@ -101,6 +101,30 @@ void print_lost(enum outputs format, char *prefix, targets_t *target, struct tim
 }
 
 
+/* make a new target */
+targets_t *make_target(char *name, unsigned long prognum, uint16_t port, enum outputs format) {
+    targets_t *target;
+
+    target = calloc(1, sizeof(targets_t));
+    target->next = NULL;
+    target->name = name;
+    if (format == graphite)
+        target->ndqf = reverse_fqdn(target->name);
+
+    target->client_sock = calloc(1, sizeof(struct sockaddr_in));
+    target->client_sock->sin_family = AF_INET;
+
+    /* if we're checking mount instead of nfs, default to using the portmapper */
+    if (prognum == MOUNTPROG && port == htons(NFS_PORT)) {
+        target->client_sock->sin_port = 0;
+    } else {
+        target->client_sock->sin_port = port;
+    }
+
+    return target;
+}
+
+
 int main(int argc, char **argv) {
     void *status;
     char *error;
@@ -289,28 +313,13 @@ int main(int argc, char **argv) {
         usage();
     }
 
-    /* pointer to head of list */
-    targets = calloc(1, sizeof(targets_t));
-    target = targets;
-
     /* process the targets from the command line */
     for (index = optind; index < argc; index++) {
-        if (index > first) {
-            target->next = calloc(1, sizeof(targets_t));
-            target = target->next;
-            target->next = NULL;
-        }
+        target = make_target(argv[index], prognum, port, format);
 
-        target->name = argv[index];
-
-        target->client_sock = calloc(1, sizeof(struct sockaddr_in));
-        target->client_sock->sin_family = AF_INET;
-
-        /* if we're checking mount instead of nfs, default to using the portmapper */
-        if (prognum == MOUNTPROG && port == htons(NFS_PORT)) {
-            target->client_sock->sin_port = 0;
-        } else {
-            target->client_sock->sin_port = port;
+        /* pointer to head of list */
+        if (index == first) {
+            targets = target;
         }
 
         /* first try treating the hostname as an IP address */
@@ -354,13 +363,8 @@ int main(int argc, char **argv) {
                     if (addr->ai_next) {
                         if (multiple) {
                             /* create the next target */
-                            target->next = calloc(1, sizeof(targets_t));
+                            target->next = make_target(argv[index], prognum, port, format);
                             target = target->next;
-                            target->next = NULL;
-                            target->name = argv[index];
-                            if (format == graphite) { target->ndqf = reverse_fqdn(target->name); }
-
-                            target->client_sock = calloc(1, sizeof(struct sockaddr_in));
                         } else {
                             /* we have to look up the IP address if we haven't already for the warning */
                             if (!ip) {
