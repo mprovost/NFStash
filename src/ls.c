@@ -10,26 +10,34 @@ void usage() {
 }
 
 
-READDIRPLUS3res *do_readdirplus(CLIENT *client, fsroots_t *dir) {
+entryplus3 *do_readdirplus(CLIENT *client, fsroots_t *dir) {
     READDIRPLUS3res *res;
+    entryplus3 *entry, *current, dummy;
     READDIRPLUS3args args = {
         .dir = dir->fsroot,
         .cookie = 0,
         .dircount = 512,
         .maxcount = 8192,
     };
-    entryplus3 *entry;
-    struct rpc_err clnt_err;
     int i;
+    struct rpc_err clnt_err;
 
     /* the RPC call */
     res = nfsproc3_readdirplus_3(&args, client);
 
+    dummy.nextentry = NULL;
+    current = &dummy;
+
     if (res) {
+        /* loop through results, might take multiple calls for the whole directory */
         while (res) {
             if (res->status == NFS3_OK) {
                 entry = res->READDIRPLUS3res_u.resok.reply.entries;
                 while (entry) {
+                    current = malloc(sizeof(entryplus3));
+                    current->nextentry = NULL;
+                    current = memcpy(current, entry, sizeof(entryplus3));
+
                     printf("%s:%s", dir->host, dir->path);
                     /* if the path doesn't already end in /, print one now */
                     if (dir->path[strlen(dir->path) - 1] != '/')
@@ -49,7 +57,9 @@ READDIRPLUS3res *do_readdirplus(CLIENT *client, fsroots_t *dir) {
                     printf("\n");
 
                     args.cookie = entry->cookie;
+
                     entry = entry->nextentry;
+                    current = current->nextentry;
                 }
                 if (res->READDIRPLUS3res_u.resok.reply.eof) {
                     break;
@@ -59,7 +69,7 @@ READDIRPLUS3res *do_readdirplus(CLIENT *client, fsroots_t *dir) {
                 }
             } else {
                 fprintf(stderr, "%s:%s: ", dir->host, dir->path);
-                clnt_geterr(client, &clnt_err);                                                                                                                     
+                clnt_geterr(client, &clnt_err);
                 if (clnt_err.re_status)
                     clnt_perror(client, "nfsproc3_readdirplus_3");
                 else
@@ -71,12 +81,13 @@ READDIRPLUS3res *do_readdirplus(CLIENT *client, fsroots_t *dir) {
         clnt_perror(client, "nfsproc3_readdirplus_3");
     }  
 
-    return res;
+    return dummy.nextentry;
 }
 
 
 int main(int argc, char **argv) {
     int ch;
+    int all = 0;
     char input_fh[FHMAX];
     fsroots_t *current, *tail, dummy;
     struct addrinfo hints = {
@@ -88,12 +99,14 @@ int main(int argc, char **argv) {
     struct sockaddr_in clnt_info;
     unsigned long version = 3;
     struct timeval timeout = NFS_TIMEOUT;
+    entryplus3 *entry;
 
-    struct rpc_err clnt_err;
-    READDIRPLUS3res *res;
-
-    while ((ch = getopt(argc, argv, "hT")) != -1) {
+    while ((ch = getopt(argc, argv, "ahT")) != -1) {
         switch(ch) {
+            /* list hidden files */
+            case 'a':
+                all = 1;
+                break;
             /* use TCP */
             case 'T':
                 hints.ai_socktype = SOCK_STREAM;
@@ -129,7 +142,7 @@ int main(int argc, char **argv) {
             clnt_control(client, CLGET_SERVER_ADDR, (char *)&clnt_info);
             while (current) {
                 if (clnt_info.sin_addr.s_addr == current->client_sock->sin_addr.s_addr) {
-                    do_readdirplus(client, current);
+                    entry = do_readdirplus(client, current);
                     current = current->next;
                 } else {
                     client = destroy_rpc_client(client);
