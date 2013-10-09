@@ -22,11 +22,11 @@ entryplus3 *do_readdirplus(CLIENT *client, fsroots_t *dir) {
     };
     struct rpc_err clnt_err;
 
-    /* the RPC call */
-    res = nfsproc3_readdirplus_3(&args, client);
-
     dummy.nextentry = NULL;
     current = &dummy;
+
+    /* the RPC call */
+    res = nfsproc3_readdirplus_3(&args, client);
 
     if (res) {
         /* loop through results, might take multiple calls for the whole directory */
@@ -46,6 +46,7 @@ entryplus3 *do_readdirplus(CLIENT *client, fsroots_t *dir) {
                 if (res->READDIRPLUS3res_u.resok.reply.eof) {
                     break;
                 } else {
+                    /* TODO does this need a copy? */
                     memcpy(args.cookieverf, res->READDIRPLUS3res_u.resok.cookieverf, NFS3_COOKIEVERFSIZE);
                     res = nfsproc3_readdirplus_3(&args, client);
                 }
@@ -127,6 +128,13 @@ int main(int argc, char **argv) {
                 if (clnt_info.sin_addr.s_addr == current->client_sock->sin_addr.s_addr) {
                     entry = do_readdirplus(client, current);
                     while (entry) {
+                        /* first check for hidden files */
+                        if (all == 0) {
+                            if (entry->name[0] == '.') {
+                                entry = entry->nextentry;
+                                continue;
+                            }
+                        }
                         printf("%s:%s", current->host, current->path);
                         /* if the path doesn't already end in /, print one now */
                         if (current->path[strlen(current->path) - 1] != '/')
