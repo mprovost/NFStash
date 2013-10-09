@@ -10,6 +10,7 @@ void usage() {
 }
 
 
+/* do readdirplus calls to get a full list of directory entries */
 entryplus3 *do_readdirplus(CLIENT *client, fsroots_t *dir) {
     READDIRPLUS3res *res;
     entryplus3 *entry, *current, dummy;
@@ -19,7 +20,6 @@ entryplus3 *do_readdirplus(CLIENT *client, fsroots_t *dir) {
         .dircount = 512,
         .maxcount = 8192,
     };
-    int i;
     struct rpc_err clnt_err;
 
     /* the RPC call */
@@ -34,32 +34,14 @@ entryplus3 *do_readdirplus(CLIENT *client, fsroots_t *dir) {
             if (res->status == NFS3_OK) {
                 entry = res->READDIRPLUS3res_u.resok.reply.entries;
                 while (entry) {
-                    current = malloc(sizeof(entryplus3));
+                    current->nextentry = malloc(sizeof(entryplus3));
+                    current = current->nextentry;
                     current->nextentry = NULL;
                     current = memcpy(current, entry, sizeof(entryplus3));
-
-                    printf("%s:%s", dir->host, dir->path);
-                    /* if the path doesn't already end in /, print one now */
-                    if (dir->path[strlen(dir->path) - 1] != '/')
-                        printf("/");
-                    /* the filename */
-                    printf("%s", entry->name);
-                    /* if it's a directory print a trailing slash */
-                    /* TODO this seems to be 0 sometimes */
-                    if (entry->name_attributes.post_op_attr_u.attributes.type == NF3DIR)
-                        printf("/");
-                    printf(":");
-
-                    /* print the filehandle in hex */
-                    for (i = 0; i < entry->name_handle.post_op_fh3_u.handle.data.data_len; i++) {
-                        printf("%02hhx", entry->name_handle.post_op_fh3_u.handle.data.data_val[i]);
-                    }
-                    printf("\n");
 
                     args.cookie = entry->cookie;
 
                     entry = entry->nextentry;
-                    current = current->nextentry;
                 }
                 if (res->READDIRPLUS3res_u.resok.reply.eof) {
                     break;
@@ -100,6 +82,7 @@ int main(int argc, char **argv) {
     unsigned long version = 3;
     struct timeval timeout = NFS_TIMEOUT;
     entryplus3 *entry;
+    int i;
 
     while ((ch = getopt(argc, argv, "ahT")) != -1) {
         switch(ch) {
@@ -143,6 +126,27 @@ int main(int argc, char **argv) {
             while (current) {
                 if (clnt_info.sin_addr.s_addr == current->client_sock->sin_addr.s_addr) {
                     entry = do_readdirplus(client, current);
+                    while (entry) {
+                        printf("%s:%s", current->host, current->path);
+                        /* if the path doesn't already end in /, print one now */
+                        if (current->path[strlen(current->path) - 1] != '/')
+                            printf("/");
+                        /* the filename */
+                        printf("%s", entry->name);
+                        /* if it's a directory print a trailing slash */
+                        /* TODO this seems to be 0 sometimes */
+                        if (entry->name_attributes.post_op_attr_u.attributes.type == NF3DIR)
+                            printf("/");
+                        printf(":");
+
+                        /* print the filehandle in hex */
+                        for (i = 0; i < entry->name_handle.post_op_fh3_u.handle.data.data_len; i++) {
+                            printf("%02hhx", entry->name_handle.post_op_fh3_u.handle.data.data_val[i]);
+                        }
+                        printf("\n");
+
+                        entry = entry->nextentry;
+                    }
                     current = current->next;
                 } else {
                     client = destroy_rpc_client(client);
