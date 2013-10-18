@@ -113,6 +113,7 @@ int main(int argc, char **argv) {
             clnt_control(client, CLGET_SERVER_ADDR, (char *)&clnt_info);
             while (current) {
                 if (clnt_info.sin_addr.s_addr == current->client_sock->sin_addr.s_addr) {
+                    /* start at the beginning of the file */
                     offset = 0;
                     do {
                         res = do_read(client, current, offset, blocksize, &us);
@@ -133,16 +134,10 @@ int main(int argc, char **argv) {
                             /* write to stdout */
                             fwrite(res->READ3res_u.resok.data.data_val, 1, res->READ3res_u.resok.data.data_len, stdout);
 
-                            if (res->READ3res_u.resok.eof) {
-                                break;
-                            } else {
-                                offset += res->READ3res_u.resok.count;
-                            }
-
-                        } else {
-                            break;
+                            offset += res->READ3res_u.resok.count;
                         }
-                    } while (res);
+                    /* check for errors or end of file */
+                    } while (res && res->status == NFS3_OK && res->READ3res_u.resok.eof == 0);
 
                     current = current->next;
                 } else {
