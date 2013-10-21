@@ -182,69 +182,76 @@ int main(int argc, char **argv) {
         }
     }
 
-    host = strtok(argv[optind], ":");
-    path = strtok(NULL, ":");
+    /* loop through arguments */
+    while (optind < argc) {
+        /* split host:path arguments, path is optional */
+        host = strtok(argv[optind], ":");
+        path = strtok(NULL, ":");
 
-    /* DNS lookup */
-    getaddr = getaddrinfo(host, "nfs", &hints, &addr);
+        /* DNS lookup */
+        getaddr = getaddrinfo(host, "nfs", &hints, &addr);
 
-    if (getaddr == 0) { /* success! */
-        /* loop through possibly multiple DNS responses */
-        while (addr) {
-            if (inet_ntop(AF_INET, &((struct sockaddr_in *)addr->ai_addr)->sin_addr, hostname, INET_ADDRSTRLEN)) {
-                client_sock.sin_addr = ((struct sockaddr_in *)addr->ai_addr)->sin_addr;
-                client_sock.sin_family = AF_INET;
-                client_sock.sin_port = 0; /* use portmapper */
+        if (getaddr == 0) { /* success! */
+            /* loop through possibly multiple DNS responses */
+            while (addr) {
+                if (inet_ntop(AF_INET, &((struct sockaddr_in *)addr->ai_addr)->sin_addr, hostname, INET_ADDRSTRLEN)) {
+                    client_sock.sin_addr = ((struct sockaddr_in *)addr->ai_addr)->sin_addr;
+                    client_sock.sin_family = AF_INET;
+                    client_sock.sin_port = 0; /* use portmapper */
 
-                /* create an rpc connection */
-                client = create_rpc_client(&client_sock, &hints, MOUNTPROG, version, timeout);
-                /* mounts don't need authentication because they return a list of authentication flavours supported */
-                client->cl_auth = authnone_create();
+                    /* create an rpc connection */
+                    client = create_rpc_client(&client_sock, &hints, MOUNTPROG, version, timeout);
+                    /* mounts don't need authentication because they return a list of authentication flavours supported */
+                    client->cl_auth = authnone_create();
 
-                if (client_sock.sin_port) {
-                    if (path) {
-                        mountres = get_root_filehandle(hostname, client, path);
-                        exports_count++;
-                        if (mountres && mountres->fhs_status == MNT3_OK)
-                            exports_ok++;
-                    } else {
-                        /* get the list of all exported filesystems from the server */
-                        ex = *mountproc_export_3(NULL, client);
+                    if (client_sock.sin_port) {
+                        if (path) {
+                            mountres = get_root_filehandle(hostname, client, path);
+                            exports_count++;
+                            if (mountres && mountres->fhs_status == MNT3_OK)
+                                exports_ok++;
+                        } else {
+                            /* get the list of all exported filesystems from the server */
+                            ex = *mountproc_export_3(NULL, client);
 
-                        if (ex) {
-                            if (showmount) {
-                                exports_count = print_exports(ex);
-                                /* if the call succeeds at all it can't return individual bad results */
-                                exports_ok = exports_count;
-                            } else {
-                                while (ex) {
-                                    mountres = get_root_filehandle(hostname, client, ex->ex_dir);
-                                    exports_count++;
-                                    if (mountres && mountres->fhs_status == MNT3_OK)
-                                        exports_ok++;
-                                    ex = ex->ex_next;
+                            if (ex) {
+                                if (showmount) {
+                                    exports_count = print_exports(ex);
+                                    /* if the call succeeds at all it can't return individual bad results */
+                                    exports_ok = exports_count;
+                                } else {
+                                    while (ex) {
+                                        mountres = get_root_filehandle(hostname, client, ex->ex_dir);
+                                        exports_count++;
+                                        if (mountres && mountres->fhs_status == MNT3_OK)
+                                            exports_ok++;
+                                        ex = ex->ex_next;
+                                    }
                                 }
                             }
                         }
+                    } else {
+                        clnt_pcreateerror("pmap_getport");
+                        mountres->fhs_status = MNT3ERR_SERVERFAULT; /* is this the most appropriate error code? */
                     }
                 } else {
-                    clnt_pcreateerror("pmap_getport");
-                    mountres->fhs_status = MNT3ERR_SERVERFAULT; /* is this the most appropriate error code? */
+                    fprintf(stderr, "%s: ", hostname);
+                    perror("inet_ntop");
+                    return EXIT_FAILURE;
                 }
-            } else {
-                fprintf(stderr, "%s: ", hostname);
-                perror("inet_ntop");
-                return EXIT_FAILURE;
-            }
 
-            if (multiple)
-                addr = addr->ai_next;
-            else
-                addr = NULL;
+                if (multiple)
+                    addr = addr->ai_next;
+                else
+                    addr = NULL;
+            }
+        } else {
+            fprintf(stderr, "%s: %s\n", host, gai_strerror(getaddr));
+            /* TODO soldier on with other arguments or bail at first sign of trouble? */
+            return EXIT_FAILURE;
         }
-    } else {
-        fprintf(stderr, "%s: %s\n", host, gai_strerror(getaddr));
-        return EXIT_FAILURE;
+
+        optind++;
     }
 
     if (exports_count && exports_count == exports_ok)
