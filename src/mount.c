@@ -141,6 +141,7 @@ int main(int argc, char **argv) {
     char *host;
     char *path;
     exports ex;
+    int exports_count;
     int ch, first, index;
     int multiple = 0;
     int showmount = 0;
@@ -207,7 +208,7 @@ int main(int argc, char **argv) {
                         ex = *mountproc_export_3(NULL, client);
 
                         if (showmount) {
-                            print_exports(ex);
+                            exports_count = print_exports(ex);
                         } else {
                             while (ex) {
                                 mountres = get_root_filehandle(hostname, client, ex->ex_dir);
@@ -235,8 +236,11 @@ int main(int argc, char **argv) {
         return EXIT_FAILURE;
     }
 
-    if (mountres)
+    if (showmount && exports_count)
         return EXIT_SUCCESS;
-    else
-        return EXIT_FAILURE;
+    /* TODO what if any mounts fail with MNT3ERR_ACCES etc? */
+    if (mountres && mountres->fhs_status == MNT3_OK)
+        return EXIT_SUCCESS;
+
+    return EXIT_FAILURE;
 }
