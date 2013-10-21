@@ -123,7 +123,7 @@ int print_exports(struct exportnode *ex) {
             printf("(everyone)");
         }
         printf("\n");
-        ex = ex->ex_next; 
+        ex = ex->ex_next;
     }
 
     return i;
@@ -141,7 +141,7 @@ int main(int argc, char **argv) {
     char *host;
     char *path;
     exports ex;
-    int exports_count;
+    int exports_count = 0, exports_ok = 0;
     int ch, first, index;
     int multiple = 0;
     int showmount = 0;
@@ -204,15 +204,26 @@ int main(int argc, char **argv) {
                 if (client_sock.sin_port) {
                     if (path) {
                         mountres = get_root_filehandle(hostname, client, path);
+                        exports_count++;
+                        if (mountres && mountres->fhs_status == MNT3_OK)
+                            exports_ok++;
                     } else {
+                        /* get the list of all exported filesystems from the server */
                         ex = *mountproc_export_3(NULL, client);
 
-                        if (showmount) {
-                            exports_count = print_exports(ex);
-                        } else {
-                            while (ex) {
-                                mountres = get_root_filehandle(hostname, client, ex->ex_dir);
-                                ex = ex->ex_next;
+                        if (ex) {
+                            if (showmount) {
+                                exports_count = print_exports(ex);
+                                /* if the call succeeds at all it can't return individual bad results */
+                                exports_ok = exports_count;
+                            } else {
+                                while (ex) {
+                                    mountres = get_root_filehandle(hostname, client, ex->ex_dir);
+                                    exports_count++;
+                                    if (mountres && mountres->fhs_status == MNT3_OK)
+                                        exports_ok++;
+                                    ex = ex->ex_next;
+                                }
                             }
                         }
                     }
@@ -236,10 +247,7 @@ int main(int argc, char **argv) {
         return EXIT_FAILURE;
     }
 
-    if (showmount && exports_count)
-        return EXIT_SUCCESS;
-    /* TODO what if any mounts fail with MNT3ERR_ACCES etc? */
-    if (mountres && mountres->fhs_status == MNT3_OK)
+    if (exports_count && exports_count == exports_ok)
         return EXIT_SUCCESS;
 
     return EXIT_FAILURE;
