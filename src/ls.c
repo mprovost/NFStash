@@ -4,6 +4,7 @@
 
 void usage() {
     printf("Usage: nfsls [options] [filehandle...]\n\
+    -a   print hidden files\n\
     -T   use TCP (default UDP)\n"); 
 
     exit(3);
@@ -72,7 +73,7 @@ int main(int argc, char **argv) {
     int ch;
     int all = 0;
     char input_fh[FHMAX];
-    fsroots_t *current, *tail, dummy;
+    fsroots_t current;
     struct addrinfo hints = {
         .ai_family = AF_INET,
         /* default to UDP */
@@ -101,71 +102,56 @@ int main(int argc, char **argv) {
         }
     }
 
-    dummy.next = NULL;
-    tail = &dummy;
-
+    /* loop through input */
     while (fgets(input_fh, FHMAX, stdin)) {
-        tail->next = malloc(sizeof(fsroots_t));
-        tail = tail->next;
-        tail->next = NULL;
+        parse_fh(input_fh, &current);
 
-        parse_fh(input_fh, tail);
+        current.client_sock->sin_family = AF_INET;
+        current.client_sock->sin_port = htons(NFS_PORT);
 
-        tail->client_sock->sin_family = AF_INET;
-        tail->client_sock->sin_port = htons(NFS_PORT);
-    }
-
-    /* skip the first empty struct */
-    current = dummy.next;
-
-    /* loop through the list of targets */
-    while (current) {
         /* check if we can use the same client connection as the previous target */
-        while (client && current) {
-            /* get the server address out of the client */
+        /* get the server address out of the client */
+        if (client) {
             clnt_control(client, CLGET_SERVER_ADDR, (char *)&clnt_info);
-            while (current) {
-                if (clnt_info.sin_addr.s_addr == current->client_sock->sin_addr.s_addr) {
-                    entry = do_readdirplus(client, current);
-                    while (entry) {
-                        /* first check for hidden files */
-                        if (all == 0) {
-                            if (entry->name[0] == '.') {
-                                entry = entry->nextentry;
-                                continue;
-                            }
-                        }
-                        printf("%s:%s", current->host, current->path);
-                        /* if the path doesn't already end in /, print one now */
-                        if (current->path[strlen(current->path) - 1] != '/')
-                            printf("/");
-                        /* the filename */
-                        printf("%s", entry->name);
-                        /* if it's a directory print a trailing slash */
-                        /* TODO this seems to be 0 sometimes */
-                        if (entry->name_attributes.post_op_attr_u.attributes.type == NF3DIR)
-                            printf("/");
-                        printf(":");
-
-                        /* print the filehandle in hex */
-                        for (i = 0; i < entry->name_handle.post_op_fh3_u.handle.data.data_len; i++) {
-                            printf("%02hhx", entry->name_handle.post_op_fh3_u.handle.data.data_val[i]);
-                        }
-                        printf("\n");
-
-                        entry = entry->nextentry;
-                    }
-                    current = current->next;
-                } else {
-                    client = destroy_rpc_client(client);
-                    break;
-                }
+            if (clnt_info.sin_addr.s_addr != current.client_sock->sin_addr.s_addr) {
+                client = destroy_rpc_client(client);
             }
         }
-        if (current) {
+
+        if (client == NULL) {
             /* connect to server */
-            client = create_rpc_client(current->client_sock, &hints, NFS_PROGRAM, version, timeout);
+            client = create_rpc_client(current.client_sock, &hints, NFS_PROGRAM, version, timeout);
             client->cl_auth = authunix_create_default();
+        }
+
+        entry = do_readdirplus(client, &current);
+        while (entry) {
+            /* first check for hidden files */
+            if (all == 0) {
+                if (entry->name[0] == '.') {
+                    entry = entry->nextentry;
+                    continue;
+                }
+            }
+            printf("%s:%s", current.host, current.path);
+            /* if the path doesn't already end in /, print one now */
+            if (current.path[strlen(current.path) - 1] != '/')
+                printf("/");
+            /* the filename */
+            printf("%s", entry->name);
+            /* if it's a directory print a trailing slash */
+            /* TODO this seems to be 0 sometimes */
+            if (entry->name_attributes.post_op_attr_u.attributes.type == NF3DIR)
+                printf("/");
+            printf(":");
+
+            /* print the filehandle in hex */
+            for (i = 0; i < entry->name_handle.post_op_fh3_u.handle.data.data_len; i++) {
+                printf("%02hhx", entry->name_handle.post_op_fh3_u.handle.data.data_val[i]);
+            }
+            printf("\n");
+
+            entry = entry->nextentry;
         }
     }
 }
