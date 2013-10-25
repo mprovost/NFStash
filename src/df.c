@@ -1,4 +1,5 @@
 #include "nfsping.h"
+#include "rpc.h"
 
 void usage() {
     printf("Usage: nfsdf [options] [filehandle...]\n\
@@ -7,41 +8,32 @@ void usage() {
     -k    display sizes in kilobytes\n\
     -m    display sizes in megabytes\n\
     -t    display sizes in terabytes\n\
+    -T    use TCP (default UDP)\n\
     ");
 
     exit(3);
 }
 
 
-FSSTAT3res *get_fsstat(struct sockaddr_in *client_sock, nfs_fh3 *fsroot) {
-    CLIENT client;
+FSSTAT3res *get_fsstat(CLIENT *client, fsroots_t *fs) {
     FSSTAT3args fsstatarg;
     FSSTAT3res  *fsstatres;
-    const u_long version = 3;
-    struct timeval timeout = NFS_TIMEOUT;
-    int nfs_sock = RPC_ANYSOCK;
     struct rpc_err clnt_err;
 
-    client_sock->sin_family = AF_INET;
-    client_sock->sin_port = htons(NFS_PORT);
+    fsstatarg.fsroot = fs->fsroot;
 
-    client = *clntudp_create(client_sock, NFS_PROGRAM, version, timeout, &nfs_sock);
-    client.cl_auth = authunix_create_default();
-
-    fsstatarg.fsroot = *fsroot;
-
-    fsstatres = nfsproc3_fsstat_3(&fsstatarg, &client);
+    fsstatres = nfsproc3_fsstat_3(&fsstatarg, client);
 
     if (fsstatres) {
         if (fsstatres->status != NFS3_OK) {
-            clnt_geterr(&client, &clnt_err);
+            clnt_geterr(client, &clnt_err);
             if (clnt_err.re_status)
-                clnt_perror(&client, "nfsproc3_fsstat_3");
+                clnt_perror(client, "nfsproc3_fsstat_3");
             else
                 nfs_perror(fsstatres->status);
         }
     } else {
-        clnt_perror(&client, "nfsproc3_fsstat_3");
+        clnt_perror(client, "nfsproc3_fsstat_3");
     }
 
     return fsstatres;
@@ -140,14 +132,23 @@ int main(int argc, char **argv) {
     int inodes = 0;
     int prefix = 0;
     int width  = 0;
-    char input_fh[FHMAX];
+    char *input_fh;
     fsroots_t *current, *tail, dummy;
     int maxpath = 0;
     int pathlen = 0;
     int maxhost = 0;
+    CLIENT *client = NULL;
+    struct sockaddr_in clnt_info;
+    unsigned long version = 3;
+    struct timeval timeout = NFS_TIMEOUT;
+    struct addrinfo hints = {
+        .ai_family = AF_INET,
+        /* default to UDP */
+        .ai_socktype = SOCK_DGRAM,
+    };
     FSSTAT3res *fsstatres;
 
-    while ((ch = getopt(argc, argv, "ghikmt")) != -1) {
+    while ((ch = getopt(argc, argv, "ghikmtT")) != -1) {
         switch(ch) {
         /*TODO check for multiple prefixes */
             /* display gigabytes */
@@ -170,6 +171,10 @@ int main(int argc, char **argv) {
                 /* display terabytes */
                 prefix = TERA;
                 break;
+            case 'T':
+                /* use TCP */
+                hints.ai_socktype = SOCK_STREAM;
+                break;
             case 'h':
             case '?':
             default:
@@ -184,39 +189,40 @@ int main(int argc, char **argv) {
 
     /* check if we don't have any command line targets */
     if (optind == argc) {
-        /* use stdin */
-
-        while (fgets(input_fh, FHMAX, stdin)) {
-            tail->next = malloc(sizeof(fsroots_t));
-            tail = tail->next;
-            tail->next = NULL;
-
-            pathlen = parse_fh(input_fh, tail);
-
-            if (pathlen > maxpath)
-                maxpath = pathlen;
-
-            if (strlen(tail->host) > maxhost)
-                maxhost = strlen(tail->host);
-        }
+        input_fh = malloc(sizeof(char) * FHMAX);
+        input_fh = fgets(input_fh, FHMAX, stdin);
     } else {
-        while (optind < argc) {
-            tail->next = malloc(sizeof(fsroots_t));
-            tail = tail->next;
-            tail->next = NULL;
-
-            pathlen = parse_fh(argv[optind], tail);
-
-            if (pathlen > maxpath)
-                maxpath = pathlen;
-
-            if (strlen(tail->host) > maxhost)
-                maxhost = strlen(tail->host);
-
-            optind++;
-        }
+        input_fh = argv[optind];
     }
     
+    while (input_fh) {
+        tail->next = malloc(sizeof(fsroots_t));
+        tail->next->next = NULL;
+
+        pathlen = parse_fh(input_fh, tail->next);
+
+        if (pathlen) {
+            if (pathlen > maxpath)
+                maxpath = pathlen;
+
+            if (strlen(tail->next->host) > maxhost)
+                maxhost = strlen(tail->next->host);
+
+            tail = tail->next;
+        }
+
+        if (optind == argc) {
+            input_fh = fgets(input_fh, FHMAX, stdin);
+        } else {
+            if (optind < argc) {
+                optind++;
+                input_fh = argv[optind];
+            } else {
+                input_fh == NULL;
+            }
+        }
+    }
+
     /* header */
     /* Print the header before sending any RPCs, this means we have to guess about the size of the results
        but it lets the user know that the program is running. Then we can print the results as they come in
@@ -262,7 +268,25 @@ int main(int argc, char **argv) {
     /* skip the first empty struct */
     current = dummy.next;
     while (current) {
-        fsstatres = get_fsstat(current->client_sock, &current->fsroot);
+        current->client_sock->sin_family = AF_INET;
+        current->client_sock->sin_port = htons(NFS_PORT);
+
+        /* see if we can reuse the previous client connection */
+        if (client) {
+            clnt_control(client, CLGET_SERVER_ADDR, (char *)&clnt_info);
+            if (clnt_info.sin_addr.s_addr != current->client_sock->sin_addr.s_addr) {
+                client = destroy_rpc_client(client);
+            }
+        }
+
+        /* otherwise make a new connection */
+        if (client == NULL) {
+            client = create_rpc_client(current->client_sock, &hints, NFS_PROGRAM, version, timeout);
+            client->cl_auth = authunix_create_default();
+        }
+
+        fsstatres = get_fsstat(client, current);
+
         if (fsstatres && fsstatres->status == NFS3_OK) {
             if (inodes)
                 print_inodes(maxpath, width, current->host, current->path, fsstatres);
