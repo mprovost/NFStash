@@ -72,7 +72,7 @@ entryplus3 *do_readdirplus(CLIENT *client, fsroots_t *dir) {
 int main(int argc, char **argv) {
     int ch;
     int all = 0;
-    char input_fh[FHMAX];
+    char *input_fh;
     fsroots_t current;
     struct addrinfo hints = {
         .ai_family = AF_INET,
@@ -102,56 +102,76 @@ int main(int argc, char **argv) {
         }
     }
 
-    /* loop through input */
-    while (fgets(input_fh, FHMAX, stdin)) {
-        parse_fh(input_fh, &current);
+    /* no arguments, use stdin */
+    if (optind == argc) {
+        input_fh = malloc(sizeof(char) * FHMAX);
+        fgets(input_fh, FHMAX, stdin);
+    /* first argument */
+    } else {
+        input_fh = argv[optind];
+    }
+        
+    while (input_fh) {
+        if (parse_fh(input_fh, &current)) {
+            current.client_sock->sin_family = AF_INET;
+            current.client_sock->sin_port = htons(NFS_PORT);
 
-        current.client_sock->sin_family = AF_INET;
-        current.client_sock->sin_port = htons(NFS_PORT);
-
-        /* check if we can use the same client connection as the previous target */
-        /* get the server address out of the client */
-        if (client) {
-            clnt_control(client, CLGET_SERVER_ADDR, (char *)&clnt_info);
-            if (clnt_info.sin_addr.s_addr != current.client_sock->sin_addr.s_addr) {
-                client = destroy_rpc_client(client);
-            }
-        }
-
-        if (client == NULL) {
-            /* connect to server */
-            client = create_rpc_client(current.client_sock, &hints, NFS_PROGRAM, version, timeout);
-            client->cl_auth = authunix_create_default();
-        }
-
-        entry = do_readdirplus(client, &current);
-        while (entry) {
-            /* first check for hidden files */
-            if (all == 0) {
-                if (entry->name[0] == '.') {
-                    entry = entry->nextentry;
-                    continue;
+            /* check if we can use the same client connection as the previous target */
+            /* get the server address out of the client */
+            if (client) {
+                clnt_control(client, CLGET_SERVER_ADDR, (char *)&clnt_info);
+                if (clnt_info.sin_addr.s_addr != current.client_sock->sin_addr.s_addr) {
+                    client = destroy_rpc_client(client);
                 }
             }
-            printf("%s:%s", current.host, current.path);
-            /* if the path doesn't already end in /, print one now */
-            if (current.path[strlen(current.path) - 1] != '/')
-                printf("/");
-            /* the filename */
-            printf("%s", entry->name);
-            /* if it's a directory print a trailing slash */
-            /* TODO this seems to be 0 sometimes */
-            if (entry->name_attributes.post_op_attr_u.attributes.type == NF3DIR)
-                printf("/");
-            printf(":");
 
-            /* print the filehandle in hex */
-            for (i = 0; i < entry->name_handle.post_op_fh3_u.handle.data.data_len; i++) {
-                printf("%02hhx", entry->name_handle.post_op_fh3_u.handle.data.data_val[i]);
+            if (client == NULL) {
+                /* connect to server */
+                client = create_rpc_client(current.client_sock, &hints, NFS_PROGRAM, version, timeout);
+                client->cl_auth = authunix_create_default();
             }
-            printf("\n");
 
-            entry = entry->nextentry;
+            entry = do_readdirplus(client, &current);
+            while (entry) {
+                /* first check for hidden files */
+                if (all == 0) {
+                    if (entry->name[0] == '.') {
+                        entry = entry->nextentry;
+                        continue;
+                    }
+                }
+                printf("%s:%s", current.host, current.path);
+                /* if the path doesn't already end in /, print one now */
+                if (current.path[strlen(current.path) - 1] != '/')
+                    printf("/");
+                /* the filename */
+                printf("%s", entry->name);
+                /* if it's a directory print a trailing slash */
+                /* TODO this seems to be 0 sometimes */
+                if (entry->name_attributes.post_op_attr_u.attributes.type == NF3DIR)
+                    printf("/");
+                printf(":");
+
+                /* print the filehandle in hex */
+                for (i = 0; i < entry->name_handle.post_op_fh3_u.handle.data.data_len; i++) {
+                    printf("%02hhx", entry->name_handle.post_op_fh3_u.handle.data.data_val[i]);
+                }
+                printf("\n");
+
+                entry = entry->nextentry;
+            }
+        }
+
+        /* get the next filehandle*/
+        if (optind == argc) {
+            input_fh = fgets(input_fh, FHMAX, stdin);
+        } else {
+            optind++;
+            if (optind < argc) {
+                input_fh = argv[optind];
+            } else {
+                input_fh = NULL;
+            }
         }
     }
 }
