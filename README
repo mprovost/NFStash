@@ -19,7 +19,7 @@ NFSping can also check the mount protocol response using the -n option. It will 
 To build the nfsping executable:
 
 $ git clone git://github.com/mprovost/NFSping.git
-$ cd NFSping/src && make
+$ cd NFSping && make
 
 The program can then be copied to a location like /usr/local/bin.
 
@@ -91,21 +91,24 @@ nc will exit if the TCP connection is reset (such as if the Carbon server is res
 This is a list of the available command-line options:
 
 Usage: nfsping [options] [targets...]
-    -A    show IP addresses
-    -c n  count of pings to send to target
-    -C n  same as -c, output parseable format
-    -d    reverse DNS lookups for targets
-    -i n  interval between targets (in ms, default 25)
-    -l    loop forever
-    -m    use multiple target IP addresses if found
-    -M    use the portmapper (default: NFS no, mount yes)
-    -n    check the mount protocol (default NFS)
-    -o    output format ([G]raphite, [S]tatsd, Open[T]sdb, default human readable)
-    -p n  pause between pings to target (in ms, default 1000)
-    -P n  specify port (default: NFS 2049)
-    -q    quiet, only print summary
-    -t n  timeout (in ms, default 2500)
-    -T    use TCP (default UDP)
-    -V n  specify NFS version (2 or 3, default 3)
+    -A         show IP addresses
+    -c n       count of pings to send to target
+    -C n       same as -c, output parseable format
+    -d         reverse DNS lookups for targets
+    -D         print timestamp (unix time) before each line
+    -g string  prefix for graphite metric names (default "nfs")
+    -i n       interval between targets (in ms, default 25)
+    -l         loop forever
+    -m         use multiple target IP addresses if found
+    -M         use the portmapper (default: NFS no, mount yes)
+    -n         check the mount protocol (default NFS)
+    -o         output format ([G]raphite, [S]tatsd, Open[T]sdb, default human readable)
+    -p n       pause between pings to target (in ms, default 1000)
+    -P n       specify port (default: NFS 2049)
+    -q         quiet, only print summary
+    -r n       reconnect to server every n pings
+    -t n       timeout (in ms, default 2500)
+    -T         use TCP (default UDP)
+    -V n       specify NFS version (2 or 3, default 3)
 
 NFSping will handle multiple targets and iterate through them on each round. If there are multiple DNS responses for a target, only the first is used. All of them can be checked by using the -m option. The sleep interval between targets can be controlled with the -i option. If any of the targets fail to respond, the command will exit with a status code of 1.
