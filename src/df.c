@@ -4,6 +4,7 @@
 void usage() {
     printf("Usage: nfsdf [options] [filehandle...]\n\
     -g    display sizes in gigabytes\n\
+    -h    display human readable sizes (default)\n\
     -i    display inodes\n\
     -k    display sizes in kilobytes\n\
     -m    display sizes in megabytes\n\
@@ -40,11 +41,11 @@ FSSTAT3res *get_fsstat(CLIENT *client, fsroots_t *fs) {
 }
 
 
-int prefix_print(size3 input, char *output, int prefix) {
+int prefix_print(size3 input, char *output, enum byte_prefix prefix) {
     int index;
     size3 shifted;
 
-    if (prefix == 0) {
+    if (prefix == HUMAN) {
         /* try and find the best fit, starting with terabytes and working down */
         prefix = TERA;
         while (prefix) {
@@ -54,7 +55,7 @@ int prefix_print(size3 input, char *output, int prefix) {
             prefix -= 10;
         }
     }
-   
+
     /* TODO check the length */
     index = snprintf(output, 13, "%" PRIu64 "", input >> prefix);
 
@@ -84,7 +85,7 @@ int prefix_print(size3 input, char *output, int prefix) {
 }
 
 
-int print_df(int offset, int width, char *host, char *path, FSSTAT3res *fsstatres, const int prefix) {
+int print_df(int offset, int width, char *host, char *path, FSSTAT3res *fsstatres, const enum byte_prefix prefix) {
     /* 13 is enough for a petabyte in kilobytes, plus three for the label and a trailing NUL */
     char total[16];
     char used[16];
@@ -130,7 +131,7 @@ int main(int argc, char **argv) {
     char *error;
     int ch;
     int inodes = 0;
-    int prefix = 0;
+    enum byte_prefix prefix = HUMAN;
     int width  = 0;
     char *input_fh;
     fsroots_t *current, *tail, dummy;
@@ -150,32 +151,60 @@ int main(int argc, char **argv) {
 
     while ((ch = getopt(argc, argv, "ghikmtT")) != -1) {
         switch(ch) {
-        /*TODO check for multiple prefixes */
             /* display gigabytes */
             case 'g':
-                prefix = GIGA;
+                if (prefix) {
+                    fprintf(stderr, "Can't specify multiple units!\n");
+                    usage();
+                } else {
+                    prefix = GIGA;
+                }
+                break;
+            /* display human readable (default) */
+            case 'h':
+                /* TODO doesn't handle case where -h is specified first */
+                if (prefix) {
+                    fprintf(stderr, "Can't specify multiple units!\n");
+                    usage();
+                } else {
+                    prefix = HUMAN;
+                }
                 break;
             /* display inodes */
             case 'i':
                 inodes = 1; 
                 break;
+            /* display kilobytes */
             case 'k':
-                /* display kilobytes */
-                prefix = KILO;
+                if (prefix) {
+                    fprintf(stderr, "Can't specify multiple units!\n");
+                    usage();
+                } else {
+                    prefix = KILO;
+                }
                 break;
+            /* display megabytes */
             case 'm':
-                /* display megabytes */
-                prefix = MEGA;
+                if (prefix) {
+                    fprintf(stderr, "Can't specify multiple units!\n");
+                    usage();
+                } else {
+                    prefix = MEGA;
+                }
                 break;
+            /* display terabytes */
             case 't':
-                /* display terabytes */
-                prefix = TERA;
+                if (prefix) {
+                    fprintf(stderr, "Can't specify multiple units!\n");
+                    usage();
+                } else {
+                    prefix = TERA;
+                }
                 break;
+            /* use TCP */
             case 'T':
-                /* use TCP */
                 hints.ai_socktype = SOCK_STREAM;
                 break;
-            case 'h':
             case '?':
             default:
                 usage();

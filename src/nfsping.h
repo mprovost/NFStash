@@ -37,10 +37,14 @@
 #define FHMAX 16 + 1 + MNTPATHLEN + 1 + FHSIZE3 * 2 + 1
 
 /* for shifting */
-#define KILO 10
-#define MEGA 20
-#define GIGA 30
-#define TERA 40
+enum byte_prefix {
+    HUMAN = 0,
+    KILO  = 10,
+    MEGA  = 20,
+    GIGA  = 30,
+    TERA  = 40,
+    PETA  = 50
+};
 
 typedef struct targets {
     char *name;
@@ -61,6 +65,7 @@ typedef struct fsroots {
     struct fsroots *next;
 } fsroots_t;
 
+/* TODO capitalise? */
 enum outputs {
     human,
     fping,
