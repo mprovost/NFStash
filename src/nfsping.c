@@ -142,6 +142,7 @@ int main(int argc, char **argv) {
     char prefix[255] = "nfs";
     targets_t *targets;
     targets_t *target;
+    targets_t target_dummy;
     int ch;
     unsigned long count = 0;
     unsigned long reconnect = 0;
@@ -313,14 +314,14 @@ int main(int argc, char **argv) {
         usage();
     }
 
+    /* pointer to head of list */
+    target = &target_dummy;
+    targets = target;
+
     /* process the targets from the command line */
     for (index = optind; index < argc; index++) {
-        target = make_target(argv[index], prognum, port, format);
-
-        /* pointer to head of list */
-        if (index == first) {
-            targets = target;
-        }
+        target->next = make_target(argv[index], prognum, port, format);
+        target = target->next;
 
         /* first try treating the hostname as an IP address */
         if (inet_pton(AF_INET, target->name, &((struct sockaddr_in *)target->client_sock)->sin_addr)) {
@@ -389,6 +390,9 @@ int main(int argc, char **argv) {
             }
         }
     }
+
+    /* skip the first dummy entry */
+    targets = targets->next;
 
     /* allocate space for printing out a summary of all ping times at the end */
     if (format == fping) {
