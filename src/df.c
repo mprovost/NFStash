@@ -130,12 +130,29 @@ void print_inodes(int offset, int width, char *host, char *path, FSSTAT3res *fss
 }
 
 
+/* formatted output ie graphite */
+/* TODO escape dots and spaces (replace with underscores) in paths */
+void print_format(enum outputs format, char *prefix, char *host, char *path, FSSTAT3res *fsstatres, struct timeval now) {
+
+    switch (format) {
+        case graphite:
+            printf("%s.%s.df.%s.tbytes %" PRIu64 " %li\n", prefix, host, path, fsstatres->FSSTAT3res_u.resok.tbytes, now.tv_sec);
+            printf("%s.%s.df.%s.fbytes %" PRIu64 " %li\n", prefix, host, path, fsstatres->FSSTAT3res_u.resok.fbytes, now.tv_sec);
+            printf("%s.%s.df.%s.tfiles %" PRIu64 " %li\n", prefix, host, path, fsstatres->FSSTAT3res_u.resok.tfiles, now.tv_sec);
+            printf("%s.%s.df.%s.ffiles %" PRIu64 " %li\n", prefix, host, path, fsstatres->FSSTAT3res_u.resok.ffiles, now.tv_sec);
+            break;
+        default:
+            fprintf(stderr, "Unsupported format\n");
+    }
+}
+
 int main(int argc, char **argv) {
     char *error;
     int ch;
     int inodes = 0;
     enum byte_prefix prefix = NONE;
     enum outputs format = human;
+    char output_prefix[255] = "nfs";
     int width  = 0;
     char *input_fh;
     fsroots_t *current, *tail, dummy;
@@ -146,6 +163,7 @@ int main(int argc, char **argv) {
     struct sockaddr_in clnt_info;
     unsigned long version = 3;
     struct timeval timeout = NFS_TIMEOUT;
+    struct timeval call_start, call_end;
     struct addrinfo hints = {
         .ai_family = AF_INET,
         /* default to UDP */
@@ -153,7 +171,7 @@ int main(int argc, char **argv) {
     };
     FSSTAT3res *fsstatres;
 
-    while ((ch = getopt(argc, argv, "ghikmtT")) != -1) {
+    while ((ch = getopt(argc, argv, "ghikmo:tT")) != -1) {
         switch(ch) {
             /* display gigabytes */
             case 'g':
@@ -339,13 +357,22 @@ int main(int argc, char **argv) {
             client->cl_auth = authunix_create_default();
         }
 
+        /* first time marker */
+        gettimeofday(&call_start, NULL);
+        /* the rpc call */
         fsstatres = get_fsstat(client, current);
+        /* second time marker */
+        gettimeofday(&call_end, NULL);
 
         if (fsstatres && fsstatres->status == NFS3_OK) {
-            if (inodes)
-                print_inodes(maxpath, width, current->host, current->path, fsstatres);
-            else
-                print_df(maxpath, width, current->host, current->path, fsstatres, prefix);
+            if (format) {
+                print_format(format, output_prefix, current->host, current->path, fsstatres, call_end);
+            } else {
+                if (inodes)
+                    print_inodes(maxpath, width, current->host, current->path, fsstatres);
+                else
+                    print_df(maxpath, width, current->host, current->path, fsstatres, prefix);
+            }
         }
         current = current->next;
     }
