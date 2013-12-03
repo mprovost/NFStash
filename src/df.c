@@ -27,6 +27,7 @@ FSSTAT3res *get_fsstat(CLIENT *client, fsroots_t *fs) {
 
     if (fsstatres) {
         if (fsstatres->status != NFS3_OK) {
+            fprintf(stderr, "%s:%s ", fs->host, fs->path);
             clnt_geterr(client, &clnt_err);
             if (clnt_err.re_status)
                 clnt_perror(client, "nfsproc3_fsstat_3");
@@ -34,6 +35,7 @@ FSSTAT3res *get_fsstat(CLIENT *client, fsroots_t *fs) {
                 nfs_perror(fsstatres->status);
         }
     } else {
+        fprintf(stderr, "%s:%s ", fs->host, fs->path);
         clnt_perror(client, "nfsproc3_fsstat_3");
     }
 
@@ -111,7 +113,8 @@ int print_df(int offset, int width, char *host, char *path, FSSTAT3res *fsstatre
     return EXIT_SUCCESS;
 }
 
-
+/* TODO human readable output ie 4M, use the -h flag */
+/* base 10 vs base 2? (should this be an option for bytes as well?) */
 void print_inodes(int offset, int width, char *host, char *path, FSSTAT3res *fsstatres) {
     double capacity;
 
@@ -131,7 +134,8 @@ int main(int argc, char **argv) {
     char *error;
     int ch;
     int inodes = 0;
-    enum byte_prefix prefix = HUMAN;
+    enum byte_prefix prefix = NONE;
+    enum outputs format = human;
     int width  = 0;
     char *input_fh;
     fsroots_t *current, *tail, dummy;
@@ -153,17 +157,16 @@ int main(int argc, char **argv) {
         switch(ch) {
             /* display gigabytes */
             case 'g':
-                if (prefix) {
+                if (prefix != NONE) {
                     fprintf(stderr, "Can't specify multiple units!\n");
                     usage();
                 } else {
                     prefix = GIGA;
                 }
                 break;
-            /* display human readable (default) */
+            /* display human readable (default, set below) */
             case 'h':
-                /* TODO doesn't handle case where -h is specified first */
-                if (prefix) {
+                if (prefix != NONE) {
                     fprintf(stderr, "Can't specify multiple units!\n");
                     usage();
                 } else {
@@ -176,7 +179,7 @@ int main(int argc, char **argv) {
                 break;
             /* display kilobytes */
             case 'k':
-                if (prefix) {
+                if (prefix != NONE) {
                     fprintf(stderr, "Can't specify multiple units!\n");
                     usage();
                 } else {
@@ -185,16 +188,34 @@ int main(int argc, char **argv) {
                 break;
             /* display megabytes */
             case 'm':
-                if (prefix) {
+                if (prefix != NONE) {
                     fprintf(stderr, "Can't specify multiple units!\n");
                     usage();
                 } else {
                     prefix = MEGA;
                 }
                 break;
+            /* output format */
+            case 'o':
+                if (prefix != NONE) {
+                    fprintf(stderr, "Can't specify units and output format!\n");
+                    usage();
+                } else {
+                    if (strcmp(optarg, "G") == 0) {
+                        format = graphite;
+                    } else if (strcmp(optarg, "S") == 0) {
+                        format = statsd;
+                    } else if (strcmp(optarg, "T") == 0) {
+                        format = opentsdb;
+                    } else {
+                        fprintf(stderr, "Unknown output format \"%s\"!\n", optarg);
+                        usage();
+                    }
+                }
+                break;
             /* display terabytes */
             case 't':
-                if (prefix) {
+                if (prefix != NONE) {
                     fprintf(stderr, "Can't specify multiple units!\n");
                     usage();
                 } else {
@@ -210,6 +231,10 @@ int main(int argc, char **argv) {
                 usage();
         }
     }
+
+    /* default to human readable */
+    if (prefix == NONE)
+        prefix = HUMAN;
 
     /* first parse all of the input filehandles into a list 
      * this gives us the longest path so we can lay out the output */
