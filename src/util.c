@@ -98,6 +98,7 @@ u_int nfs_perror(nfsstat3 status) {
 
 
 /* break up a string filehandle into parts */
+/* this uses strtok so it will eat the input */
 size_t parse_fh(char *input, fsroots_t *next) {
     int i;
     char *tmp;
