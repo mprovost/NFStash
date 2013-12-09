@@ -48,24 +48,17 @@ u_int mount_perror(mountstat3 fhs_status) {
 }
 
 
+/* get the root filehandle from the server */
 mountres3 *get_root_filehandle(char *hostname, CLIENT *client, char *path) {
     struct rpc_err clnt_err;
     mountres3 *mountres;
-    int i;
 
     if (path[0] == '/') {
         /* the actual RPC call */
         mountres = mountproc_mnt_3(&path, client);
 
         if (mountres) {
-            if (mountres->fhs_status == MNT3_OK) {
-                printf("%s:%s:", hostname, path);
-                /* print the filehandle in hex */
-                for (i = 0; i < mountres->mountres3_u.mountinfo.fhandle.fhandle3_len; i++) {
-                    printf("%02hhx", mountres->mountres3_u.mountinfo.fhandle.fhandle3_val[i]);
-                }
-                printf("\n");
-            } else {
+            if (mountres->fhs_status != MNT3_OK) {
                 fprintf(stderr, "%s:%s: ", hostname, path);
                 mount_perror(mountres->fhs_status);
             }
@@ -139,11 +132,9 @@ int main(int argc, char **argv) {
     struct addrinfo hints, *addr;
     char *host;
     char *path;
-    char ipaddr[INET_ADDRSTRLEN];
     exports ex;
     int exports_count = 0, exports_ok = 0;
     int ch, first, index;
-    int multiple = 0;
     int showmount = 0;
     CLIENT *client;
     u_long version = 3;
@@ -161,15 +152,11 @@ int main(int argc, char **argv) {
     if (argc == 1)
         usage();
 
-    while ((ch = getopt(argc, argv, "ehmT")) != -1) {
+    while ((ch = getopt(argc, argv, "ehT")) != -1) {
         switch(ch) {
             /* output like showmount -e */
             case 'e':
                 showmount = 1;
-                break;
-            /* use multiple IP addresses */
-            case 'm':
-                multiple = 1;
                 break;
             /* use TCP */
             case 'T':
@@ -192,58 +179,50 @@ int main(int argc, char **argv) {
         getaddr = getaddrinfo(host, "nfs", &hints, &addr);
 
         if (getaddr == 0) { /* success! */
-            /* loop through possibly multiple DNS responses */
-            while (addr) {
-                if (inet_ntop(AF_INET, &((struct sockaddr_in *)addr->ai_addr)->sin_addr, ipaddr, INET_ADDRSTRLEN)) {
-                    client_sock.sin_addr = ((struct sockaddr_in *)addr->ai_addr)->sin_addr;
-                    client_sock.sin_family = AF_INET;
-                    client_sock.sin_port = 0; /* use portmapper */
+            client_sock.sin_addr = ((struct sockaddr_in *)addr->ai_addr)->sin_addr;
+            client_sock.sin_family = AF_INET;
+            client_sock.sin_port = 0; /* use portmapper */
 
-                    /* create an rpc connection */
-                    client = create_rpc_client(&client_sock, &hints, MOUNTPROG, version, timeout);
-                    /* mounts don't need authentication because they return a list of authentication flavours supported */
-                    client->cl_auth = authnone_create();
+            /* create an rpc connection */
+            client = create_rpc_client(&client_sock, &hints, MOUNTPROG, version, timeout);
+            /* mounts don't need authentication because they return a list of authentication flavours supported */
+            client->cl_auth = authnone_create();
 
-                    if (client_sock.sin_port) {
-                        if (path) {
-                            mountres = get_root_filehandle(host, client, path);
-                            exports_count++;
-                            if (mountres && mountres->fhs_status == MNT3_OK)
-                                exports_ok++;
-                        } else {
-                            /* get the list of all exported filesystems from the server */
-                            ex = *mountproc_export_3(NULL, client);
-
-                            if (ex) {
-                                if (showmount) {
-                                    exports_count = print_exports(host, ex);
-                                    /* if the call succeeds at all it can't return individual bad results */
-                                    exports_ok = exports_count;
-                                } else {
-                                    while (ex) {
-                                        mountres = get_root_filehandle(host, client, ex->ex_dir);
-                                        exports_count++;
-                                        if (mountres && mountres->fhs_status == MNT3_OK)
-                                            exports_ok++;
-                                        ex = ex->ex_next;
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        clnt_pcreateerror("pmap_getport");
-                        mountres->fhs_status = MNT3ERR_SERVERFAULT; /* is this the most appropriate error code? */
+            if (client_sock.sin_port) {
+                if (path) {
+                    mountres = get_root_filehandle(host, client, path);
+                    exports_count++;
+                    if (mountres && mountres->fhs_status == MNT3_OK) {
+                        exports_ok++;
+                        /* print the filehandle in hex */
+                        print_fh(host, path, mountres->mountres3_u.mountinfo.fhandle);
                     }
                 } else {
-                    fprintf(stderr, "%s: ", host);
-                    perror("inet_ntop");
-                    return EXIT_FAILURE;
-                }
+                    /* get the list of all exported filesystems from the server */
+                    ex = *mountproc_export_3(NULL, client);
 
-                if (multiple)
-                    addr = addr->ai_next;
-                else
-                    addr = NULL;
+                    if (ex) {
+                        if (showmount) {
+                            exports_count = print_exports(host, ex);
+                            /* if the call succeeds at all it can't return individual bad results */
+                            exports_ok = exports_count;
+                        } else {
+                            while (ex) {
+                                mountres = get_root_filehandle(host, client, ex->ex_dir);
+                                exports_count++;
+                                if (mountres && mountres->fhs_status == MNT3_OK) {
+                                    exports_ok++;
+                                    /* print the filehandle in hex */
+                                    print_fh(host, ex->ex_dir, mountres->mountres3_u.mountinfo.fhandle);
+                                }
+                                ex = ex->ex_next;
+                            }
+                        }
+                    }
+                }
+            } else {
+                clnt_pcreateerror("pmap_getport");
+                mountres->fhs_status = MNT3ERR_SERVERFAULT; /* is this the most appropriate error code? */
             }
         } else {
             fprintf(stderr, "%s: %s\n", host, gai_strerror(getaddr));
