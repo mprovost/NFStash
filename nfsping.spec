@@ -1,4 +1,5 @@
-%define git_rel e2d35d4
+# to download: wget https://github.com/mprovost/NFSping/tarball/master
+%define git_rel dcf2f31
 
 Name:           nfsping
 Version:        0.1
@@ -21,7 +22,6 @@ On modern NFS servers, the network stack and filesystem are often being run on s
 %setup -q -n mprovost-NFSping-%{git_rel}
 
 %build
-cd src
 make %{?_smp_mflags}
 
 
@@ -29,7 +29,7 @@ make %{?_smp_mflags}
 rm -rf %{buildroot}
 %{__mkdir} -p %{buildroot}%{_bindir}
 %{__mkdir} -p %{buildroot}%{_datadir}/smokeping/lib/Smokeping/probes
-%{__install} -m 755 src/nfsping %{buildroot}%{_bindir}/nfsping
+%{__install} -m 755 nfsping %{buildroot}%{_bindir}/nfsping
 %{__install} -p -m 644 Smokeping/NFSping.pm %{buildroot}%{_datadir}/smokeping/lib/Smokeping/probes/NFSping.pm
 
 %clean
@@ -44,5 +44,14 @@ rm -rf %{buildroot}
 
 
 %changelog
+* Fri Dec 06 2013 James Braid 0.1-4.gitdcf2f31
+- Makefile is in top level directory now
+
+* Fri Dec 06 2013 James Braid 0.1-3.gitdcf2f31
+- update to dcf2f31
+
+* Fri Dec 06 2013 James Braid 0.1-2.gite2d35d4
+- new package built with tito
+
 * Mon Nov 15 2010 James Braid <jamesb@loreland.org> 0.1-1.gite2d35d4
 -  Initial package
