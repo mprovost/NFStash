@@ -165,8 +165,8 @@ size_t parse_fh(char *input, fsroots_t *next) {
     /* TODO check for junk at end of input string */
 
 
-    if (next->path) {
-        return strlen(next->path);
+    if (next->host && next->path && fsroot_len) {
+        return fsroot_len;
     } else {
         free(next->client_sock);
         return 0;
