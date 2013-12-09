@@ -90,7 +90,7 @@ mountres3 *get_root_filehandle(char *hostname, CLIENT *client, char *path) {
 
 
 /* print a list of exports, like showmount -e */
-int print_exports(struct exportnode *ex) {
+int print_exports(char *host, struct exportnode *ex) {
     int i = 0;
     size_t max = 0;
     exports first = ex;
@@ -109,7 +109,7 @@ int print_exports(struct exportnode *ex) {
     max++; /* spacing */
     
     while (ex) {
-        printf("%-*s", (int)max, ex->ex_dir);
+        printf("%s:%-*s", host, (int)max, ex->ex_dir);
         gr = ex->ex_groups;
         if (gr) {
             printf("%s", gr->gr_name);
@@ -134,12 +134,12 @@ int main(int argc, char **argv) {
     mountres3 *mountres;
     struct sockaddr_in client_sock;
     char *error;
-    char hostname[INET_ADDRSTRLEN];
     fhstatus result;
     int getaddr;
     struct addrinfo hints, *addr;
     char *host;
     char *path;
+    char ipaddr[INET_ADDRSTRLEN];
     exports ex;
     int exports_count = 0, exports_ok = 0;
     int ch, first, index;
@@ -194,7 +194,7 @@ int main(int argc, char **argv) {
         if (getaddr == 0) { /* success! */
             /* loop through possibly multiple DNS responses */
             while (addr) {
-                if (inet_ntop(AF_INET, &((struct sockaddr_in *)addr->ai_addr)->sin_addr, hostname, INET_ADDRSTRLEN)) {
+                if (inet_ntop(AF_INET, &((struct sockaddr_in *)addr->ai_addr)->sin_addr, ipaddr, INET_ADDRSTRLEN)) {
                     client_sock.sin_addr = ((struct sockaddr_in *)addr->ai_addr)->sin_addr;
                     client_sock.sin_family = AF_INET;
                     client_sock.sin_port = 0; /* use portmapper */
@@ -206,7 +206,7 @@ int main(int argc, char **argv) {
 
                     if (client_sock.sin_port) {
                         if (path) {
-                            mountres = get_root_filehandle(hostname, client, path);
+                            mountres = get_root_filehandle(host, client, path);
                             exports_count++;
                             if (mountres && mountres->fhs_status == MNT3_OK)
                                 exports_ok++;
@@ -216,12 +216,12 @@ int main(int argc, char **argv) {
 
                             if (ex) {
                                 if (showmount) {
-                                    exports_count = print_exports(ex);
+                                    exports_count = print_exports(host, ex);
                                     /* if the call succeeds at all it can't return individual bad results */
                                     exports_ok = exports_count;
                                 } else {
                                     while (ex) {
-                                        mountres = get_root_filehandle(hostname, client, ex->ex_dir);
+                                        mountres = get_root_filehandle(host, client, ex->ex_dir);
                                         exports_count++;
                                         if (mountres && mountres->fhs_status == MNT3_OK)
                                             exports_ok++;
@@ -235,7 +235,7 @@ int main(int argc, char **argv) {
                         mountres->fhs_status = MNT3ERR_SERVERFAULT; /* is this the most appropriate error code? */
                     }
                 } else {
-                    fprintf(stderr, "%s: ", hostname);
+                    fprintf(stderr, "%s: ", host);
                     perror("inet_ntop");
                     return EXIT_FAILURE;
                 }
