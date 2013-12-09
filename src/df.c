@@ -103,8 +103,8 @@ int print_df(int offset, int width, char *host, char *path, FSSTAT3res *fsstatre
         /* percent full */
         capacity = (1 - ((double)fsstatres->FSSTAT3res_u.resok.fbytes / fsstatres->FSSTAT3res_u.resok.tbytes)) * 100;
 
-        printf("%-*s %*s %*s %*s %7.0f%%\n",
-            offset, path, width, total, width, used, width, avail, capacity);
+        printf("%s:%-*s %*s %*s %*s %7.0f%%\n",
+            host, offset, path, width, total, width, used, width, avail, capacity);
     } else {
         /* get_fsstat will print the rpc error */
         return EXIT_FAILURE;
@@ -112,6 +112,7 @@ int print_df(int offset, int width, char *host, char *path, FSSTAT3res *fsstatre
 
     return EXIT_SUCCESS;
 }
+
 
 /* TODO human readable output ie 4M, use the -h flag */
 /* base 10 vs base 2? (should this be an option for bytes as well?) */
@@ -121,7 +122,8 @@ void print_inodes(int offset, int width, char *host, char *path, FSSTAT3res *fss
     /* percent used */
     capacity = (1 - ((double)fsstatres->FSSTAT3res_u.resok.ffiles / fsstatres->FSSTAT3res_u.resok.tfiles)) * 100;
 
-    printf("%-*s %*" PRIu64 " %*" PRIu64 " %*" PRIu64 " %7.0f%%\n",
+    printf("%s:%-*s %*" PRIu64 " %*" PRIu64 " %*" PRIu64 " %7.0f%%\n",
+        host,
         offset, path,
         width, fsstatres->FSSTAT3res_u.resok.tfiles,
         width, fsstatres->FSSTAT3res_u.resok.tfiles - fsstatres->FSSTAT3res_u.resok.ffiles,
@@ -146,6 +148,7 @@ void print_format(enum outputs format, char *prefix, char *host, char *path, FSS
     }
 }
 
+
 int main(int argc, char **argv) {
     char *error;
     int ch;
@@ -157,7 +160,7 @@ int main(int argc, char **argv) {
     char *input_fh;
     fsroots_t *current, *tail, dummy;
     int maxpath = 0;
-    int pathlen = 0;
+    int fsroot_len = 0;
     int maxhost = 0;
     CLIENT *client = NULL;
     struct sockaddr_in clnt_info;
@@ -271,11 +274,11 @@ int main(int argc, char **argv) {
         tail->next = malloc(sizeof(fsroots_t));
         tail->next->next = NULL;
 
-        pathlen = parse_fh(input_fh, tail->next);
+        fsroot_len = parse_fh(input_fh, tail->next);
 
-        if (pathlen) {
-            if (pathlen > maxpath)
-                maxpath = pathlen;
+        if (fsroot_len) {
+            if (strlen(tail->next->path) > maxpath)
+                maxpath = strlen(tail->next->path);
 
             if (strlen(tail->next->host) > maxhost)
                 maxhost = strlen(tail->next->host);
@@ -335,7 +338,7 @@ int main(int argc, char **argv) {
 
     /* FIXME print prefix in total column */
     printf("%-*s %*s %*s %*s capacity\n",
-        maxpath, "Filesystem", width, "total", width, "used", width, "avail");
+        maxhost + maxpath + 1, "Filesystem", width, "total", width, "used", width, "avail");
     
     /* skip the first empty struct */
     current = dummy.next;
