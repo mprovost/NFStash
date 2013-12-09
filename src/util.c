@@ -104,6 +104,10 @@ size_t parse_fh(char *input, fsroots_t *next) {
     char *tmp;
     char *copy;
     u_int fsroot_len;
+    struct addrinfo *addr;
+    struct addrinfo hints = {
+            .ai_family = AF_INET,
+    };
 
     next->client_sock = malloc(sizeof(struct sockaddr_in));
 
@@ -114,10 +118,15 @@ size_t parse_fh(char *input, fsroots_t *next) {
     if (input[strlen(input) - 1] == '\n')
         input[strlen(input) - 1] = '\0';
 
-    /* split the input string into a host (IP address), path and hex filehandle */
+    /* split the input string into a hostname (or IP address), path and hex filehandle */
     /* host first */
     tmp = strtok(input, ":");
-    if (tmp && inet_pton(AF_INET, tmp, &((struct sockaddr_in *)next->client_sock)->sin_addr)) {
+    /* DNS lookup */
+    if (tmp && getaddrinfo(tmp, "nfs", &hints, &addr) == 0) {
+        next->client_sock->sin_addr = ((struct sockaddr_in *)addr->ai_addr)->sin_addr;
+        next->client_sock->sin_family = AF_INET;
+        next->client_sock->sin_port = 0; /* use portmapper */
+
         next->host = strdup(tmp);
         /* path is just used for display */
         tmp = strtok(NULL, ":");
@@ -162,6 +171,20 @@ size_t parse_fh(char *input, fsroots_t *next) {
         free(next->client_sock);
         return 0;
     }
+}
+
+
+/* print an NFS filehandle as a series of hex bytes */
+int print_fh(char *host, char *path, fhandle3 fhandle) {
+    int i;
+
+    printf("%s:%s:", host, path);
+    for (i = 0; i < fhandle.fhandle3_len; i++) {
+        printf("%02hhx", fhandle.fhandle3_val[i]);
+    }
+    printf("\n");
+
+    return i;
 }
 
 /* reverse a FQDN */
