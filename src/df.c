@@ -1,5 +1,6 @@
 #include "nfsping.h"
 #include "rpc.h"
+#include "util.h"
 
 void usage() {
     printf("Usage: nfsdf [options] [filehandle...]\n\
@@ -135,13 +136,16 @@ void print_inodes(int offset, int width, char *host, char *path, FSSTAT3res *fss
 /* formatted output ie graphite */
 /* TODO escape dots and spaces (replace with underscores) in paths */
 void print_format(enum outputs format, char *prefix, char *host, char *path, FSSTAT3res *fsstatres, struct timeval now) {
+    char *ndqf;
+
+    ndqf = reverse_fqdn(host);
 
     switch (format) {
         case graphite:
-            printf("%s.%s.df.%s.tbytes %" PRIu64 " %li\n", prefix, host, path, fsstatres->FSSTAT3res_u.resok.tbytes, now.tv_sec);
-            printf("%s.%s.df.%s.fbytes %" PRIu64 " %li\n", prefix, host, path, fsstatres->FSSTAT3res_u.resok.fbytes, now.tv_sec);
-            printf("%s.%s.df.%s.tfiles %" PRIu64 " %li\n", prefix, host, path, fsstatres->FSSTAT3res_u.resok.tfiles, now.tv_sec);
-            printf("%s.%s.df.%s.ffiles %" PRIu64 " %li\n", prefix, host, path, fsstatres->FSSTAT3res_u.resok.ffiles, now.tv_sec);
+            printf("%s.%s.df.%s.tbytes %" PRIu64 " %li\n", prefix, ndqf, path, fsstatres->FSSTAT3res_u.resok.tbytes, now.tv_sec);
+            printf("%s.%s.df.%s.fbytes %" PRIu64 " %li\n", prefix, ndqf, path, fsstatres->FSSTAT3res_u.resok.fbytes, now.tv_sec);
+            printf("%s.%s.df.%s.tfiles %" PRIu64 " %li\n", prefix, ndqf, path, fsstatres->FSSTAT3res_u.resok.tfiles, now.tv_sec);
+            printf("%s.%s.df.%s.ffiles %" PRIu64 " %li\n", prefix, ndqf, path, fsstatres->FSSTAT3res_u.resok.ffiles, now.tv_sec);
             break;
         default:
             fprintf(stderr, "Unsupported format\n");
