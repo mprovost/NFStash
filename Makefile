@@ -2,6 +2,8 @@ all: nfsping
 
 CFLAGS=-Werror -g -I src -I.
 
+src/nfsping.h: src/nfs_prot.h src/mount.h
+
 nfsping: src/nfsping.c src/nfsping.h src/nfs_prot_clnt.c src/mount_clnt.c src/util.c src/rpc.c
 	gcc ${CFLAGS} src/nfsping.c src/nfs_prot_clnt.c src/nfs_prot_xdr.c src/mount_clnt.c src/mount_xdr.c src/util.c src/rpc.c -o $@
 
