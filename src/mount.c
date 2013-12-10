@@ -1,5 +1,6 @@
 #include "nfsping.h"
 #include "rpc.h"
+#include "util.h"
 
 void usage() {
     printf("Usage: nfsmount [options] host[:mountpoint]\n\
