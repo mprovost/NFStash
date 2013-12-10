@@ -11,10 +11,10 @@ src/nfs_prot.h src/nfs_prot_clnt.c src/nfs_prot_svc.c src/nfs_prot_xdr.c: src/nf
 src/mount.h src/mount_clnt.c src/mount_svc.c src/mount_xdr.c: src/mount.x
 	rpcgen -DWANT_NFS3 $<
 
-nfsmount: src/mount.c src/nfsping.h src/mount_clnt.c src/mount_xdr.c src/rpc.c
+nfsmount: src/mount.c src/nfsping.h src/mount_clnt.c src/mount_xdr.c src/rpc.c src/util.c src/util.h
 	gcc ${CFLAGS} $^ -o $@
 
-nfsdf: src/df.c src/nfsping.h src/nfs_prot_clnt.c src/nfs_prot_xdr.c src/util.c 
+nfsdf: src/df.c src/nfsping.h src/nfs_prot_clnt.c src/nfs_prot_xdr.c src/util.c src/rpc.c
 	gcc ${CFLAGS} $^ -o $@
 
 nfsls: src/ls.c src/nfs_prot_clnt.c src/nfs_prot_xdr.c src/util.c src/rpc.c
