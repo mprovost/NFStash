@@ -31,7 +31,7 @@ filer1 is alive
 and exits with a return status of 0, or:
 
 $ nfsping filer1
-clnt_call: RPC: Timed out
+filer1 : nfsproc3_null_3: RPC: Unable to receive; errno = Connection refused
 filer1 is dead
 
 and exiting with a status of 1. This simple form of the command can be built into scripts which just check if the server is up or not without being concerned about a particular response time.
