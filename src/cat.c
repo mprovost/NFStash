@@ -5,6 +5,7 @@
 void usage() {
     printf("Usage: nfscat [options] [targets...]\n\
     -b    blocksize (in bytes, default 8192)\n\
+    -c n  count of read requests to send to target\n\
     -T    use TCP (default UDP)\n");
 
     exit(3);
@@ -65,18 +66,26 @@ int main(int argc, char **argv) {
     unsigned long version = 3;
     offset3 offset = 0;
     unsigned long blocksize = 8192;
+    unsigned long count = 0;
     struct timeval timeout = NFS_TIMEOUT;
     unsigned long us;
     unsigned long sent = 0, received = 0;
     unsigned long min = ULONG_MAX, max = 0;
     double avg, loss;
 
-    while ((ch = getopt(argc, argv, "b:hT")) != -1) {
+    while ((ch = getopt(argc, argv, "b:c:hT")) != -1) {
         switch(ch) {
             /* blocksize */
             case 'b':
                 /* TODO this maxes out at 64k for TCP and 8k for UDP */
                 blocksize = strtoul(optarg, NULL, 10); 
+                break;
+            case 'c':
+                count = strtoul(optarg, NULL, 10);
+                if (count == 0) {
+                    fprintf(stderr, "nfscat: zero count, nothing to do!\n");
+                    exit(3);
+                }
                 break;
             /* use TCP */
             case 'T':
@@ -135,6 +144,10 @@ int main(int argc, char **argv) {
                             fwrite(res->READ3res_u.resok.data.data_val, 1, res->READ3res_u.resok.data.data_len, stdout);
 
                             offset += res->READ3res_u.resok.count;
+                        }
+                        /* check count argument */
+                        if (count && sent > count) {
+                            break;
                         }
                     /* check for errors or end of file */
                     } while (res && res->status == NFS3_OK && res->READ3res_u.resok.eof == 0);
