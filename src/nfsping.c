@@ -121,6 +121,9 @@ targets_t *make_target(char *name, unsigned long prognum, uint16_t port, enum ou
         target->client_sock->sin_port = port;
     }
 
+    /* set this so that the first comparison will always be smaller */
+    target->min = ULONG_MAX;
+
     return target;
 }
 
@@ -443,16 +446,11 @@ int main(int argc, char **argv) {
 
                 us = tv2us(call_end) - tv2us(call_start);
 
-                /* first result is a special case */
                 /* TODO discard first ping in case of ARP delay? Only for TCP for handshake? */
-                if (target->received == 1) {
-                    target->min = target->max = target->avg = us;
-                } else {
-                    if (us < target->min) target->min = us;
-                    if (us > target->max) target->max = us;
-                    /* calculate the average time */
-                    target->avg = (target->avg * (target->received - 1) + us) / target->received;
-                }
+                if (us < target->min) target->min = us;
+                if (us > target->max) target->max = us;
+                /* calculate the average time */
+                target->avg = (target->avg * (target->received - 1) + us) / target->received;
 
                 if (format == fping)
                     target->results[target->sent - 1] = us;
