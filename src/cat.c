@@ -124,6 +124,7 @@ int main(int argc, char **argv) {
                 if (clnt_info.sin_addr.s_addr == current->client_sock->sin_addr.s_addr) {
                     /* start at the beginning of the file */
                     offset = 0;
+                    sent = received = 0;
                     do {
                         res = do_read(client, current, offset, blocksize, &us);
                         sent++;
@@ -137,11 +138,13 @@ int main(int argc, char **argv) {
                             /* calculate the average time */
                             avg = (avg * (received - 1) + us) / received;
 
-                            //fprintf(stderr, "%s:%s: [%lu] %u bytes %03.2f ms (%i/s) (xmt/rcv/%%loss = %lu/%lu/%.0f%%, min/avg/max = %.2f/%.2f/%.2f)\n",
-                                //dir->host, dir->path, received - 1, count, us / 1000.0, Bps, sent, received, loss, min / 1000.0, avg / 1000.0, max / 1000.0);
-
-                            /* write to stdout */
-                            fwrite(res->READ3res_u.resok.data.data_val, 1, res->READ3res_u.resok.data.data_len, stdout);
+                            if (count) {
+                                fprintf(stderr, "%s:%s: [%lu] %lu bytes %03.2f ms (xmt/rcv/%%loss = %lu/%lu/%.0f%%, min/avg/max = %.2f/%.2f/%.2f)\n",
+                                    current->host, current->path, received - 1, res->READ3res_u.resok.count, us / 1000.0, sent, received, loss, min / 1000.0 , avg / 1000.0, max / 1000.0 );
+                            } else {
+                                /* write to stdout */
+                                fwrite(res->READ3res_u.resok.data.data_val, 1, res->READ3res_u.resok.data.data_len, stdout);
+                            }
 
                             offset += res->READ3res_u.resok.count;
                         }
