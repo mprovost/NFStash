@@ -55,7 +55,8 @@ typedef struct targets {
     unsigned long *results;
     struct targets *next;
     unsigned int sent, received;
-    float min, max, avg;
+    unsigned long min, max;
+    float avg;
 } targets_t;
 
 typedef struct fsroots {
