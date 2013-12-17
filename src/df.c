@@ -9,6 +9,7 @@ void usage() {
     -i    display inodes\n\
     -k    display sizes in kilobytes\n\
     -m    display sizes in megabytes\n\
+    -o    output format ([G]raphite, [S]tatsd, Open[T]sdb, default human readable)\n\
     -t    display sizes in terabytes\n\
     -T    use TCP (default UDP)\n\
     ");
@@ -340,9 +341,11 @@ int main(int argc, char **argv) {
     /* extra space for gap between columns */
     width++;
 
-    /* FIXME print prefix in total column */
-    printf("%-*s %*s %*s %*s capacity\n",
-        maxhost + maxpath + 1, "Filesystem", width, "total", width, "used", width, "avail");
+    if (format == human) {
+        /* FIXME print prefix in total column */
+        printf("%-*s %*s %*s %*s capacity\n",
+            maxhost + maxpath + 1, "Filesystem", width, "total", width, "used", width, "avail");
+    }
     
     /* skip the first empty struct */
     current = dummy.next;
