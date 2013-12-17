@@ -88,6 +88,12 @@ void print_output(enum outputs format, char *prefix, targets_t *target, unsigned
         } else {
             printf("%s.%s.ping.usec %lu %li\n", prefix, target->ndqf, us, now.tv_sec);
         }
+    } else if (format == statsd) {
+        if (prognum == MOUNTPROG) {
+            printf("nfsping.%s.mount:%lu|ms\n", target->ndqf, us);
+        } else {
+            printf("nfsping.%s.ping:%lu|ms\n", target->ndqf, us);
+        }
     }
 }
 
