@@ -87,6 +87,7 @@ This will send a result every second. Because nfsping is single threaded it's be
 
 nc will exit if the TCP connection is reset (such as if the Carbon server is restarted) which will also cause nfsping to exit with a broken pipe. To retry, start a persistent process under something like daemontools or runit which will restart the process if it exits for any reason.
 
+To use NFSping as a nagios style check, i.e. with exit code that map to OK/WARNING/CRITICAL/UNKNOWN conditions, use the -s flag. By default, this will ping the target 5 times, and report CRITICAL is any of those exceed the timeout. Optionally, set a critical threshold for failures with -s[n] - for example, to only report CRITICAL if no responses are received use -s0. Use -c flag to set an alternative count of pings to send to the target. 
 
 This is a list of the available command-line options:
 
@@ -107,6 +108,7 @@ Usage: nfsping [options] [targets...]
     -P n       specify port (default: NFS 2049)
     -q         quiet, only print summary
     -r n       reconnect to server every n pings
+    -s[n]      use nagios exit codes, set critical threshold (default: 4)
     -t n       timeout (in ms, default 2500)
     -T         use TCP (default UDP)
     -V n       specify NFS version (2 or 3, default 3)
