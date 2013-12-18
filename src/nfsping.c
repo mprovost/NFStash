@@ -31,6 +31,7 @@ void usage() {
     -P n       specify port (default: NFS %i)\n\
     -q         quiet, only print summary\n\
     -r n       reconnect to server every n pings\n\
+    -s[n]      use nagios exit codes, set critical threshold (default: 4) \n\
     -t n       timeout (in ms, default %lu)\n\
     -T         use TCP (default UDP)\n\
     -V n       specify NFS version (2 or 3, default 3)\n",
@@ -156,7 +157,7 @@ int main(int argc, char **argv) {
     unsigned long count = 0;
     unsigned long reconnect = 0;
     /* command-line options */
-    int dns = 0, loop = 0, ip = 0, quiet = 0, multiple = 0;
+    int dns = 0, loop = 0, ip = 0, quiet = 0, multiple = 0, nagios = 0, critical = 0;
     /* default to NFS v3 */
     u_long version = 3;
     int first, index;
@@ -173,7 +174,7 @@ int main(int argc, char **argv) {
     if (argc == 1)
         usage();
 
-    while ((ch = getopt(argc, argv, "Ac:C:dDg:hi:lmnMo:p:P:qr:t:TV:")) != -1) {
+    while ((ch = getopt(argc, argv, "Ac:C:dDg:hi:lmnMo:p:P:qr:s::t:TV:")) != -1) {
         switch(ch) {
             /* show IP addresses */
             case 'A':
@@ -286,6 +287,12 @@ int main(int argc, char **argv) {
             case 'r':
                 reconnect = strtoul(optarg, NULL, 10);
                 break;
+            /* nagios */
+            case 's':
+                count = (count) ? count : 5;
+                nagios = 1;
+                critical = (optarg) ? strtoul(optarg, NULL, 5) : 4;
+                break;
             /* timeout */
             case 't':
                 ms2tv(&timeout, strtoul(optarg, NULL, 10));
@@ -314,6 +321,13 @@ int main(int argc, char **argv) {
         fprintf(stderr, "Can't specify output format without ping count!\n");
         exit(3);
     }
+
+    /* setup exit codes - when using nagios mode, CRITICAL status 
+     * is 2 and UNKNOWN is 3. UNKNOWN used for command failures,
+     * rather than nfs server failures. Otherwise, just use
+     * EXIT_FAILURE */
+    int exit_failure = (nagios) ? 2 : EXIT_FAILURE;
+    int exit_unknown = (nagios) ? 3 : EXIT_FAILURE;
 
     /* mark the first non-option argument */
     first = optind;
@@ -349,7 +363,7 @@ int main(int argc, char **argv) {
             }
             target->client = create_rpc_client(target->client_sock, &hints, prognum, version, timeout);
             if (target->client == NULL)
-                exit(EXIT_FAILURE);
+                exit(exit_failure);
         } else {
             /* if that fails, do a DNS lookup */
             /* we don't call freeaddrinfo because we keep a pointer to the sin_addr in the target */
@@ -367,7 +381,7 @@ int main(int argc, char **argv) {
 
                     target->client = create_rpc_client(target->client_sock, &hints, prognum, version, timeout);
                     if (target->client == NULL)
-                        exit(EXIT_FAILURE);
+                        exit(exit_failure);
 
                     /* multiple results */
                     if (addr->ai_next) {
@@ -504,7 +518,7 @@ int main(int argc, char **argv) {
                 if (target->received)
                     target = target->next;
                 else
-                    exit(EXIT_FAILURE);
+                    exit(exit_failure);
             }
             /* didn't find any failures */
             exit(EXIT_SUCCESS);
@@ -520,7 +534,7 @@ int main(int argc, char **argv) {
             destroy_rpc_client(target->client);
             target->client = create_rpc_client(target->client_sock, &hints, prognum, version, timeout);
             if (target->client == NULL)
-                exit(EXIT_FAILURE);
+                exit(exit_failure);
         }
 
         nanosleep(&sleep_time, NULL);
@@ -535,13 +549,22 @@ int main(int argc, char **argv) {
     else if (format == human || format == unixtime)
         print_summary(*targets);
     /* loop through the targets and find any that didn't get a response
-     * exit with a failure if there were any missing responses */
+     * in nagios mode, exit with a failure if we recieve a number of 
+     * responses equal to or lesser than than the critical value.  
+     * Otherwise exit with a failure if there were any missing responses */
     target = targets;
     while (target) {
-        if (target->received < target->sent)
-            exit(EXIT_FAILURE);
-        else
-            target = target->next;
+        if (nagios) {
+            if (target->received <= critical)
+                exit(exit_failure);
+            else
+                target = target->next;
+        } else {
+            if (target->received < target->sent)
+                exit(exit_failure);
+            else
+                target = target->next;
+       }
     }
     /* otherwise exit successfully */
     exit(EXIT_SUCCESS);
