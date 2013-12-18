@@ -68,7 +68,7 @@ Missed responses are indicated with a dash (-) in the summary output. This form 
 
 To only show the summary line, use the -q (quiet) option.
 
-NFSping can also output stats in a variety of formats for putting into time series databases. Currently only Graphite is supported:
+NFSping can also output stats in a variety of formats for putting into time series databases. Currently only Graphite and StatsD are supported:
 
 $ nfsping -c 5 -oG filer1
 nfs.filer1.ping.usec 401 1370501562
@@ -86,6 +86,17 @@ $ nfsping -l -t1000 -oG filer1 filer2 | nc carbon1 2003
 This will send a result every second. Because nfsping is single threaded it's best to set a timeout to stop unresponsive NFS servers from affecting the results when specifying multiple targets. Lost requests will be reported under a separate path, nfs.$target.ping.lost, with a metric of 1.
 
 nc will exit if the TCP connection is reset (such as if the Carbon server is restarted) which will also cause nfsping to exit with a broken pipe. To retry, start a persistent process under something like daemontools or runit which will restart the process if it exits for any reason.
+
+Similarly, the StatsD output will produce plaintext output suitable for sending to StatsD with netcat:
+
+$ nfsping -c 5 -oS filer1
+nfsping.filer1.ping:0.15|ms
+nfsping.filer1.ping:0.18|ms
+nfsping.filer1.ping:3.27|ms
+nfsping.filer1.ping:11.61|ms
+nfsping.filer1.ping:78.07|ms
+
+Note that this output uses floating point values, as the StatsD protocol only supports milliseconds. While floating point values are supposedly supported by the protocol, some implementations of StatsD may not support them. This output has been tested as working with statsite: https://github.com/armon/statsite
 
 
 This is a list of the available command-line options:
