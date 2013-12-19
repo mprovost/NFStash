@@ -90,9 +90,9 @@ void print_output(enum outputs format, char *prefix, targets_t *target, unsigned
         }
     } else if (format == statsd) {
         if (prognum == MOUNTPROG) {
-            printf("nfsping.%s.mount:%lu|ms\n", target->ndqf, us);
+            printf("nfsping.%s.mount:%03.2f|ms\n", target->ndqf, us / 1000.0 );
         } else {
-            printf("nfsping.%s.ping:%lu|ms\n", target->ndqf, us);
+            printf("nfsping.%s.ping:%03.2f|ms\n", target->ndqf, us / 1000.0 );
         }
     }
 }
