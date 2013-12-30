@@ -104,6 +104,7 @@ int main(int argc, char **argv) {
 
     /* no arguments, use stdin */
     if (optind == argc) {
+        /* make it the max size not the length of the current string because we'll reuse it for all filehandles */
         input_fh = malloc(sizeof(char) * FHMAX);
         fgets(input_fh, FHMAX, stdin);
     /* first argument */
