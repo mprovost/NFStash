@@ -1,5 +1,8 @@
 all: nfsping
 
+clean:
+	rm -rf obj bin
+
 #output directories
 bin:
 	mkdir $@
