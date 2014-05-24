@@ -12,6 +12,8 @@ obj:
 	mkdir $@
 
 CFLAGS=-Werror -g -I src
+# generate header dependencies
+CPPFLAGS += -MMD -MP
 
 # build RPC headers first
 src/nfsping.h: src/nfs_prot.h src/mount.h
@@ -24,15 +26,12 @@ src/nfs_prot.h src/nfs_prot_clnt.c src/nfs_prot_svc.c src/nfs_prot_xdr.c: src/nf
 src/mount.h src/mount_clnt.c src/mount_svc.c src/mount_xdr.c: src/mount.x
 	cd src && rpcgen -DWANT_NFS3 mount.x
 
-#objects
+# list of all src files for dependencies
+SRC = $(wildcard src/*.c)
+
+# pattern rule to build objects
 obj/%.o: src/%.c | obj
-	gcc ${CFLAGS} -c -o $@ $<
-
-obj/util.o: src/util.c src/util.h | obj
-	gcc ${CFLAGS} -c -o $@ $<
-
-obj/nfsping.o: src/nfsping.c src/nfsping.h | obj
-	gcc ${CFLAGS} -c -o $@ $<
+	gcc ${CPPFLAGS} ${CFLAGS} -c -o $@ $<
 
 nfsping: bin/nfsping
 bin/nfsping: $(addprefix obj/, nfsping.o nfs_prot_clnt.o nfs_prot_xdr.o mount_clnt.o mount_xdr.o util.o rpc.o) | bin
@@ -57,3 +56,6 @@ bin/nfscat: $(addprefix obj/, cat.o nfs_prot_clnt.o nfs_prot_xdr.o util.o rpc.o)
 tests: tests/util_tests
 tests/util_tests: tests/util_tests.c tests/minunit.h util.o util.h
 	gcc ${CFLAGS} $^ -o $@
+
+# include generated dependency files
+-include $(SRC:src/%.c=obj/%.d)
