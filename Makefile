@@ -7,16 +7,12 @@ clean:
 #output directories
 bin:
 	mkdir $@
-
 obj:
 	mkdir $@
 
-CFLAGS=-Werror -g -I src
+CFLAGS = -Werror -g -I src
 # generate header dependencies
 CPPFLAGS += -MMD -MP
-
-# build RPC headers first
-src/nfsping.h: src/nfs_prot.h src/mount.h
 
 #rpcgen NFS
 src/nfs_prot.h src/nfs_prot_clnt.c src/nfs_prot_svc.c src/nfs_prot_xdr.c: src/nfs_prot.x
