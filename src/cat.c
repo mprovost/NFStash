@@ -140,7 +140,16 @@ int main(int argc, char **argv) {
 
                             if (count) {
                                 fprintf(stderr, "%s:%s: [%lu] %lu bytes %03.2f ms (xmt/rcv/%%loss = %lu/%lu/%.0f%%, min/avg/max = %.2f/%.2f/%.2f)\n",
-                                    current->host, current->path, received - 1, res->READ3res_u.resok.count, us / 1000.0, sent, received, loss, min / 1000.0 , avg / 1000.0, max / 1000.0 );
+                                    current->host,
+									current->path,
+									received - 1, res->READ3res_u.resok.count, us
+									/ 1000.0,
+									sent,
+									received,
+									loss,
+									min / 1000.0,
+								   	avg / 1000.0,
+									max / 1000.0 );
                             } else {
                                 /* write to stdout */
                                 fwrite(res->READ3res_u.resok.data.data_val, 1, res->READ3res_u.resok.data.data_len, stdout);
