@@ -5,9 +5,7 @@ clean:
 	rm -rf obj bin
 
 #output directories
-bin:
-	mkdir $@
-obj:
+bin obj:
 	mkdir $@
 
 CFLAGS = -Werror -g -I src
@@ -54,4 +52,6 @@ tests/util_tests: tests/util_tests.c tests/minunit.h util.o util.h
 	gcc ${CFLAGS} $^ -o $@
 
 # include generated dependency files
+ifneq ($(MAKECMDGOALS),clean)
 -include $(SRC:src/%.c=obj/%.d)
+endif
