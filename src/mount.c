@@ -61,7 +61,7 @@ mountres3 *get_root_filehandle(char *hostname, CLIENT *client, char *path) {
         if (mountres) {
             if (mountres->fhs_status != MNT3_OK) {
                 fprintf(stderr, "%s:%s: ", hostname, path);
-				if (mountres->fhs_status == MNT3ERR_ACCES) {
+				if (mountres->fhs_status == MNT3ERR_ACCES && geteuid()) {
 					fprintf(stderr, "Unable to mount filesystem, consider running as root\n");
 				} else {
 					mount_perror(mountres->fhs_status);
@@ -72,8 +72,8 @@ mountres3 *get_root_filehandle(char *hostname, CLIENT *client, char *path) {
             clnt_geterr(client, &clnt_err);
             /* check for authentication errors which probably mean it needs to come from a low port */
             /* TODO just print one error and exit? */
-            /* TODO check if we are root already */
-            if (clnt_err.re_status == RPC_AUTHERROR)
+            /* check if we are root already */
+            if  (clnt_err.re_status == RPC_AUTHERROR && geteuid())
                fprintf(stderr, "Unable to mount filesystem, consider running as root\n");
             else
                 clnt_perror(client, "mountproc_mnt_3");
