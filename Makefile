@@ -1,28 +1,31 @@
 .PHONY: all clean rpcgen nfsping nfsmount nfsdf nfscat
+
 all: nfsping nfsmount nfsdf nfsls nfscat
 
 clean:
-	rm -rf obj bin deps
+	rm -rf obj bin deps rpcsrc/*.c rpcsrc/*.h
 
 #output directories
 bin obj deps:
 	mkdir $@
 
-CFLAGS = -Werror -g -I src
+CFLAGS = -Werror -g -I src -I rpcsrc
 # generate header dependencies
 CPPFLAGS += -MMD -MP
 
 # phony target to generate rpc files
 # we're only really interested in the generated headers so gcc can figure out the rest of the dependencies
-rpcgen: src/nfs_prot.h src/mount.h
+rpcgen: rpcsrc/nfs_prot.h rpcsrc/mount.h
+
+# change to the rpcsrc directory first so output files go in the same directory
 
 #rpcgen NFS
-src/nfs_prot.h src/nfs_prot_clnt.c src/nfs_prot_svc.c src/nfs_prot_xdr.c: src/nfs_prot.x
-	cd src && rpcgen -DWANT_NFS3 nfs_prot.x
+$(addprefix rpcsrc/, nfs_prot.h nfs_prot_clnt.c nfs_prot_svc.c nfs_prot_xdr.c): rpcsrc/nfs_prot.x
+	cd rpcsrc && rpcgen -DWANT_NFS3 nfs_prot.x
 
 #rpcgen MOUNT
-src/mount.h src/mount_clnt.c src/mount_svc.c src/mount_xdr.c: src/mount.x
-	cd src && rpcgen -DWANT_NFS3 mount.x
+$(addprefix rpcsrc/, mount.h mount_clnt.c mount_svc.c mount_xdr.c): rpcsrc/mount.x
+	cd rpcsrc && rpcgen -DWANT_NFS3 mount.x
 
 # list of all src files for dependencies
 SRC = $(wildcard src/*.c)
@@ -32,6 +35,12 @@ SRC = $(wildcard src/*.c)
 # gcc will fail if the rpc headers don't exist so make sure they are generated first
 obj/%.o: src/%.c | obj deps rpcgen
 	gcc ${CPPFLAGS} ${CFLAGS} -MF deps/$(patsubst %.o,%.d, $(notdir $@)) -c -o $@ $<
+
+# don't need dependencies for generated source
+obj/%.o: rpcsrc/%.c | obj
+	gcc ${CFLAGS} -c -o $@ $<
+
+# make the bin directory first if it's not already there
 
 nfsping: bin/nfsping
 bin/nfsping: $(addprefix obj/, nfsping.o nfs_prot_clnt.o nfs_prot_xdr.o mount_clnt.o mount_xdr.o util.o rpc.o) | bin
