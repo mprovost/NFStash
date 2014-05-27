@@ -1,4 +1,4 @@
-.PHONY: all clean nfsping nfsmount nfsdf nfscat
+.PHONY: all clean rpcgen nfsping nfsmount nfsdf nfscat
 all: nfsping nfsmount nfsdf nfsls nfscat
 
 clean:
@@ -12,6 +12,10 @@ CFLAGS = -Werror -g -I src
 # generate header dependencies
 CPPFLAGS += -MMD -MP
 
+# phony target to generate rpc files
+# we're only really interested in the generated headers so gcc can figure out the rest of the dependencies
+rpcgen: src/nfs_prot.h src/mount.h
+
 #rpcgen NFS
 src/nfs_prot.h src/nfs_prot_clnt.c src/nfs_prot_svc.c src/nfs_prot_xdr.c: src/nfs_prot.x
 	cd src && rpcgen -DWANT_NFS3 nfs_prot.x
@@ -24,7 +28,9 @@ src/mount.h src/mount_clnt.c src/mount_svc.c src/mount_xdr.c: src/mount.x
 SRC = $(wildcard src/*.c)
 
 # pattern rule to build objects
-obj/%.o: src/%.c | obj
+# make the obj directory first
+# gcc will fail if the rpc headers don't exist so make sure they are generated first
+obj/%.o: src/%.c | obj rpcgen
 	gcc ${CPPFLAGS} ${CFLAGS} -c -o $@ $<
 
 nfsping: bin/nfsping
