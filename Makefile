@@ -2,10 +2,10 @@
 all: nfsping nfsmount nfsdf nfsls nfscat
 
 clean:
-	rm -rf obj bin
+	rm -rf obj bin deps
 
 #output directories
-bin obj:
+bin obj deps:
 	mkdir $@
 
 CFLAGS = -Werror -g -I src
@@ -30,8 +30,8 @@ SRC = $(wildcard src/*.c)
 # pattern rule to build objects
 # make the obj directory first
 # gcc will fail if the rpc headers don't exist so make sure they are generated first
-obj/%.o: src/%.c | obj rpcgen
-	gcc ${CPPFLAGS} ${CFLAGS} -c -o $@ $<
+obj/%.o: src/%.c | obj deps rpcgen
+	gcc ${CPPFLAGS} ${CFLAGS} -MF deps/$(patsubst %.o,%.d, $(notdir $@)) -c -o $@ $<
 
 nfsping: bin/nfsping
 bin/nfsping: $(addprefix obj/, nfsping.o nfs_prot_clnt.o nfs_prot_xdr.o mount_clnt.o mount_xdr.o util.o rpc.o) | bin
@@ -59,5 +59,5 @@ tests/util_tests: tests/util_tests.c tests/minunit.h util.o util.h
 
 # include generated dependency files
 ifneq ($(MAKECMDGOALS),clean)
--include $(SRC:src/%.c=obj/%.d)
+-include $(SRC:src/%.c=deps/%.d)
 endif
