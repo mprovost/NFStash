@@ -4,14 +4,15 @@
 
 void usage() {
     printf("Usage: nfsdf [options] [filehandle...]\n\
-    -g    display sizes in gigabytes\n\
-    -h    display human readable sizes (default)\n\
-    -i    display inodes\n\
-    -k    display sizes in kilobytes\n\
-    -m    display sizes in megabytes\n\
-    -o    output format ([G]raphite, [S]tatsd, Open[T]sdb, default human readable)\n\
-    -t    display sizes in terabytes\n\
-    -T    use TCP (default UDP)\n\
+    -g       display sizes in gigabytes\n\
+    -h       display human readable sizes (default)\n\
+    -i       display inodes\n\
+    -k       display sizes in kilobytes\n\
+    -m       display sizes in megabytes\n\
+    -o       output format ([G]raphite, [S]tatsd, Open[T]sdb, default human readable)\n\
+    -t       display sizes in terabytes\n\
+    -S addr  set source address\n\
+    -T       use TCP (default UDP)\n\
     ");
 
     exit(3);
@@ -178,8 +179,13 @@ int main(int argc, char **argv) {
         .ai_socktype = SOCK_DGRAM,
     };
     FSSTAT3res *fsstatres;
+    /* source ip address for packets */
+    struct sockaddr_in src_ip = {
+        .sin_family = AF_INET,
+        .sin_addr = 0
+    };
 
-    while ((ch = getopt(argc, argv, "ghikmo:tT")) != -1) {
+    while ((ch = getopt(argc, argv, "ghikmo:S:tT")) != -1) {
         switch(ch) {
             /* display gigabytes */
             case 'g':
@@ -237,6 +243,13 @@ int main(int argc, char **argv) {
                         fprintf(stderr, "Unknown output format \"%s\"!\n", optarg);
                         usage();
                     }
+                }
+                break;
+            /* specify source address */
+            case 'S':
+                if (inet_pton(AF_INET, optarg, &src_ip.sin_addr) != 1) {
+                    fprintf(stderr, "nfsping: Invalid source IP address!\n");
+                    exit(3);
                 }
                 break;
             /* display terabytes */
@@ -363,7 +376,7 @@ int main(int argc, char **argv) {
 
         /* otherwise make a new connection */
         if (client == NULL) {
-            client = create_rpc_client(current->client_sock, &hints, NFS_PROGRAM, version, timeout);
+            client = create_rpc_client(current->client_sock, &hints, NFS_PROGRAM, version, timeout, src_ip);
             client->cl_auth = authunix_create_default();
         }
 
