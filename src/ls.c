@@ -4,8 +4,9 @@
 
 void usage() {
     printf("Usage: nfsls [options] [filehandle...]\n\
-    -a   print hidden files\n\
-    -T   use TCP (default UDP)\n"); 
+    -a       print hidden files\n\
+    -S addr  set source address\n\
+    -T       use TCP (default UDP)\n"); 
 
     exit(3);
 }
@@ -85,13 +86,25 @@ int main(int argc, char **argv) {
     struct timeval timeout = NFS_TIMEOUT;
     entryplus3 *entry;
     int i;
+    /* source ip address for packets */
+    struct sockaddr_in src_ip = {
+        .sin_family = AF_INET,
+        .sin_addr = 0
+    };
 
-    while ((ch = getopt(argc, argv, "ahT")) != -1) {
+    while ((ch = getopt(argc, argv, "ahS:T")) != -1) {
         switch(ch) {
             /* list hidden files */
             case 'a':
                 all = 1;
                 break;
+            /* source ip address for packets */
+            case 'S':
+                if (inet_pton(AF_INET, optarg, &src_ip.sin_addr) != 1) {
+                    fprintf(stderr, "nfsping: Invalid source IP address!\n");
+                    exit(3);
+                }
+                break; 
             /* use TCP */
             case 'T':
                 hints.ai_socktype = SOCK_STREAM;
@@ -128,7 +141,7 @@ int main(int argc, char **argv) {
 
             if (client == NULL) {
                 /* connect to server */
-                client = create_rpc_client(current.client_sock, &hints, NFS_PROGRAM, version, timeout);
+                client = create_rpc_client(current.client_sock, &hints, NFS_PROGRAM, version, timeout, src_ip);
                 client->cl_auth = authunix_create_default();
             }
 
