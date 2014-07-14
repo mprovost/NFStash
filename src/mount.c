@@ -145,6 +145,7 @@ int main(int argc, char **argv) {
     CLIENT *client;
     u_long version = 3;
     struct timeval timeout = NFS_TIMEOUT;
+    /* source ip address for packets */
     struct sockaddr_in src_ip = {
         .sin_family = AF_INET,
         .sin_addr = 0
