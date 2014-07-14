@@ -4,9 +4,10 @@
 
 void usage() {
     printf("Usage: nfsmount [options] host[:mountpoint]\n\
-    -e    print exports (like showmount -e)\n\
-    -m    use multiple target IP addresses if found\n\
-    -T    use TCP (default UDP)\n"
+    -e       print exports (like showmount -e)\n\
+    -m       use multiple target IP addresses if found\n\
+    -S addr  set source address\n\
+    -T       use TCP (default UDP)\n"
     );
 
     exit(3);
@@ -144,7 +145,10 @@ int main(int argc, char **argv) {
     CLIENT *client;
     u_long version = 3;
     struct timeval timeout = NFS_TIMEOUT;
-    int sock = RPC_ANYSOCK;
+    struct sockaddr_in src_ip = {
+        .sin_family = AF_INET,
+        .sin_addr = 0
+    };
 
     client_sock.sin_family = AF_INET;
 
@@ -157,11 +161,18 @@ int main(int argc, char **argv) {
     if (argc == 1)
         usage();
 
-    while ((ch = getopt(argc, argv, "ehT")) != -1) {
+    while ((ch = getopt(argc, argv, "ehS:T")) != -1) {
         switch(ch) {
             /* output like showmount -e */
             case 'e':
                 showmount = 1;
+                break;
+            /* specify source address */
+            case 'S':
+                if (inet_pton(AF_INET, optarg, &src_ip.sin_addr) != 1) {
+                    fprintf(stderr, "nfsping: Invalid source IP address!\n");
+                    exit(3);
+                }
                 break;
             /* use TCP */
             case 'T':
@@ -189,7 +200,7 @@ int main(int argc, char **argv) {
             client_sock.sin_port = 0; /* use portmapper */
 
             /* create an rpc connection */
-            client = create_rpc_client(&client_sock, &hints, MOUNTPROG, version, timeout);
+            client = create_rpc_client(&client_sock, &hints, MOUNTPROG, version, timeout, src_ip);
             /* mounts don't need authentication because they return a list of authentication flavours supported */
             client->cl_auth = authnone_create();
 
