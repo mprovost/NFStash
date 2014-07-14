@@ -61,11 +61,11 @@ mountres3 *get_root_filehandle(char *hostname, CLIENT *client, char *path) {
         if (mountres) {
             if (mountres->fhs_status != MNT3_OK) {
                 fprintf(stderr, "%s:%s: ", hostname, path);
-				if (mountres->fhs_status == MNT3ERR_ACCES && geteuid()) {
-					fprintf(stderr, "Unable to mount filesystem, consider running as root\n");
-				} else {
-					mount_perror(mountres->fhs_status);
-				}
+                if (mountres->fhs_status == MNT3ERR_ACCES && geteuid()) {
+                    fprintf(stderr, "Unable to mount filesystem, consider running as root\n");
+                } else {
+                    mount_perror(mountres->fhs_status);
+                }
             }
         } else {
             fprintf(stderr, "%s:%s: ", hostname, path);
