@@ -19,6 +19,7 @@
 #include <ctype.h>
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
+#include <errno.h>
 
 /* local copies */
 #include "nfs_prot.h"

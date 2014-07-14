@@ -8,25 +8,59 @@ CLIENT *create_rpc_client(struct sockaddr_in *client_sock, struct addrinfo *hint
     CLIENT *client;
     int sock;
 
-    /* make sure and set this for each new connection so it gets a new socket */
-    /* clnttcp_create will happily reuse sockets */
-    sock = socket(AF_INET, hints->ai_socktype, 0);
-    if (sock < 0) {
-        perror("create_rpc_client");
-        exit(EXIT_FAILURE); /* TODO should this be a different return code? */
-    }
+    /* Make sure and make new sockets for each new connection */
+    /* clnttcp_create will happily reuse open sockets */
 
-    /* set the source address */
+    /* Even if you specify a source address the portmapper will use the default one */
+    /* this applies to pmap_getport or clnt*_create */
+
+    /* set the source address if specified */
     if (src_ip.sin_addr.s_addr) {
-        if (bind(sock, (struct sockaddr *) &src_ip, sizeof(src_ip)) < 0) {
+        sock = socket(AF_INET, hints->ai_socktype, 0);
+        if (sock < 0) {
             perror("create_rpc_client");
             exit(EXIT_FAILURE); /* TODO should this be a different return code? */
         }
+
+        /* could check for root here but there are other mechanisms for allowing processes to bind to low ports */
+
+        /* try a reserved port first and see what happens */
+        /* start in the middle of the range so we're away from really low ports like 22 and 80 */
+        src_ip.sin_port = htons(666);
+
+        while (ntohs(src_ip.sin_port) < 1024) {
+            if (bind(sock, (struct sockaddr *) &src_ip, sizeof(src_ip)) < 0) {
+                /* permission denied, ie we aren't root */
+                if (errno == EACCES) {
+                    /* try an ephemeral port */
+                    src_ip.sin_port = 0;
+                /* blocked, try the next port */
+                } else if (errno == EADDRINUSE) {
+                    /* TODO should we keep track of how many times we're looping through low ports and complain or give up? */
+                    if (ntohs(src_ip.sin_port) < 1023) {
+                        src_ip.sin_port = htons(ntohs(src_ip.sin_port) + 1);
+                    /* start over */
+                    } else {
+                        src_ip.sin_port = htons(1);
+                    }
+                } else {
+                    perror("create_rpc_client");
+                    exit(EXIT_FAILURE); /* TODO should this be a different return code? */
+                }
+            /* it worked, we have a socket */
+            } else {
+                break;
+            }
+        }
+    /* use any address/port */
+    } else {
+        sock = RPC_ANYSOCK;
     }
 
     /* TCP */
     if (hints->ai_socktype == SOCK_STREAM) {
         /* check the portmapper */
+        /* this makes a separate connection, lame */
         if (client_sock->sin_port == 0)
             client_sock->sin_port = htons(pmap_getport(client_sock, prognum, version, IPPROTO_TCP));
         /* TODO set recvsz and sendsz to the NFS blocksize */
@@ -38,8 +72,10 @@ CLIENT *create_rpc_client(struct sockaddr_in *client_sock, struct addrinfo *hint
     /* UDP */
     } else {
         /* check the portmapper */
+        /* this makes a separate connection, lame */
         if (client_sock->sin_port == 0)
             client_sock->sin_port = htons(pmap_getport(client_sock, prognum, version, IPPROTO_UDP));
+        client_sock->sin_port == 0;
         client = clntudp_create(client_sock, prognum, version, timeout, &sock);
 
         if (client == NULL) {
