@@ -31,7 +31,7 @@ void usage() {
     -P n       specify port (default: NFS %i)\n\
     -q         quiet, only print summary\n\
     -r n       reconnect to server every n pings\n\
-	-S addr    set source address\n\
+    -S addr    set source address\n\
     -t n       timeout (in ms, default %lu)\n\
     -T         use TCP (default UDP)\n\
     -V n       specify NFS version (2 or 3, default 3)\n",
@@ -161,11 +161,11 @@ int main(int argc, char **argv) {
     /* default to NFS v3 */
     u_long version = 3;
     int first, index;
-	/* source ip address for packets */
-	struct sockaddr_in src_ip = {
-		.sin_family = AF_INET,
-		.sin_addr = 0
-	};
+    /* source ip address for packets */
+    struct sockaddr_in src_ip = {
+        .sin_family = AF_INET,
+        .sin_addr = 0
+    };
 
     /* listen for ctrl-c */
     quitting = 0;
@@ -292,13 +292,13 @@ int main(int argc, char **argv) {
             case 'r':
                 reconnect = strtoul(optarg, NULL, 10);
                 break;
-			/* source ip address for packets */
-			case 'S':
-				if (inet_pton(AF_INET, optarg, &src_ip.sin_addr) != 1) {
-					fprintf(stderr, "nfsping: Invalid source IP address!\n");
-					exit(3);
-				}
-				break;
+            /* source ip address for packets */
+            case 'S':
+                if (inet_pton(AF_INET, optarg, &src_ip.sin_addr) != 1) {
+                    fprintf(stderr, "nfsping: Invalid source IP address!\n");
+                    exit(3);
+                }
+                break;
             /* timeout */
             case 't':
                 ms2tv(&timeout, strtoul(optarg, NULL, 10));

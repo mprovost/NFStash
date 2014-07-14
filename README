@@ -118,6 +118,7 @@ Usage: nfsping [options] [targets...]
     -P n       specify port (default: NFS 2049)
     -q         quiet, only print summary
     -r n       reconnect to server every n pings
+    -S addr    set source address
     -t n       timeout (in ms, default 2500)
     -T         use TCP (default UDP)
     -V n       specify NFS version (2 or 3, default 3)
