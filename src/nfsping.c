@@ -162,7 +162,10 @@ int main(int argc, char **argv) {
     u_long version = 3;
     int first, index;
 	/* source ip address for packets */
-	struct in_addr src_ip = {0};
+	struct sockaddr_in src_ip = {
+		.sin_family = AF_INET,
+		.sin_addr = 0
+	};
 
     /* listen for ctrl-c */
     quitting = 0;
@@ -291,7 +294,7 @@ int main(int argc, char **argv) {
                 break;
 			/* source ip address for packets */
 			case 'S':
-				if (inet_pton(AF_INET, optarg, &src_ip) != 1) {
+				if (inet_pton(AF_INET, optarg, &src_ip.sin_addr) != 1) {
 					fprintf(stderr, "nfsping: Invalid source IP address!\n");
 					exit(3);
 				}
@@ -357,7 +360,7 @@ int main(int argc, char **argv) {
                 /* don't reverse an IP address */
                 target->ndqf = target->name;
             }
-            target->client = create_rpc_client(target->client_sock, &hints, prognum, version, timeout);
+            target->client = create_rpc_client(target->client_sock, &hints, prognum, version, timeout, src_ip);
             if (target->client == NULL)
                 exit(EXIT_FAILURE);
         } else {
@@ -375,7 +378,7 @@ int main(int argc, char **argv) {
                     }
                     target->ndqf = reverse_fqdn(target->name);
 
-                    target->client = create_rpc_client(target->client_sock, &hints, prognum, version, timeout);
+                    target->client = create_rpc_client(target->client_sock, &hints, prognum, version, timeout, src_ip);
                     if (target->client == NULL)
                         exit(EXIT_FAILURE);
 
@@ -528,7 +531,7 @@ int main(int argc, char **argv) {
         /* see if we should disconnect and reconnect */
         if (reconnect && targets->sent % reconnect == 0) {
             destroy_rpc_client(target->client);
-            target->client = create_rpc_client(target->client_sock, &hints, prognum, version, timeout);
+            target->client = create_rpc_client(target->client_sock, &hints, prognum, version, timeout, src_ip);
             if (target->client == NULL)
                 exit(EXIT_FAILURE);
         }

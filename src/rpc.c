@@ -4,12 +4,25 @@
 
 /* create an RPC client */
 /* takes an initialised sockaddr_in with the address and port */
-CLIENT *create_rpc_client(struct sockaddr_in *client_sock, struct addrinfo *hints, unsigned long prognum, unsigned long version, struct timeval timeout) {
+CLIENT *create_rpc_client(struct sockaddr_in *client_sock, struct addrinfo *hints, unsigned long prognum, unsigned long version, struct timeval timeout, struct sockaddr_in src_ip) {
     CLIENT *client;
+	int sock;
 
-    /* make sure and set this for each new connection so it gets a new socket */
+	/* make sure and set this for each new connection so it gets a new socket */
     /* clnttcp_create will happily reuse sockets */
-    int sock = RPC_ANYSOCK;
+	sock = socket(AF_INET, hints->ai_socktype, 0);
+	if (sock < 0) {
+		perror("create_rpc_client");
+		exit(EXIT_FAILURE); /* TODO should this be a different return code? */
+	}
+
+	/* set the source address */
+	if (src_ip.sin_addr.s_addr) {
+		if (bind(sock, (struct sockaddr *) &src_ip, sizeof(src_ip)) < 0) {
+			perror("create_rpc_client");
+			exit(EXIT_FAILURE); /* TODO should this be a different return code? */
+		}
+	}
 
     /* TCP */
     if (hints->ai_socktype == SOCK_STREAM) {
