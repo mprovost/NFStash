@@ -4,9 +4,10 @@
 
 void usage() {
     printf("Usage: nfscat [options] [targets...]\n\
-    -b    blocksize (in bytes, default 8192)\n\
-    -c n  count of read requests to send to target\n\
-    -T    use TCP (default UDP)\n");
+    -b       blocksize (in bytes, default 8192)\n\
+    -c n     count of read requests to send to target\n\
+    -S addr  set source address\n\
+    -T       use TCP (default UDP)\n");
 
     exit(3);
 }
@@ -72,8 +73,13 @@ int main(int argc, char **argv) {
     unsigned long sent = 0, received = 0;
     unsigned long min = ULONG_MAX, max = 0;
     double avg, loss;
+    /* source ip address for packets */
+    struct sockaddr_in src_ip = {
+        .sin_family = AF_INET,
+        .sin_addr = 0
+    };
 
-    while ((ch = getopt(argc, argv, "b:c:hT")) != -1) {
+    while ((ch = getopt(argc, argv, "b:c:hS:T")) != -1) {
         switch(ch) {
             /* blocksize */
             case 'b':
@@ -84,6 +90,13 @@ int main(int argc, char **argv) {
                 count = strtoul(optarg, NULL, 10);
                 if (count == 0) {
                     fprintf(stderr, "nfscat: zero count, nothing to do!\n");
+                    exit(3);
+                }
+                break;
+            /* source ip address for packets */
+            case 'S':
+                if (inet_pton(AF_INET, optarg, &src_ip.sin_addr) != 1) {
+                    fprintf(stderr, "nfsping: Invalid source IP address!\n");
                     exit(3);
                 }
                 break;
@@ -173,7 +186,7 @@ int main(int argc, char **argv) {
         }
         if (current) {
             /* connect to server */
-            client = create_rpc_client(current->client_sock, &hints, NFS_PROGRAM, version, timeout);
+            client = create_rpc_client(current->client_sock, &hints, NFS_PROGRAM, version, timeout, src_ip);
             client->cl_auth = authunix_create_default();
         }
     }
