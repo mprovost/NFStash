@@ -75,13 +75,13 @@ void print_fping_summary(targets_t targets) {
 void print_output(enum outputs format, char *prefix, targets_t *target, unsigned long prognum, struct timeval now, unsigned long us) {
     double loss;
 
-    loss = (target->sent - target->received) / (double)target->sent * 100;
-
     if (format == unixtime) {
         /* FIXME these casts to long aren't great */
         printf("[%ld.%06ld] ", (long)now.tv_sec, (long)now.tv_usec);
-        printf("%s : [%u], %03.2f ms (%03.2f avg, %.0f%% loss)\n", target->name, target->sent - 1, us / 1000.0, target->avg / 1000.0, loss);
-    } else if (format == human || format == fping) {
+    }
+
+    if (format == human || format == fping || format == unixtime) {
+        loss = (target->sent - target->received) / (double)target->sent * 100;
         printf("%s : [%u], %03.2f ms (%03.2f avg, %.0f%% loss)\n", target->name, target->sent - 1, us / 1000.0, target->avg / 1000.0, loss);
     } else if (format == graphite) {
         if (prognum == MOUNTPROG) {
@@ -90,6 +90,7 @@ void print_output(enum outputs format, char *prefix, targets_t *target, unsigned
             printf("%s.%s.ping.usec %lu %li\n", prefix, target->ndqf, us, now.tv_sec);
         }
     } else if (format == statsd) {
+        /* statsd only takes milliseconds */
         if (prognum == MOUNTPROG) {
             printf("nfsping.%s.mount:%03.2f|ms\n", target->ndqf, us / 1000.0 );
         } else {
@@ -99,11 +100,20 @@ void print_output(enum outputs format, char *prefix, targets_t *target, unsigned
 }
 
 /* print missing packets for formatted output */
-void print_lost(enum outputs format, char *prefix, targets_t *target, struct timeval now) {
+void print_lost(enum outputs format, char *prefix, targets_t *target, unsigned long prognum, struct timeval now) {
     /* send to stdout even though it could be considered an error, presumably these are being piped somewhere */
     /* stderr prints the errors themselves which can be discarded */
+    if (prognum == MOUNTPROG) {
+        printf("%s.%s.mount.lost", prefix, target->name);
+    } else {
+        printf("%s.%s.ping.lost", prefix, target->name);
+    }
+
     if (format == graphite) {
-        printf("%s.%s.ping.lost 1 %li\n", prefix, target->name, now.tv_sec);
+        printf(" 1 %li\n", prefix, target->name, now.tv_sec);
+    } else if (format == statsd) {
+        /* send it as a counter */
+        printf(":1|c\n", prefix, target->name);
     }
 }
 
@@ -479,6 +489,7 @@ int main(int argc, char **argv) {
                     print_output(format, prefix, target, prognum, call_end, us);
                     fflush(stdout);
                 }
+            /* something went wrong */
             } else {
                 fprintf(stderr, "%s : ", target->name);
                 clnt_geterr(target->client, &clnt_err);
@@ -488,7 +499,7 @@ int main(int argc, char **argv) {
                     clnt_perror(target->client, "nfsproc3_null_3");
                 fflush(stderr);
 
-                print_lost(format, prefix, target, call_end);
+                print_lost(format, prefix, target, prognum, call_end);
                 fflush(stdout);
 
                 /* TODO is this needed with portmapper on by default? */
