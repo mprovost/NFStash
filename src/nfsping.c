@@ -105,7 +105,7 @@ void print_lost(enum outputs format, char *prefix, targets_t *target, unsigned l
     /* send to stdout even though it could be considered an error, presumably these are being piped somewhere */
     /* stderr prints the errors themselves which can be discarded */
     if (format == graphite || format == statsd) {
-        printf("%s.%s.", prefix, target->name);
+        printf("%s.%s.", prefix, target->ndqf);
         if (prognum == MOUNTPROG) {
             printf("mount");
         } else {
