@@ -184,6 +184,9 @@ int main(int argc, char **argv) {
     quitting = 0;
     signal(SIGINT, int_handler);
 
+    /* don't quit on (TCP) broken pipes */
+    signal(SIGPIPE, SIG_IGN);
+
     hints.ai_family = AF_INET;
     /* default to UDP */
     hints.ai_socktype = SOCK_DGRAM;
@@ -452,66 +455,86 @@ int main(int argc, char **argv) {
         target = targets;
 
         while (target) {
-            /* first time marker */
-            gettimeofday(&call_start, NULL);
-            /* the actual ping */
-            if (prognum == MOUNTPROG)
-                /* TODO version 2 */
-                status = mountproc_null_3(NULL, target->client);
-            else
-                /* TODO version 2 */
-                /* this might work for both versions */
-                status = nfsproc3_null_3(NULL, target->client);
-            /* second time marker */
-            gettimeofday(&call_end, NULL);
-            target->sent++;
-
-            if (status != NULL) {
-                target->received++;
-
-                /* check if we're not looping */
-                if (!count && !loop) {
-                    printf("%s is alive\n", target->name);
-                    target = target->next;
-                    continue;
-                }
-
-                us = tv2us(call_end) - tv2us(call_start);
-
-                /* TODO discard first ping in case of ARP delay? Only for TCP for handshake? */
-                if (us < target->min) target->min = us;
-                if (us > target->max) target->max = us;
-                /* calculate the average time */
-                target->avg = (target->avg * (target->received - 1) + us) / target->received;
-
-                if (format == fping)
-                    target->results[target->sent - 1] = us;
-
-                if (!quiet) {
-                    /* TODO estimate the time by getting the midpoint of call_start and call_end? */
-                    print_output(format, prefix, target, prognum, call_end, us);
-                    fflush(stdout);
-                }
-            /* something went wrong */
+            /* check if we were disconnected (TCP) */
+            if (target->client == NULL) {
+                /* try and reconnect */
+                target->client = create_rpc_client(target->client_sock, &hints, prognum, version, timeout, src_ip);
+            }
+            /* now see if we've reconnected */
+            if (target->client == NULL) {
+                status = NULL;
             } else {
-                fprintf(stderr, "%s : ", target->name);
-                clnt_geterr(target->client, &clnt_err);
+                /* first time marker */
+                gettimeofday(&call_start, NULL);
+                /* the actual ping */
                 if (prognum == MOUNTPROG)
-                    clnt_perror(target->client, "mountproc_null_3");
+                    /* TODO version 2 */
+                    status = mountproc_null_3(NULL, target->client);
                 else
-                    clnt_perror(target->client, "nfsproc3_null_3");
-                fflush(stderr);
+                    /* TODO version 2 */
+                    /* this might work for both versions */
+                    status = nfsproc3_null_3(NULL, target->client);
+                /* second time marker */
+                gettimeofday(&call_end, NULL);
+                target->sent++;
+
+                if (status != NULL) {
+                    target->received++;
+
+                    /* check if we're not looping */
+                    if (!count && !loop) {
+                        printf("%s is alive\n", target->name);
+                        target = target->next;
+                        continue;
+                    }
+
+                    us = tv2us(call_end) - tv2us(call_start);
+
+                    /* TODO discard first ping in case of ARP delay? Only for TCP for handshake? */
+                    if (us < target->min) target->min = us;
+                    if (us > target->max) target->max = us;
+                    /* calculate the average time */
+                    target->avg = (target->avg * (target->received - 1) + us) / target->received;
+
+                    if (format == fping)
+                        target->results[target->sent - 1] = us;
+
+                    if (!quiet) {
+                        /* TODO estimate the time by getting the midpoint of call_start and call_end? */
+                        print_output(format, prefix, target, prognum, call_end, us);
+                        fflush(stdout);
+                    }
+                }
+            }
+            /* something went wrong */
+            if (status == NULL) {
+                if (target->client) {
+                    fprintf(stderr, "%s : ", target->name);
+                    clnt_geterr(target->client, &clnt_err);
+
+                    if (prognum == MOUNTPROG)
+                        clnt_perror(target->client, "mountproc_null_3");
+                    else
+                        clnt_perror(target->client, "nfsproc3_null_3");
+                    fflush(stderr);
+
+                    /* TODO is this needed with portmapper on by default? */
+                    /* mount port isn't very standard so print a warning */
+                    if (prognum == MOUNTPROG && target->client_sock->sin_port && clnt_err.re_status == RPC_CANTRECV) {
+                        fprintf(stderr, "Unable to contact mount port, consider using portmapper (-M)\n");
+                    }
+                }
 
                 print_lost(format, prefix, target, prognum, call_end);
                 fflush(stdout);
 
-                /* TODO is this needed with portmapper on by default? */
-                /* mount port isn't very standard so print a warning */
-                if (prognum == MOUNTPROG && target->client_sock->sin_port && clnt_err.re_status == RPC_CANTRECV) {
-                    fprintf(stderr, "Unable to contact mount port, consider using portmapper (-M)\n");
-                }
                 if (!count && !loop) {
                     printf("%s is dead\n", target->name);
+                }
+
+                /* check for broken pipes */
+                if (clnt_err.re_errno == EPIPE) {
+                    target->client = destroy_rpc_client(target->client);
                 }
             }
 
