@@ -83,18 +83,18 @@ void print_output(enum outputs format, char *prefix, targets_t *target, unsigned
     if (format == human || format == fping || format == unixtime) {
         loss = (target->sent - target->received) / (double)target->sent * 100;
         printf("%s : [%u], %03.2f ms (%03.2f avg, %.0f%% loss)\n", target->name, target->sent - 1, us / 1000.0, target->avg / 1000.0, loss);
-    } else if (format == graphite) {
+    } else if (format == graphite || format == statsd) {
+        printf("%s.%s.", prefix, target->ndqf);
         if (prognum == MOUNTPROG) {
-            printf("%s.%s.mount.usec %lu %li\n", prefix, target->ndqf, us, now.tv_sec);
+            printf("mount");
         } else {
-            printf("%s.%s.ping.usec %lu %li\n", prefix, target->ndqf, us, now.tv_sec);
+            printf("ping");
         }
-    } else if (format == statsd) {
+        if (format == graphite) {
+            printf(".usec %lu %li\n", us, now.tv_sec);
+        } else if (format == statsd) {
         /* statsd only takes milliseconds */
-        if (prognum == MOUNTPROG) {
-            printf("nfsping.%s.mount:%03.2f|ms\n", target->ndqf, us / 1000.0 );
-        } else {
-            printf("nfsping.%s.ping:%03.2f|ms\n", target->ndqf, us / 1000.0 );
+            printf(":%03.2f|ms\n", us / 1000.0 );
         }
     }
 }
