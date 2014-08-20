@@ -99,21 +99,24 @@ void print_output(enum outputs format, char *prefix, targets_t *target, unsigned
     }
 }
 
+
 /* print missing packets for formatted output */
 void print_lost(enum outputs format, char *prefix, targets_t *target, unsigned long prognum, struct timeval now) {
     /* send to stdout even though it could be considered an error, presumably these are being piped somewhere */
     /* stderr prints the errors themselves which can be discarded */
-    if (prognum == MOUNTPROG) {
-        printf("%s.%s.mount.lost", prefix, target->name);
-    } else {
-        printf("%s.%s.ping.lost", prefix, target->name);
-    }
-
-    if (format == graphite) {
-        printf(" 1 %li\n", prefix, target->name, now.tv_sec);
-    } else if (format == statsd) {
-        /* send it as a counter */
-        printf(":1|c\n", prefix, target->name);
+    if (format == graphite || format == statsd) {
+        printf("%s.%s.", prefix, target->name);
+        if (prognum == MOUNTPROG) {
+            printf("mount");
+        } else {
+            printf("ping");
+        }
+        if (format == graphite) {
+            printf(".lost 1 %li\n", now.tv_sec);
+        } else if (format == statsd) {
+            /* send it as a counter */
+            printf(".lost:1|c\n");
+        }
     }
 }
 
