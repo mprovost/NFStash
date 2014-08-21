@@ -29,7 +29,11 @@ make
 rm -rf %{buildroot}
 %{__mkdir} -p %{buildroot}%{_bindir}
 %{__mkdir} -p %{buildroot}%{_datadir}/smokeping/lib/Smokeping/probes
-%{__install} -m 755 nfsping %{buildroot}%{_bindir}/nfsping
+%{__install} -m 755 bin/nfscat %{buildroot}%{_bindir}/nfscat
+%{__install} -m 755 bin/nfsdf %{buildroot}%{_bindir}/nfsdf
+%{__install} -m 755 bin/nfsls %{buildroot}%{_bindir}/nfsls
+%{__install} -m 755 bin/nfsmount %{buildroot}%{_bindir}/nfsmount
+%{__install} -m 755 bin/nfsping %{buildroot}%{_bindir}/nfsping
 %{__install} -p -m 644 Smokeping/NFSping.pm %{buildroot}%{_datadir}/smokeping/lib/Smokeping/probes/NFSping.pm
 
 %clean
@@ -38,7 +42,7 @@ rm -rf %{buildroot}
 
 %files
 %defattr(-,root,root,-)
-%{_bindir}/nfsping
+%{_bindir}/*
 %{_datadir}/smokeping/lib/Smokeping/probes/NFSping.pm
 %doc README
 
