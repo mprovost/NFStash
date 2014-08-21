@@ -1,9 +1,9 @@
 # to download: wget https://github.com/mprovost/NFSping/tarball/master
-%define git_rel dcf2f31
+%define git_rel 6ef8ce5
 
 Name:           nfsping
 Version:        0.1
-Release:        1.git%{git_rel}%{?dist}
+Release:        5.git%{git_rel}%{?dist}
 Summary:        NFSping is a command line utility for measuring the response time of an NFS server. 
 Group:          Applications/Internet
 License:        BSD
