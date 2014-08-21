@@ -1,9 +1,9 @@
 # to download: wget https://github.com/mprovost/NFSping/tarball/master
-%define git_rel dcf2f31
+%define git_rel 6ef8ce5
 
 Name:           nfsping
 Version:        0.1
-Release:        1.git%{git_rel}%{?dist}
+Release:        5.git%{git_rel}%{?dist}
 Summary:        NFSping is a command line utility for measuring the response time of an NFS server. 
 Group:          Applications/Internet
 License:        BSD
@@ -21,15 +21,19 @@ On modern NFS servers, the network stack and filesystem are often being run on s
 %prep
 %setup -q -n mprovost-NFSping-%{git_rel}
 
-%build
-make %{?_smp_mflags}
 
+%build
+make
 
 %install
 rm -rf %{buildroot}
 %{__mkdir} -p %{buildroot}%{_bindir}
 %{__mkdir} -p %{buildroot}%{_datadir}/smokeping/lib/Smokeping/probes
-%{__install} -m 755 nfsping %{buildroot}%{_bindir}/nfsping
+%{__install} -m 755 bin/nfscat %{buildroot}%{_bindir}/nfscat
+%{__install} -m 755 bin/nfsdf %{buildroot}%{_bindir}/nfsdf
+%{__install} -m 755 bin/nfsls %{buildroot}%{_bindir}/nfsls
+%{__install} -m 755 bin/nfsmount %{buildroot}%{_bindir}/nfsmount
+%{__install} -m 755 bin/nfsping %{buildroot}%{_bindir}/nfsping
 %{__install} -p -m 644 Smokeping/NFSping.pm %{buildroot}%{_datadir}/smokeping/lib/Smokeping/probes/NFSping.pm
 
 %clean
@@ -38,12 +42,17 @@ rm -rf %{buildroot}
 
 %files
 %defattr(-,root,root,-)
-%{_bindir}/nfsping
+%{_bindir}/*
 %{_datadir}/smokeping/lib/Smokeping/probes/NFSping.pm
 %doc README
 
 
 %changelog
+* Thu Aug 21 2014 Johan van den Dorpe <jvd@dneg.com> 0.1-5.git6ef8ce5
+- Update to git rev 6ef8ce5
+- Update for new binaries and filesystem layout
+- Remove smp_mflags - make fails with 4+ simultaneous jobs run
+
 * Fri Dec 06 2013 James Braid 0.1-4.gitdcf2f31
 - Makefile is in top level directory now
 
