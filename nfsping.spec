@@ -21,9 +21,9 @@ On modern NFS servers, the network stack and filesystem are often being run on s
 %prep
 %setup -q -n mprovost-NFSping-%{git_rel}
 
-%build
-make %{?_smp_mflags}
 
+%build
+make
 
 %install
 rm -rf %{buildroot}
