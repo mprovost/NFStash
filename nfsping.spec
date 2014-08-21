@@ -48,6 +48,11 @@ rm -rf %{buildroot}
 
 
 %changelog
+* Thu Aug 21 2014 Johan van den Dorpe <jvd@dneg.com> 0.1-5.git6ef8ce5
+- Update to git rev 6ef8ce5
+- Update for new binaries and filesystem layout
+- Remove smp_mflags - make fails with 4+ simultaneous jobs run
+
 * Fri Dec 06 2013 James Braid 0.1-4.gitdcf2f31
 - Makefile is in top level directory now
 
