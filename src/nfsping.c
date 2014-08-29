@@ -45,6 +45,14 @@ void usage() {
     exit(3);
 }
 
+
+void fatal(char *errstr, int status) {
+    fprintf(stderr, "nfsping: %s\n", errstr);
+    usage();
+    exit(status); 
+}
+
+
 void print_summary(targets_t targets) {
     targets_t *target = &targets;
     double loss;
@@ -255,11 +263,15 @@ int main(int argc, char **argv) {
                 break;
             /* check network lock manager protocol */
             case 'L':
-                prognum = NLM_PROG;
-                /* default to the portmapper */
-                port = 0;
-                /* TODO add support for version 2 for NFSv2 */
-                version = 4; /* 4 == NFSv3 */
+                if (prognum == NFS_PROGRAM) {
+                    prognum = NLM_PROG;
+                    /* default to the portmapper */
+                    port = 0;
+                    /* TODO add support for version 2 for NFSv2 */
+                    version = 4; /* 4 == NFSv3 */
+                } else {
+                    fatal("Only one protocol!", 3);
+                }
                 break;
             /* use multiple IP addresses if found */
             /* TODO in this case do we also want to default to showing IP addresses instead of names? */
@@ -278,15 +290,23 @@ int main(int argc, char **argv) {
                 break;
             /* check mount protocol */
             case 'n':
-                prognum = MOUNTPROG;
-                /* if we're checking mount instead of nfs, default to using the portmapper */
-                port = 0;
+                if (prognum == NFS_PROGRAM) {
+                    prognum = MOUNTPROG;
+                    /* if we're checking mount instead of nfs, default to using the portmapper */
+                    port = 0;
+                } else {
+                    fatal("Only one protocol!", 3);
+                }
                 break;
             /* check portmap protocol */
             case 'N':
-                prognum = PMAPPROG;
-                port = htons(PMAPPORT); /* 111 */
-                version = 2; /* not sure if this is needed */
+                if (prognum == NFS_PROGRAM) {
+                    prognum = PMAPPROG;
+                    port = htons(PMAPPORT); /* 111 */
+                    version = 2; /* not sure if this is needed */
+                } else {
+                    fatal("Only one protocol!", 3);
+                }
                 break;
             /* output format */
             case 'o':
