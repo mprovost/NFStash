@@ -175,8 +175,7 @@ int main(int argc, char **argv) {
             /* specify source address */
             case 'S':
                 if (inet_pton(AF_INET, optarg, &src_ip.sin_addr) != 1) {
-                    fprintf(stderr, "nfsping: Invalid source IP address!\n");
-                    exit(3);
+                    fatal("Invalid source IP address!\n");
                 }
                 break;
             /* use TCP */

@@ -92,15 +92,13 @@ int main(int argc, char **argv) {
             case 'c':
                 count = strtoul(optarg, NULL, 10);
                 if (count == 0) {
-                    fprintf(stderr, "nfscat: zero count, nothing to do!\n");
-                    exit(3);
+                    fatal("Zero count, nothing to do!\n");
                 }
                 break;
             /* source ip address for packets */
             case 'S':
                 if (inet_pton(AF_INET, optarg, &src_ip.sin_addr) != 1) {
-                    fprintf(stderr, "nfsping: Invalid source IP address!\n");
-                    exit(3);
+                    fatal("Invalid source IP address!\n");
                 }
                 break;
             /* use TCP */

@@ -193,8 +193,7 @@ int main(int argc, char **argv) {
             /* display gigabytes */
             case 'g':
                 if (prefix != NONE) {
-                    fprintf(stderr, "Can't specify multiple units!\n");
-                    usage();
+                    fatal("Can't specify multiple units!\n");
                 } else {
                     prefix = GIGA;
                 }
@@ -202,8 +201,7 @@ int main(int argc, char **argv) {
             /* display human readable (default, set below) */
             case 'h':
                 if (prefix != NONE) {
-                    fprintf(stderr, "Can't specify multiple units!\n");
-                    usage();
+                    fatal("Can't specify multiple units!\n");
                 } else {
                     prefix = HUMAN;
                 }
@@ -215,8 +213,7 @@ int main(int argc, char **argv) {
             /* display kilobytes */
             case 'k':
                 if (prefix != NONE) {
-                    fprintf(stderr, "Can't specify multiple units!\n");
-                    usage();
+                    fatal("Can't specify multiple units!\n");
                 } else {
                     prefix = KILO;
                 }
@@ -224,8 +221,7 @@ int main(int argc, char **argv) {
             /* display megabytes */
             case 'm':
                 if (prefix != NONE) {
-                    fprintf(stderr, "Can't specify multiple units!\n");
-                    usage();
+                    fatal("Can't specify multiple units!\n");
                 } else {
                     prefix = MEGA;
                 }
@@ -233,8 +229,7 @@ int main(int argc, char **argv) {
             /* output format */
             case 'o':
                 if (prefix != NONE) {
-                    fprintf(stderr, "Can't specify units and output format!\n");
-                    usage();
+                    fatal("Can't specify units and output format!\n");
                 } else {
                     if (strcmp(optarg, "G") == 0) {
                         format = graphite;
@@ -243,23 +238,20 @@ int main(int argc, char **argv) {
                     } else if (strcmp(optarg, "T") == 0) {
                         format = opentsdb;
                     } else {
-                        fprintf(stderr, "Unknown output format \"%s\"!\n", optarg);
-                        usage();
+                        fatal("Unknown output format \"%s\"!\n", optarg);
                     }
                 }
                 break;
             /* specify source address */
             case 'S':
                 if (inet_pton(AF_INET, optarg, &src_ip.sin_addr) != 1) {
-                    fprintf(stderr, "nfsping: Invalid source IP address!\n");
-                    exit(3);
+                    fatal("nfsping: Invalid source IP address!\n");
                 }
                 break;
             /* display terabytes */
             case 't':
                 if (prefix != NONE) {
-                    fprintf(stderr, "Can't specify multiple units!\n");
-                    usage();
+                    fatal("Can't specify multiple units!\n");
                 } else {
                     prefix = TERA;
                 }
