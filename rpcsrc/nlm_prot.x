@@ -15,7 +15,6 @@
 %/*static char sccsid[] = "from: * @(#)nlm_prot.x	2.1 88/08/01 4.0 RPCSRC";*/
 %__RCSID("$NetBSD: nlm_prot.x,v 1.6 2000/06/07 14:30:15 bouyer Exp $");
 %#endif /* not lint */
-%__FBSDID("$FreeBSD$");
 #endif
 
 /*
@@ -270,6 +269,8 @@ program NLM_PROG {
 
 	version NLM_VERS {
 
+		void		NLM_NULL(void) =	0;
+
 		nlm_testres	NLM_TEST(struct nlm_testargs) =	1;
 
 		nlm_res		NLM_LOCK(struct nlm_lockargs) =	2;
@@ -304,6 +305,7 @@ program NLM_PROG {
 	} = 3;
 
 	version NLM_VERS4 {
+		void NLM4_NULL(void) = 0;
 		nlm4_testres NLM4_TEST(nlm4_testargs) = 1;
 		nlm4_res NLM4_LOCK(nlm4_lockargs) = 2;
 		nlm4_res NLM4_CANCEL(nlm4_cancargs) = 3;
