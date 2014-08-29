@@ -51,7 +51,7 @@ filer1 : [4], 0.12 ms (0.14 avg, 0% loss)
 
 filer1 : xmt/rcv/%loss = 5/5/0%, min/avg/max = 0.09/0.14/0.16
 
-Or to send a continuous sequence of pings (like the traditional ICMP ping command) use the -l (loop) option:
+Or to send a continuous sequence of packets (like the traditional ICMP ping command) use the -l (loop) option:
 
 $ nfsping -l filer1
 
@@ -133,6 +133,7 @@ Usage: nfsping [options] [targets...]
     -S addr    set source address
     -t n       timeout (in ms, default 2500)
     -T         use TCP (default UDP)
+    -v         verbose output
     -V n       specify NFS version (2 or 3, default 3)
 
 NFSping will handle multiple targets and iterate through them on each round. If there are multiple DNS responses for a target, only the first is used. All of them can be checked by using the -m option. The sleep interval between targets can be controlled with the -i option. If any of the targets fail to respond, the command will exit with a status code of 1.
