@@ -28,6 +28,8 @@
 #include "pmap_prot.h"
 #include "nlm_prot.h"
 
+#define fatal(x...) do { fprintf(stderr,x); usage(); } while (0)
+
 /* struct timeval */
 #define NFS_TIMEOUT { 2, 500000 };
 /* struct timespec */

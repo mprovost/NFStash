@@ -46,13 +46,6 @@ void usage() {
 }
 
 
-void fatal(char *errstr, int status) {
-    fprintf(stderr, "nfsping: %s\n", errstr);
-    usage();
-    exit(status); 
-}
-
-
 void print_summary(targets_t targets) {
     targets_t *target = &targets;
     double loss;
@@ -221,16 +214,14 @@ int main(int argc, char **argv) {
                 if (format == human) {
                     format = fping;
                 } else {
-                    fprintf(stderr, "nfsping: Can't specify both -C and -o!\n");
-                    usage();
+                    fatal("Can't specify both -C and -o!\n");
                 }
                 /* fall through to regular count */
             /* number of pings per target */
             case 'c':
                 count = strtoul(optarg, NULL, 10);
                 if (count == 0) {
-                    fprintf(stderr, "nfsping: zero count, nothing to do!\n");
-                    exit(3);
+                    fatal("Zero count, nothing to do!\n");
                 }
                 break;
             /* do reverse dns lookups for IP addresses */
@@ -242,11 +233,9 @@ int main(int argc, char **argv) {
                     format = unixtime;
                 /* TODO this should probably work, maybe a format=fpingunix? */
                 } else if (format == fping) {
-                    fprintf(stderr, "nfsping: Can't specify both -C and -D!\n");
-                    usage();
+                    fatal("Can't specify both -C and -D!\n");
                 } else {
-                    fprintf(stderr, "nfsping: Can't specify both -D and -o!\n");
-                    usage();
+                    fatal("Can't specify both -D and -o!\n");
                 }
                 break;
             /* prefix to use for graphite metrics */
@@ -270,7 +259,7 @@ int main(int argc, char **argv) {
                     /* TODO add support for version 2 for NFSv2 */
                     version = 4; /* 4 == NFSv3 */
                 } else {
-                    fatal("Only one protocol!", 3);
+                    fatal("Only one protocol!\n");
                 }
                 break;
             /* use multiple IP addresses if found */
@@ -284,8 +273,7 @@ int main(int argc, char **argv) {
                 if (port == htons(NFS_PORT)) {
                     port = 0;
                 } else {
-                    fprintf(stderr, "nfsping: Can't specify both port and portmapper!\n");
-                    exit(3);
+                    fatal("Can't specify both port and portmapper!\n");
                 }
                 break;
             /* check mount protocol */
@@ -295,7 +283,7 @@ int main(int argc, char **argv) {
                     /* if we're checking mount instead of nfs, default to using the portmapper */
                     port = 0;
                 } else {
-                    fatal("Only one protocol!", 3);
+                    fatal("Only one protocol!\n");
                 }
                 break;
             /* check portmap protocol */
@@ -305,17 +293,15 @@ int main(int argc, char **argv) {
                     port = htons(PMAPPORT); /* 111 */
                     version = 2; /* not sure if this is needed */
                 } else {
-                    fatal("Only one protocol!", 3);
+                    fatal("Only one protocol!\n");
                 }
                 break;
             /* output format */
             case 'o':
                 if (format == fping) {
-                    fprintf(stderr, "nfsping: Can't specify both -C and -o!\n");
-                    usage();
+                    fatal("Can't specify both -C and -o!\n");
                 } else if (format == unixtime) {
-                    fprintf(stderr, "nfsping: Can't specify both -D and -o!\n");
-                    usage();
+                    fatal("Can't specify both -D and -o!\n");
                 }
 
                 if (strcmp(optarg, "G") == 0) {
@@ -325,8 +311,7 @@ int main(int argc, char **argv) {
                 } else if (strcmp(optarg, "T") == 0) {
                     format = opentsdb;
                 } else {
-                    fprintf(stderr, "nfsping: unknown output format \"%s\"!\n", optarg);
-                    usage();
+                    fatal("Unknown output format \"%s\"!\n", optarg);
                 }
                 break;
             /* time between pings to target */
@@ -339,8 +324,7 @@ int main(int argc, char **argv) {
                 if (port) {
                     port = htons(strtoul(optarg, NULL, 10));
                 } else {
-                    fprintf(stderr, "nfsping: Can't specify both portmapper and port!\n");
-                    exit(3);
+                    fatal("Can't specify both portmapper and port!\n");
                 }
                 break;
             /* quiet, only print summary */
@@ -354,16 +338,14 @@ int main(int argc, char **argv) {
             /* source ip address for packets */
             case 'S':
                 if (inet_pton(AF_INET, optarg, &src_ip.sin_addr) != 1) {
-                    fprintf(stderr, "nfsping: Invalid source IP address!\n");
-                    exit(3);
+                    fatal("Invalid source IP address!\n");
                 }
                 break;
             /* timeout */
             case 't':
                 ms2tv(&timeout, strtoul(optarg, NULL, 10));
                 if (timeout.tv_sec == 0 && timeout.tv_usec == 0) {
-                    fprintf(stderr, "nfsping: zero timeout!\n");
-                    exit(3);
+                    fatal("Zero timeout!\n");
                 }
                 break;
             /* use TCP */
@@ -387,8 +369,7 @@ int main(int argc, char **argv) {
 
     /* output formatting doesn't make sense for the simple check */
     if (count == 0 && loop == 0 && format != human) {
-        fprintf(stderr, "Can't specify output format without ping count!\n");
-        exit(3);
+        fatal("Can't specify output format without ping count!");
     }
 
     /* mark the first non-option argument */
