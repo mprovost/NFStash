@@ -20,7 +20,7 @@ void usage() {
     -C n       same as -c, output parseable format\n\
     -d         reverse DNS lookups for targets\n\
     -D         print timestamp (unix time) before each line\n\
-    -g string  prefix for graphite metric names (default \"nfs\")\n\
+    -g string  prefix for graphite metric names (default \"nfs\"/\"mount\"/\"portmap\")\n\
     -h         display this help and exit\n\
     -i n       interval between targets (in ms, default %lu)\n\
     -l         loop forever\n\
@@ -91,6 +91,8 @@ void print_output(enum outputs format, char *prefix, targets_t *target, unsigned
             printf("mount");
         } else if (prognum == PMAPPROG) {
             printf("portmap");
+        } else if (prognum == NLM_PROG) {
+            printf("nlm");
         } else {
             printf("ping");
         }
@@ -114,6 +116,8 @@ void print_lost(enum outputs format, char *prefix, targets_t *target, unsigned l
             printf("mount");
         } else if (prognum == PMAPPROG) {
             printf("portmap");
+        } else if (prognum == NLM_PROG) {
+            printf("nlm");
         } else {
             printf("ping");
         }
@@ -195,7 +199,7 @@ int main(int argc, char **argv) {
     if (argc == 1)
         usage();
 
-    while ((ch = getopt(argc, argv, "Ac:C:dDg:hi:lmMnNo:p:P:qr:S:t:TV:")) != -1) {
+    while ((ch = getopt(argc, argv, "Ac:C:dDg:hi:lLmMnNo:p:P:qr:S:t:TV:")) != -1) {
         switch(ch) {
             /* show IP addresses */
             case 'A':
@@ -245,6 +249,14 @@ int main(int argc, char **argv) {
             /* loop forever */
             case 'l':
                 loop = 1;
+                break;
+            /* check network lock manager protocol */
+            case 'L':
+                prognum = NLM_PROG;
+                /* default to the portmapper */
+                port = 0;
+                /* TODO add support for version 2 for NFSv2 */
+                version = 4; /* 4 == NFSv3 */
                 break;
             /* use multiple IP addresses if found */
             /* TODO in this case do we also want to default to showing IP addresses instead of names? */
@@ -480,6 +492,9 @@ int main(int argc, char **argv) {
                     status = mountproc_null_3(NULL, target->client);
                 } else if (prognum == PMAPPROG) {
                     status = pmapproc_null_2(NULL, target->client);
+                } else if (prognum == NLM_PROG) {
+                    /* TODO support older versions */
+                    status = nlm4_null_4(NULL, target->client);
                 } else {
                     /* TODO version 2 */
                     /* this might work for both versions */
@@ -531,6 +546,8 @@ int main(int argc, char **argv) {
                             fprintf(stderr, "Unable to contact mount port, consider using portmapper (-M)\n");
                     } else if (prognum == PMAPPROG) {
                         clnt_perror(target->client, "pmapproc_null_2");
+                    } else if (prognum == NLM_PROG) {
+                        clnt_perror(target->client, "nlm4_null_4");
                     } else {
                         clnt_perror(target->client, "nfsproc3_null_3");
                     }
