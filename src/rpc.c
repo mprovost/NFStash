@@ -2,6 +2,8 @@
 
 #include "nfsping.h"
 
+extern int verbose;
+
 /* create an RPC client */
 /* takes an initialised sockaddr_in with the address and port */
 CLIENT *create_rpc_client(struct sockaddr_in *client_sock, struct addrinfo *hints, unsigned long prognum, unsigned long version, struct timeval timeout, struct sockaddr_in src_ip) {
@@ -49,6 +51,9 @@ CLIENT *create_rpc_client(struct sockaddr_in *client_sock, struct addrinfo *hint
                 }
             /* it worked, we have a socket */
             } else {
+                if (verbose) {
+                    printf("source port = %u\n", ntohs(src_ip.sin_port));
+                }
                 break;
             }
         }
@@ -86,6 +91,8 @@ CLIENT *create_rpc_client(struct sockaddr_in *client_sock, struct addrinfo *hint
     /* by this point we should know which port we're talking to */
     if (client_sock->sin_port == 0) {
         clnt_pcreateerror("pmap_getport");
+    } else if (verbose) {
+        printf("portmapper = %u\n", ntohs(client_sock->sin_port));
     }
 
     if (client) {

@@ -2,13 +2,17 @@
 #include "rpc.h"
 #include "util.h"
 
+int verbose = 0;
+
 void usage() {
     printf("Usage: nfsmount [options] host[:mountpoint]\n\
     -e       print exports (like showmount -e)\n\
+    -h       display this help and exit\n\
     -m       use multiple target IP addresses if found\n\
     -S addr  set source address\n\
-    -T       use TCP (default UDP)\n"
-    );
+    -T       use TCP (default UDP)\n\
+    -v       verbose output\n\
+    ");
 
     exit(3);
 }
@@ -162,7 +166,7 @@ int main(int argc, char **argv) {
     if (argc == 1)
         usage();
 
-    while ((ch = getopt(argc, argv, "ehS:T")) != -1) {
+    while ((ch = getopt(argc, argv, "ehS:Tv")) != -1) {
         switch(ch) {
             /* output like showmount -e */
             case 'e':
@@ -178,6 +182,9 @@ int main(int argc, char **argv) {
             /* use TCP */
             case 'T':
                 hints.ai_socktype = SOCK_STREAM;
+                break;
+            /* verbose */
+                verbose = 1;
                 break;
             case 'h':
             case '?':

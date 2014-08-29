@@ -1,13 +1,16 @@
 #include "nfsping.h"
 #include "rpc.h"
 
+int verbose = 0;
 
 void usage() {
     printf("Usage: nfscat [options] [targets...]\n\
     -b       blocksize (in bytes, default 8192)\n\
     -c n     count of read requests to send to target\n\
+    -h       display this help and exit\n\
     -S addr  set source address\n\
-    -T       use TCP (default UDP)\n");
+    -T       use TCP (default UDP)\n\
+    -v       verbose output\n");
 
     exit(3);
 }
@@ -79,7 +82,7 @@ int main(int argc, char **argv) {
         .sin_addr = 0
     };
 
-    while ((ch = getopt(argc, argv, "b:c:hS:T")) != -1) {
+    while ((ch = getopt(argc, argv, "b:c:hS:Tv")) != -1) {
         switch(ch) {
             /* blocksize */
             case 'b':
@@ -104,6 +107,11 @@ int main(int argc, char **argv) {
             case 'T':
                 hints.ai_socktype = SOCK_STREAM;
                 break;
+            /* verbose */
+            case 'v':
+                verbose = 1;
+                break;
+            case 'h':
             default:
                 usage();
         }

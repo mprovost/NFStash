@@ -1,12 +1,15 @@
 #include "nfsping.h"
 #include "rpc.h"
 
+int verbose = 0;
 
 void usage() {
     printf("Usage: nfsls [options] [filehandle...]\n\
     -a       print hidden files\n\
+    -h       display this help and exit\n\
     -S addr  set source address\n\
-    -T       use TCP (default UDP)\n"); 
+    -T       use TCP (default UDP)\n\
+    -v       verbose output\n"); 
 
     exit(3);
 }
@@ -92,7 +95,7 @@ int main(int argc, char **argv) {
         .sin_addr = 0
     };
 
-    while ((ch = getopt(argc, argv, "ahS:T")) != -1) {
+    while ((ch = getopt(argc, argv, "ahS:Tv")) != -1) {
         switch(ch) {
             /* list hidden files */
             case 'a':
@@ -108,6 +111,10 @@ int main(int argc, char **argv) {
             /* use TCP */
             case 'T':
                 hints.ai_socktype = SOCK_STREAM;
+                break;
+            /* verbose */
+            case 'v':
+                verbose = 1;
                 break;
             case 'h':
             default:

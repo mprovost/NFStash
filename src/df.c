@@ -2,6 +2,8 @@
 #include "rpc.h"
 #include "util.h"
 
+int verbose = 0;
+
 void usage() {
     printf("Usage: nfsdf [options] [filehandle...]\n\
     -g       display sizes in gigabytes\n\
@@ -13,6 +15,7 @@ void usage() {
     -t       display sizes in terabytes\n\
     -S addr  set source address\n\
     -T       use TCP (default UDP)\n\
+    -v       verbose output\n\
     ");
 
     exit(3);
@@ -185,7 +188,7 @@ int main(int argc, char **argv) {
         .sin_addr = 0
     };
 
-    while ((ch = getopt(argc, argv, "ghikmo:S:tT")) != -1) {
+    while ((ch = getopt(argc, argv, "ghikmo:S:tTv")) != -1) {
         switch(ch) {
             /* display gigabytes */
             case 'g':
@@ -264,6 +267,10 @@ int main(int argc, char **argv) {
             /* use TCP */
             case 'T':
                 hints.ai_socktype = SOCK_STREAM;
+                break;
+            /* verbose */
+            case 'v':
+                verbose = 1;
                 break;
             case '?':
             default:

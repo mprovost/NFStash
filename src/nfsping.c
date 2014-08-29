@@ -4,6 +4,7 @@
 #include "string.h"
 
 volatile sig_atomic_t quitting;
+int verbose = 0;
 
 void int_handler(int sig) {
     quitting = 1;
@@ -37,6 +38,7 @@ void usage() {
     -S addr    set source address\n\
     -t n       timeout (in ms, default %lu)\n\
     -T         use TCP (default UDP)\n\
+    -v         verbose output\n\
     -V n       specify NFS version (2 or 3, default 3)\n",
     ts2ms(wait_time), ts2ms(sleep_time), NFS_PORT, tv2ms(timeout));
 
@@ -200,7 +202,7 @@ int main(int argc, char **argv) {
     if (argc == 1)
         usage();
 
-    while ((ch = getopt(argc, argv, "Ac:C:dDg:hi:lLmMnNo:p:P:qr:S:t:TV:")) != -1) {
+    while ((ch = getopt(argc, argv, "Ac:C:dDg:hi:lLmMnNo:p:P:qr:S:t:TvV:")) != -1) {
         switch(ch) {
             /* show IP addresses */
             case 'A':
@@ -347,6 +349,10 @@ int main(int argc, char **argv) {
             /* use TCP */
             case 'T':
                 hints.ai_socktype = SOCK_STREAM;
+                break;
+            /* verbose */
+            case 'v':
+                verbose = 1;
                 break;
             /* specify NFS version */
             case 'V':
