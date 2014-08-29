@@ -75,7 +75,6 @@ CLIENT *create_rpc_client(struct sockaddr_in *client_sock, struct addrinfo *hint
         /* this makes a separate connection, lame */
         if (client_sock->sin_port == 0)
             client_sock->sin_port = htons(pmap_getport(client_sock, prognum, version, IPPROTO_UDP));
-        client_sock->sin_port == 0;
         client = clntudp_create(client_sock, prognum, version, timeout, &sock);
 
         if (client == NULL) {
