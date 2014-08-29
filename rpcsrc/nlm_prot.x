@@ -13,7 +13,7 @@
 %#ifndef lint
 %/*static char sccsid[] = "from: @(#)nlm_prot.x 1.8 87/09/21 Copyr 1987 Sun Micro";*/
 %/*static char sccsid[] = "from: * @(#)nlm_prot.x	2.1 88/08/01 4.0 RPCSRC";*/
-%__RCSID("$NetBSD: nlm_prot.x,v 1.6 2000/06/07 14:30:15 bouyer Exp $");
+%/*static char rcsid[] = "$NetBSD: nlm_prot.x,v 1.6 2000/06/07 14:30:15 bouyer Exp $";*/
 %#endif /* not lint */
 #endif
 
@@ -162,19 +162,19 @@ struct nlm4_stat {
 
 struct nlm4_holder {
 	bool exclusive;
-	u_int32_t svid;
+	uint32_t svid;
 	netobj oh;
-	u_int64_t l_offset;
-	u_int64_t l_len;
+	uint64_t l_offset;
+	uint64_t l_len;
 };
 
 struct nlm4_lock {
 	string caller_name<MAXNAMELEN>;
 	netobj fh;
 	netobj oh;
-	u_int32_t svid;
-	u_int64_t l_offset;
-	u_int64_t l_len;
+	uint32_t svid;
+	uint64_t l_offset;
+	uint64_t l_len;
 };
 
 struct nlm4_share {
