@@ -15,7 +15,7 @@ CPPFLAGS += -MMD -MP
 
 # phony target to generate rpc files
 # we're only really interested in the generated headers so gcc can figure out the rest of the dependencies
-rpcgen: rpcsrc/nfs_prot.h rpcsrc/mount.h rpcsrc/pmap_prot.h
+rpcgen: $(addprefix rpcsrc/, nfs_prot.h mount.h pmap_prot.h nlm_prot.h)
 
 # pattern rule for rpc files
 # making this into a pattern means they are all evaluated at once which lets -j2 or higher work
