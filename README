@@ -10,11 +10,13 @@ filer1 : xmt/rcv/%loss = 5/5/0%, min/avg/max = 0.33/0.55/1.18
 
 NFSping is a command line utility for measuring the availability and response times of an NFS server by sending probe packets. It's basically a copy of the fping interface but doesn't share any code with that project.
 
-On modern NFS servers, the network stack and filesystem are often being run on separate cores or even hardware components. This means in practise that a fast ICMP ping response isn't indicative of how quickly the NFS services are responding. This tool directly tests the responsiveness of the server's NFS component. It can check three of the RPC protocols that are used by NFS (NFS, mount and portmap).
+On modern NFS servers, the network stack and filesystem are often being run on separate cores or even hardware components. This means in practise that a fast ICMP ping response isn't indicative of how quickly the NFS services are responding. This tool directly tests the responsiveness of the server's NFS component. It can check four of the RPC protocols that are used by NFS: NFS, mount and portmap, and the network lock manager (NLM).
 
 For NFS, NFSping checks if the server is responding by sending an NFS NULL RPC and waiting for a response. The NULL procedure is a noop that is designed for testing. NFSping supports versions 2 and 3 of NFS. By default it doesn't use the RPC portmapper for NFS pings and sends NULL packets to port 2049 using the UDP transport. Use the -T option to use TCP, -M to query the portmapper, or -P to specify a port number.
 
 NFSping can also check the mount protocol response using the -n option. It uses the portmapper by default to discover the port that the mount protocol is bound to on the target. A port can be specified using the -P option.
+
+The -L option will check the network lock manager (NLM) protocol, using the portmapper to discover the port.
 
 The -N option will check the portmap protocol itself (listening on port 111).
 
@@ -73,15 +75,15 @@ To only show the summary line, use the -q (quiet) option.
 NFSping can also output stats in a variety of formats for putting into time series databases. Currently only Graphite and StatsD are supported:
 
 $ nfsping -c 5 -oG filer1
-nfs.filer1.ping.usec 401 1370501562
-nfs.filer1.ping.usec 416 1370501563
-nfs.filer1.ping.usec 403 1370501564
-nfs.filer1.ping.usec 410 1370501565
-nfs.filer1.ping.usec 399 1370501566
+nfsping.filer1.ping.usec 401 1370501562
+nfsping.filer1.ping.usec 416 1370501563
+nfsping.filer1.ping.usec 403 1370501564
+nfsping.filer1.ping.usec 410 1370501565
+nfsping.filer1.ping.usec 399 1370501566
 
 This is the Graphite plaintext protocol which is <path> <metric> <timestamp>. To avoid floating point numbers, nfsping reports the response time in microseconds (usec).
 
-The default prefix for the Graphite path is "nfs", "mount" or "portmap" depending upon the protocol being probed. This can be changed by specifying a new string as an argument to the -g option. Fully qualified domain names (but not IP addresses) for targets will be reversed:
+The default prefix for the Graphite path is "nfsping". This can be changed by specifying a new string as an argument to the -g option. Fully qualified domain names (but not IP addresses) for targets will be reversed:
 
 $ nfsping -c 1 -oG -g filers filer1.my.domain
 filers.domain.my.filer1.ping.usec 292 1409332974
@@ -90,18 +92,18 @@ This output can be easily redirected to a Carbon server using nc (netcat):
 
 $ nfsping -l -t1000 -oG filer1 filer2 | nc carbon1 2003
 
-This will send a result every second. Because nfsping is single threaded it's best to set a timeout to stop unresponsive NFS servers from affecting the results when specifying multiple targets. Lost requests will be reported under a separate path, $prefix.$target.ping.lost, with a metric of 1.
+This will send a result every second. Because nfsping is single threaded it's best to set a timeout to stop unresponsive NFS servers from affecting the results when specifying multiple targets. Lost requests will be reported under a separate path, $prefix.$target.$protocol.lost, with a metric of 1.
 
 nc will exit if the TCP connection is reset (such as if the Carbon server is restarted) which will also cause nfsping to exit with a broken pipe. To retry, start a persistent process under something like daemontools or runit which will restart the process if it exits for any reason.
 
 Similarly, the StatsD output will produce plaintext output suitable for sending to StatsD with netcat:
 
 $ nfsping -c 5 -oS filer1
-nfs.filer1.ping:0.15|ms
-nfs.filer1.ping:0.18|ms
-nfs.filer1.ping:3.27|ms
-nfs.filer1.ping:11.61|ms
-nfs.filer1.ping:78.07|ms
+nfsping.filer1.ping:0.15|ms
+nfsping.filer1.ping:0.18|ms
+nfsping.filer1.ping:3.27|ms
+nfsping.filer1.ping:11.61|ms
+nfsping.filer1.ping:78.07|ms
 
 Note that this output uses floating point values, as the StatsD protocol only supports milliseconds. While floating point values are supported by the protocol, some implementations may not handle them. This output has been tested as working with statsite (https://github.com/armon/statsite).
 
@@ -114,10 +116,11 @@ Usage: nfsping [options] [targets...]
     -C n       same as -c, output parseable format
     -d         reverse DNS lookups for targets
     -D         print timestamp (unix time) before each line
-    -g string  prefix for graphite metric names (default "nfs"/"mount"/"portmap")
+    -g string  prefix for graphite metric names (default "nfsping")
     -h         display this help and exit
     -i n       interval between targets (in ms, default 25)
     -l         loop forever
+    -L         check the network lock manager (NLM) protocol (default NFS)
     -m         use multiple target IP addresses if found
     -M         use the portmapper (default: NFS no, mount yes)
     -n         check the mount protocol (default NFS)
