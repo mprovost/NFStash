@@ -17,15 +17,11 @@ CPPFLAGS += -MMD -MP
 # we're only really interested in the generated headers so gcc can figure out the rest of the dependencies
 rpcgen: rpcsrc/nfs_prot.h rpcsrc/mount.h
 
+# pattern rule for rpc files
+# making this into a pattern means they are all evaluated at once which lets -j2 or higher work
 # change to the rpcsrc directory first so output files go in the same directory
-
-#rpcgen NFS
-$(addprefix rpcsrc/, nfs_prot.h nfs_prot_clnt.c nfs_prot_svc.c nfs_prot_xdr.c): rpcsrc/nfs_prot.x
-	cd rpcsrc && rpcgen -DWANT_NFS3 nfs_prot.x
-
-#rpcgen MOUNT
-$(addprefix rpcsrc/, mount.h mount_clnt.c mount_svc.c mount_xdr.c): rpcsrc/mount.x
-	cd rpcsrc && rpcgen -DWANT_NFS3 mount.x
+$(addprefix rpcsrc/, %.h %_clnt.c %_svc.c %_xdr.c): rpcsrc/%.x
+	cd rpcsrc && rpcgen -DWANT_NFS3 $(notdir $<)
 
 # list of all src files for dependencies
 SRC = $(wildcard src/*.c)
