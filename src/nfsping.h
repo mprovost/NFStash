@@ -22,8 +22,10 @@
 #include <errno.h>
 
 /* local copies */
+/* TODO do these need to be included in all utilities? */
 #include "nfs_prot.h"
 #include "mount.h"
+#include "pmap_prot.h"
 
 /* struct timeval */
 #define NFS_TIMEOUT { 2, 500000 };

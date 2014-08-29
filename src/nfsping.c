@@ -21,11 +21,13 @@ void usage() {
     -d         reverse DNS lookups for targets\n\
     -D         print timestamp (unix time) before each line\n\
     -g string  prefix for graphite metric names (default \"nfs\")\n\
+    -h         display this help and exit\n\
     -i n       interval between targets (in ms, default %lu)\n\
     -l         loop forever\n\
     -m         use multiple target IP addresses if found\n\
     -M         use the portmapper (default: NFS no, mount yes)\n\
     -n         check the mount protocol (default NFS)\n\
+    -N         check the portmap protocol (default NFS)\n\
     -o         output format ([G]raphite, [S]tatsd, Open[T]sdb, default human readable)\n\
     -p n       pause between pings to target (in ms, default %lu)\n\
     -P n       specify port (default: NFS %i)\n\
@@ -87,6 +89,8 @@ void print_output(enum outputs format, char *prefix, targets_t *target, unsigned
         printf("%s.%s.", prefix, target->ndqf);
         if (prognum == MOUNTPROG) {
             printf("mount");
+        } else if (prognum == PMAPPROG) {
+            printf("portmap");
         } else {
             printf("ping");
         }
@@ -108,6 +112,8 @@ void print_lost(enum outputs format, char *prefix, targets_t *target, unsigned l
         printf("%s.%s.", prefix, target->ndqf);
         if (prognum == MOUNTPROG) {
             printf("mount");
+        } else if (prognum == PMAPPROG) {
+            printf("portmap");
         } else {
             printf("ping");
         }
@@ -133,13 +139,7 @@ targets_t *make_target(char *name, unsigned long prognum, uint16_t port, enum ou
 
     target->client_sock = calloc(1, sizeof(struct sockaddr_in));
     target->client_sock->sin_family = AF_INET;
-
-    /* if we're checking mount instead of nfs, default to using the portmapper */
-    if (prognum == MOUNTPROG && port == htons(NFS_PORT)) {
-        target->client_sock->sin_port = 0;
-    } else {
-        target->client_sock->sin_port = port;
-    }
+    target->client_sock->sin_port = port;
 
     /* set this so that the first comparison will always be smaller */
     target->min = ULONG_MAX;
@@ -195,7 +195,7 @@ int main(int argc, char **argv) {
     if (argc == 1)
         usage();
 
-    while ((ch = getopt(argc, argv, "Ac:C:dDg:hi:lmnMo:p:P:qr:S:t:TV:")) != -1) {
+    while ((ch = getopt(argc, argv, "Ac:C:dDg:hi:lmMnNo:p:P:qr:S:t:TV:")) != -1) {
         switch(ch) {
             /* show IP addresses */
             case 'A':
@@ -264,6 +264,14 @@ int main(int argc, char **argv) {
             /* check mount protocol */
             case 'n':
                 prognum = MOUNTPROG;
+                /* if we're checking mount instead of nfs, default to using the portmapper */
+                port = 0;
+                break;
+            /* check portmap protocol */
+            case 'N':
+                prognum = PMAPPROG;
+                port = htons(PMAPPORT); /* 111 */
+                version = 2; /* not sure if this is needed */
                 break;
             /* output format */
             case 'o':
@@ -298,7 +306,7 @@ int main(int argc, char **argv) {
                 } else {
                     fprintf(stderr, "nfsping: Can't specify both portmapper and port!\n");
                     exit(3);
-                }    
+                }
                 break;
             /* quiet, only print summary */
             /* TODO error if output also specified? */
@@ -467,13 +475,16 @@ int main(int argc, char **argv) {
                 /* first time marker */
                 gettimeofday(&call_start, NULL);
                 /* the actual ping */
-                if (prognum == MOUNTPROG)
+                if (prognum == MOUNTPROG) {
                     /* TODO version 2 */
                     status = mountproc_null_3(NULL, target->client);
-                else
+                } else if (prognum == PMAPPROG) {
+                    status = pmapproc_null_2(NULL, target->client);
+                } else {
                     /* TODO version 2 */
                     /* this might work for both versions */
                     status = nfsproc3_null_3(NULL, target->client);
+                }
                 /* second time marker */
                 gettimeofday(&call_end, NULL);
                 target->sent++;
@@ -512,17 +523,18 @@ int main(int argc, char **argv) {
                     fprintf(stderr, "%s : ", target->name);
                     clnt_geterr(target->client, &clnt_err);
 
-                    if (prognum == MOUNTPROG)
+                    if (prognum == MOUNTPROG) {
                         clnt_perror(target->client, "mountproc_null_3");
-                    else
+                        /* TODO is this needed with portmapper on by default? */
+                        /* mount port isn't very standard so print a warning */
+                        if (target->client_sock->sin_port && clnt_err.re_status == RPC_CANTRECV)
+                            fprintf(stderr, "Unable to contact mount port, consider using portmapper (-M)\n");
+                    } else if (prognum == PMAPPROG) {
+                        clnt_perror(target->client, "pmapproc_null_2");
+                    } else {
                         clnt_perror(target->client, "nfsproc3_null_3");
-                    fflush(stderr);
-
-                    /* TODO is this needed with portmapper on by default? */
-                    /* mount port isn't very standard so print a warning */
-                    if (prognum == MOUNTPROG && target->client_sock->sin_port && clnt_err.re_status == RPC_CANTRECV) {
-                        fprintf(stderr, "Unable to contact mount port, consider using portmapper (-M)\n");
                     }
+                    fflush(stderr);
                 }
 
                 print_lost(format, prefix, target, prognum, call_end);

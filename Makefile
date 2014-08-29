@@ -39,7 +39,7 @@ obj/%.o: rpcsrc/%.c | obj
 # make the bin directory first if it's not already there
 
 nfsping: bin/nfsping
-bin/nfsping: $(addprefix obj/, nfsping.o nfs_prot_clnt.o nfs_prot_xdr.o mount_clnt.o mount_xdr.o util.o rpc.o) | bin
+bin/nfsping: $(addprefix obj/, nfsping.o nfs_prot_clnt.o nfs_prot_xdr.o mount_clnt.o mount_xdr.o pmap_prot_clnt.o pmap_prot_xdr.o util.o rpc.o) | bin
 	gcc ${CFLAGS} $^ -o $@
 
 nfsmount: bin/nfsmount
