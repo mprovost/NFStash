@@ -20,10 +20,11 @@ void usage() {
     -C n       same as -c, output parseable format\n\
     -d         reverse DNS lookups for targets\n\
     -D         print timestamp (unix time) before each line\n\
-    -g string  prefix for graphite metric names (default \"nfs\"/\"mount\"/\"portmap\")\n\
+    -g string  prefix for graphite metric names (default \"nfsping\")\n\
     -h         display this help and exit\n\
     -i n       interval between targets (in ms, default %lu)\n\
     -l         loop forever\n\
+    -L         check the network lock manager (NLM) protocol (default NFS)\n\
     -m         use multiple target IP addresses if found\n\
     -M         use the portmapper (default: NFS no, mount yes)\n\
     -n         check the mount protocol (default NFS)\n\
@@ -166,7 +167,7 @@ int main(int argc, char **argv) {
     int getaddr;
     unsigned long us;
     enum outputs format = human;
-    char prefix[255] = "nfs";
+    char prefix[255] = "nfsping";
     targets_t *targets;
     targets_t *target;
     targets_t target_dummy;
