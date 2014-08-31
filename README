@@ -107,6 +107,7 @@ nfsping.filer1.ping:78.07|ms
 
 Note that this output uses floating point values, as the StatsD protocol only supports milliseconds. While floating point values are supported by the protocol, some implementations may not handle them. This output has been tested as working with statsite (https://github.com/armon/statsite).
 
+Some NFS servers can exhibit varied response times for different TCP connections. This can be due to resource exhaustion on the server, or different network paths taken across a trunked connection. To measure these different responses, use the -r option to force nfsping to close the TCP connection and reconnect to the server after every specified number of pings. Otherwise, new clients connecting to the server may be seeing different behaviour than nfsping's established TCP connection.
 
 This is a list of the available command-line options:
 
