@@ -49,8 +49,9 @@ CLIENT *create_rpc_client(struct sockaddr_in *client_sock, struct addrinfo *hint
     CLIENT *client;
     int sock;
     long unsigned protocol; /* for portmapper */
-    struct sockaddr_in get_sock; /* for getsockname */
-    socklen_t len = sizeof(get_sock);
+    char ip[INET_ADDRSTRLEN];
+    struct sockaddr_in getaddr; /* for getsockname */
+    socklen_t len = sizeof(getaddr);
 
     /* Make sure and make new sockets for each new connection */
     /* clnttcp_create will happily reuse open sockets */
@@ -77,10 +78,11 @@ CLIENT *create_rpc_client(struct sockaddr_in *client_sock, struct addrinfo *hint
             if (bind(sock, (struct sockaddr *) &src_ip, sizeof(src_ip)) == 0) {
                 /* it worked, we have a socket */
                 if (verbose) {
-                    if (getsockname(sock, (struct sockaddr *)&get_sock, &len) == -1) {
+                    if (getsockname(sock, (struct sockaddr *)&getaddr, &len) == -1) {
                         perror("getsockname");
                     } else {
-                        debug("portmap source port = %u\n", ntohs(get_sock.sin_port));
+                        inet_ntop(AF_INET, (struct sockaddr_in *)&getaddr.sin_addr, ip, INET_ADDRSTRLEN);
+                        debug("portmap source port = %s:%u\n", ip, ntohs(getaddr.sin_port));
                     }
                 }
             } else {
@@ -95,9 +97,14 @@ CLIENT *create_rpc_client(struct sockaddr_in *client_sock, struct addrinfo *hint
         /* TCP */
         if (hints->ai_socktype == SOCK_STREAM) {
             protocol = PMAP_IPPROTO_TCP;
-            client = clnttcp_create(client_sock, PMAPPROG, PMAPVERS, &sock, 0, 0);
-            if (client == NULL) {
-                clnt_pcreateerror("clnttcp_create");
+            if (connect(sock, (struct sockaddr *)client_sock, sizeof(struct sockaddr)) == 0) {
+                client = clnttcp_create(client_sock, PMAPPROG, PMAPVERS, &sock, 0, 0);
+                if (client == NULL) {
+                    clnt_pcreateerror("clnttcp_create");
+                }
+            } else {
+                perror("connect");
+                exit(EXIT_FAILURE);
             }
         /* UDP */
         } else {
@@ -115,7 +122,7 @@ CLIENT *create_rpc_client(struct sockaddr_in *client_sock, struct addrinfo *hint
         client = destroy_rpc_client(client);
 
         /* by this point we should know which port we're talking to */
-            debug("portmapper = %u\n", ntohs(client_sock->sin_port));
+        debug("portmapper = %u\n", ntohs(client_sock->sin_port));
     }
 
     /* now make the client connection */
@@ -156,10 +163,11 @@ CLIENT *create_rpc_client(struct sockaddr_in *client_sock, struct addrinfo *hint
             /* it worked, we have a socket */
             } else {
                 if (verbose) {
-                    if (getsockname(sock, (struct sockaddr *)&get_sock, &len) == -1) {
+                    if (getsockname(sock, (struct sockaddr *)&getaddr, &len) == -1) {
                         perror("getsockname");
                     } else {
-                        debug("source port = %u\n", ntohs(get_sock.sin_port));
+                        inet_ntop(AF_INET, (struct sockaddr_in *)&getaddr.sin_addr, ip, INET_ADDRSTRLEN);
+                        debug("source port = %s:%u\n", ip, ntohs(getaddr.sin_port));
                     }
                 }
                 break;
@@ -172,10 +180,15 @@ CLIENT *create_rpc_client(struct sockaddr_in *client_sock, struct addrinfo *hint
 
     /* TCP */
     if (hints->ai_socktype == SOCK_STREAM) {
-        /* TODO set recvsz and sendsz to the NFS blocksize */
-        client = clnttcp_create(client_sock, prognum, version, &sock, 0, 0);
-        if (client == NULL) {
-            clnt_pcreateerror("clnttcp_create");
+        if (connect(sock, (struct sockaddr *)client_sock, sizeof(struct sockaddr)) == 0) {
+            /* TODO set recvsz and sendsz to the NFS blocksize */
+            client = clnttcp_create(client_sock, prognum, version, &sock, 0, 0);
+            if (client == NULL) {
+                clnt_pcreateerror("clnttcp_create");
+            }
+        } else {
+            perror("connect");
+            exit(EXIT_FAILURE);
         }
     /* UDP */
     } else {
