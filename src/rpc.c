@@ -74,9 +74,7 @@ CLIENT *create_rpc_client(struct sockaddr_in *client_sock, struct addrinfo *hint
 
             if (bind(sock, (struct sockaddr *) &src_ip, sizeof(src_ip)) == 0) {
                 /* it worked, we have a socket */
-                if (verbose) {
-                    printf("source port = %u\n", ntohs(src_ip.sin_port));
-                }
+                debug("source port = %u\n", ntohs(src_ip.sin_port));
             } else {
                 perror("create_rpc_client");
                 exit(EXIT_FAILURE); /* TODO should this be a different return code? */
@@ -109,9 +107,7 @@ CLIENT *create_rpc_client(struct sockaddr_in *client_sock, struct addrinfo *hint
         client = destroy_rpc_client(client);
 
         /* by this point we should know which port we're talking to */
-        if (verbose) {
-            printf("portmapper = %u\n", ntohs(client_sock->sin_port));
-        }
+            debug("portmapper = %u\n", ntohs(client_sock->sin_port));
     }
 
     /* now make the client connection */
@@ -151,9 +147,7 @@ CLIENT *create_rpc_client(struct sockaddr_in *client_sock, struct addrinfo *hint
                 }
             /* it worked, we have a socket */
             } else {
-                if (verbose) {
-                    printf("source port = %u\n", ntohs(src_ip.sin_port));
-                }
+                debug("source port = %u\n", ntohs(src_ip.sin_port));
                 break;
             }
         }
