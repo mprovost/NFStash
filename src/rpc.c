@@ -49,6 +49,8 @@ CLIENT *create_rpc_client(struct sockaddr_in *client_sock, struct addrinfo *hint
     CLIENT *client;
     int sock;
     long unsigned protocol; /* for portmapper */
+    struct sockaddr_in get_sock; /* for getsockname */
+    socklen_t len = sizeof(get_sock);
 
     /* Make sure and make new sockets for each new connection */
     /* clnttcp_create will happily reuse open sockets */
@@ -74,7 +76,13 @@ CLIENT *create_rpc_client(struct sockaddr_in *client_sock, struct addrinfo *hint
 
             if (bind(sock, (struct sockaddr *) &src_ip, sizeof(src_ip)) == 0) {
                 /* it worked, we have a socket */
-                debug("source port = %u\n", ntohs(src_ip.sin_port));
+                if (verbose) {
+                    if (getsockname(sock, (struct sockaddr *)&get_sock, &len) == -1) {
+                        perror("getsockname");
+                    } else {
+                        debug("portmap source port = %u\n", ntohs(get_sock.sin_port));
+                    }
+                }
             } else {
                 perror("create_rpc_client");
                 exit(EXIT_FAILURE); /* TODO should this be a different return code? */
@@ -147,7 +155,13 @@ CLIENT *create_rpc_client(struct sockaddr_in *client_sock, struct addrinfo *hint
                 }
             /* it worked, we have a socket */
             } else {
-                debug("source port = %u\n", ntohs(src_ip.sin_port));
+                if (verbose) {
+                    if (getsockname(sock, (struct sockaddr *)&get_sock, &len) == -1) {
+                        perror("getsockname");
+                    } else {
+                        debug("source port = %u\n", ntohs(get_sock.sin_port));
+                    }
+                }
                 break;
             }
         }
