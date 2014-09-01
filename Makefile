@@ -43,19 +43,19 @@ bin/nfsping: $(addprefix obj/, nfsping.o nfs_prot_clnt.o nfs_prot_xdr.o mount_cl
 	gcc ${CFLAGS} $^ -o $@
 
 nfsmount: bin/nfsmount
-bin/nfsmount: $(addprefix obj/, mount.o mount_clnt.o mount_xdr.o rpc.o util.o) | bin
+bin/nfsmount: $(addprefix obj/, mount.o mount_clnt.o mount_xdr.o pmap_prot_clnt.o pmap_prot_xdr.o rpc.o util.o) | bin
 	gcc ${CFLAGS} $^ -o $@
 
 nfsdf: bin/nfsdf
-bin/nfsdf: $(addprefix obj/, df.o nfs_prot_clnt.o nfs_prot_xdr.o util.o rpc.o) | bin
+bin/nfsdf: $(addprefix obj/, df.o nfs_prot_clnt.o nfs_prot_xdr.o pmap_prot_clnt.o pmap_prot_xdr.o util.o rpc.o) | bin
 	gcc ${CFLAGS} $^ -o $@
 
 nfsls: bin/nfsls
-bin/nfsls: $(addprefix obj/, ls.o nfs_prot_clnt.o nfs_prot_xdr.o util.o rpc.o) | bin
+bin/nfsls: $(addprefix obj/, ls.o nfs_prot_clnt.o nfs_prot_xdr.o pmap_prot_clnt.o pmap_prot_xdr.o util.o rpc.o) | bin
 	gcc ${CFLAGS} $^ -o $@
 
 nfscat: bin/nfscat
-bin/nfscat: $(addprefix obj/, cat.o nfs_prot_clnt.o nfs_prot_xdr.o util.o rpc.o) | bin
+bin/nfscat: $(addprefix obj/, cat.o nfs_prot_clnt.o nfs_prot_xdr.o pmap_prot_clnt.o pmap_prot_xdr.o util.o rpc.o) | bin
 	gcc ${CFLAGS} $^ -o $@
 
 tests: tests/util_tests
