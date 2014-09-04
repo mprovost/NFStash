@@ -9,7 +9,7 @@ clean:
 bin obj deps:
 	mkdir $@
 
-CFLAGS = -Werror -g -I src -I rpcsrc
+CFLAGS = -Werror -g -I src -I.
 # generate header dependencies
 CPPFLAGS += -MMD -MP
 
@@ -20,8 +20,8 @@ rpcgen: $(addprefix rpcsrc/, nfs_prot.h mount.h pmap_prot.h nlm_prot.h)
 # pattern rule for rpc files
 # making this into a pattern means they are all evaluated at once which lets -j2 or higher work
 # change to the rpcsrc directory first so output files go in the same directory
-$(addprefix rpcsrc/, %.h %_clnt.c %_svc.c %_xdr.c): rpcsrc/%.x
-	cd rpcsrc && rpcgen -DWANT_NFS3 $(notdir $<)
+%.h %_clnt.c %_svc.c %_xdr.c: %.x
+	rpcgen -DWANT_NFS3 $<
 
 # pattern rule for makefiles using ronn
 % %.html: %.ronn
