@@ -123,10 +123,10 @@ Usage: nfsping [options] [targets...]
     -l         loop forever
     -L         check the network lock manager (NLM) protocol (default NFS)
     -m         use multiple target IP addresses if found
-    -M         use the portmapper (default: NFS no, mount yes)
+    -M         use the portmapper (default: NFS no, mount/NLM yes)
     -n         check the mount protocol (default NFS)
     -N         check the portmap protocol (default NFS)
-    -o         output format ([G]raphite, [S]tatsd, Open[T]sdb, default human readable)
+    -o F       output format ([G]raphite, [S]tatsd, default human readable)
     -p n       pause between pings to target (in ms, default 1000)
     -P n       specify port (default: NFS 2049)
     -q         quiet, only print summary

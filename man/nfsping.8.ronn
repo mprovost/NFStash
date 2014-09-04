@@ -1,0 +1,84 @@
+nfsping(8) -- send RPC NULL requests to NFS servers
+===================================================
+
+## SYNOPSIS
+
+`nfsping` [`-AdDhlLmMnNqTv`] [`-c` <count>] [`-C` <count>] [`-g` <prefix>] [`-i` <interval>] [`-o` <format>] [`-p` <pause>] [`-P` <port>] [`-r` <reconnect>] [`-S` <source>] [`-t` <timeout>] [`-V` <version>] <servers...>
+
+## DESCRIPTION
+
+`nfsping` sends RPC NULL requests to an NFS server to determine if it is responding and to measure the response time. It supports the portmap, mount, network lock manager (NLM) and network file system (NFS) protocols. The default protocol is NFS over UDP to port 2049.
+
+## OPTIONS
+
+* `-A`:
+  Display IP addresses (instead of hostnames).
+
+* `-c` <count>:
+  Count of ping requests to send to target(s) before exiting.
+
+* `-C` <count>:
+  Count of ping requests to send to target(s), output `fping(8)` compatible parseable format.
+
+* `-d`:
+  Perform reverse DNS lookups for target(s).
+
+* `-D`:
+  Print timestamp (Unix time) before each line of output.
+
+* `-g` <prefix>:
+  Specify string prefix for Graphite metric names. Default = "nfsping".
+
+* `-h`:
+  Display a help message and exit.
+
+* `-i` <interval>:
+  The interval (delay) between targets, in milliseconds. Default = 25.
+
+* `-l`:
+  Loop forever. Like traditional ICMP `ping(8)`. Exit loop with Ctrl-c.
+
+* `-L`:
+  Send network lock manager (NLM) protocol NULL requests.
+
+* `-m`:
+  Use multiple target IP addresses if found. For servers with multiple DNS A records (round-robin).
+
+* `-M`:
+  Use the portmapper to discover the listening port for the protocol on the server. Default no for NFS, yes for mount and NLM.
+
+* `-n`:
+  Send mount protocol NULL requests.
+
+* `-N`:
+  Send portmap protocol NULL requests.
+
+* `-o` <format>:
+  Specify output format for input to another program. Currently supported are [`G`]raphite and [`S`]tatsd.
+
+* `-p` <pause>:
+  Number of milliseconds to pause between requests to target. Default = 1000 (one second).
+
+* `-P` <port>:
+  The port on the server. Default = 2049 for NFS, 111 for portmap. The portmapper on the server is queried for other protocols.
+
+* `-q`:
+  Quiet. Only print a summary.
+
+* `-r` <reconnect>:
+  Disconnect and reconnect to the server after the specified number of requests.
+
+* `-S` <source>:
+  Use the specified source IP address for request packets.
+
+* `-t` <timeout>:
+  Timeout in milliseconds to wait for a response from the server. Default = 2500.
+
+* `-T`:
+  Use TCP to connect to server. Default = UDP.
+
+* `-v`:
+  Display debug output on `stderr`.
+
+* `-V` <version>:
+  Use protocol `version`. Default = 3 for NFS, can use version 2. Not supported for other protocols.

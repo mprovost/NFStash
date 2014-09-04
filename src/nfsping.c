@@ -27,12 +27,12 @@ void usage() {
     -l         loop forever\n\
     -L         check the network lock manager (NLM) protocol (default NFS)\n\
     -m         use multiple target IP addresses if found\n\
-    -M         use the portmapper (default: NFS no, mount yes)\n\
+    -M         use the portmapper (default: NFS no, mount/NLM yes)\n\
     -n         check the mount protocol (default NFS)\n\
     -N         check the portmap protocol (default NFS)\n\
-    -o         output format ([G]raphite, [S]tatsd, Open[T]sdb, default human readable)\n\
+    -o F       output format ([G]raphite, [S]tatsd, default human readable)\n\
     -p n       pause between pings to target (in ms, default %lu)\n\
-    -P n       specify port (default: NFS %i)\n\
+    -P n       specify port (default: NFS %i, portmap %i)\n\
     -q         quiet, only print summary\n\
     -r n       reconnect to server every n pings\n\
     -S addr    set source address\n\
@@ -40,7 +40,7 @@ void usage() {
     -T         use TCP (default UDP)\n\
     -v         verbose output\n\
     -V n       specify NFS version (2 or 3, default 3)\n",
-    ts2ms(wait_time), ts2ms(sleep_time), NFS_PORT, tv2ms(timeout));
+    ts2ms(wait_time), ts2ms(sleep_time), NFS_PORT, PMAPPORT, tv2ms(timeout));
 
     exit(3);
 }
