@@ -67,7 +67,7 @@ tests/util_tests: tests/util_tests.c tests/minunit.h util.o util.h
 	gcc ${CFLAGS} $^ -o $@
 
 # man pages
-man: $(addprefix man/, nfsping.8 nfsping.8.html)
+man: $(addprefix man/man8/, nfsping.8 nfsping.8.html)
 
 # include generated dependency files
 ifneq ($(MAKECMDGOALS),clean)
