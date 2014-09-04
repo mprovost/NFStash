@@ -1,4 +1,4 @@
-.PHONY: all clean rpcgen nfsping nfsmount nfsdf nfscat
+.PHONY: all clean rpcgen nfsping nfsmount nfsdf nfscat man
 
 all: nfsping nfsmount nfsdf nfsls nfscat
 
@@ -22,6 +22,10 @@ rpcgen: $(addprefix rpcsrc/, nfs_prot.h mount.h pmap_prot.h nlm_prot.h)
 # change to the rpcsrc directory first so output files go in the same directory
 $(addprefix rpcsrc/, %.h %_clnt.c %_svc.c %_xdr.c): rpcsrc/%.x
 	cd rpcsrc && rpcgen -DWANT_NFS3 $(notdir $<)
+
+# pattern rule for makefiles using ronn
+% %.html: %.ronn
+	ronn $<
 
 # list of all src files for dependencies
 SRC = $(wildcard src/*.c)
@@ -61,6 +65,9 @@ bin/nfscat: $(addprefix obj/, cat.o nfs_prot_clnt.o nfs_prot_xdr.o pmap_prot_cln
 tests: tests/util_tests
 tests/util_tests: tests/util_tests.c tests/minunit.h util.o util.h
 	gcc ${CFLAGS} $^ -o $@
+
+# man pages
+man: $(addprefix man/, nfsping.8 nfsping.8.html)
 
 # include generated dependency files
 ifneq ($(MAKECMDGOALS),clean)
