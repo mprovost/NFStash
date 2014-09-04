@@ -25,7 +25,7 @@ $(addprefix rpcsrc/, %.h %_clnt.c %_svc.c %_xdr.c): rpcsrc/%.x
 
 # pattern rule for makefiles using ronn
 % %.html: %.ronn
-	ronn $<
+	ronn -w $<
 
 # list of all src files for dependencies
 SRC = $(wildcard src/*.c)
