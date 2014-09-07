@@ -151,7 +151,7 @@ typedef utf8string      utf8str_cis;
 typedef utf8string      utf8str_cs;
 typedef utf8string      utf8str_mixed;
 typedef utf8str_cs      component4;
-typedef opaque  linktext4;
+typedef opaque  linktext4<>;
 typedef utf8string      ascii_REQUIRED4;
 typedef component4      pathname4<>;
 typedef uint64_t        nfs_lockid4;
