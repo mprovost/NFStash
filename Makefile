@@ -15,7 +15,7 @@ CPPFLAGS += -MMD -MP
 
 # phony target to generate rpc files
 # we're only really interested in the generated headers so gcc can figure out the rest of the dependencies
-rpcgen: $(addprefix rpcsrc/, nfs_prot.h mount.h pmap_prot.h nlm_prot.h)
+rpcgen: $(addprefix rpcsrc/, nfs_prot.h mount.h pmap_prot.h nlm_prot.h nfsv4_prot.h)
 
 # pattern rule for rpc files
 # making this into a pattern means they are all evaluated at once which lets -j2 or higher work
@@ -43,7 +43,7 @@ obj/%.o: rpcsrc/%.c | obj
 # make the bin directory first if it's not already there
 
 nfsping: bin/nfsping
-bin/nfsping: $(addprefix obj/, nfsping.o nfs_prot_clnt.o nfs_prot_xdr.o mount_clnt.o mount_xdr.o pmap_prot_clnt.o pmap_prot_xdr.o nlm_prot_clnt.o nlm_prot_xdr.o util.o rpc.o) | bin
+bin/nfsping: $(addprefix obj/, nfsping.o nfs_prot_clnt.o nfs_prot_xdr.o nfsv4_prot_clnt.o nfsv4_prot_xdr.o mount_clnt.o mount_xdr.o pmap_prot_clnt.o pmap_prot_xdr.o nlm_prot_clnt.o nlm_prot_xdr.o util.o rpc.o) | bin
 	gcc ${CFLAGS} $^ -o $@
 
 nfsmount: bin/nfsmount

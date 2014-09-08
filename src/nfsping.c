@@ -39,7 +39,7 @@ void usage() {
     -t n       timeout (in ms, default %lu)\n\
     -T         use TCP (default UDP)\n\
     -v         verbose output\n\
-    -V n       specify NFS version (2 or 3, default 3)\n",
+    -V n       specify NFS version (2/3/4, default 3)\n",
     ts2ms(wait_time), ts2ms(sleep_time), NFS_PORT, PMAPPORT, tv2ms(timeout));
 
     exit(3);
@@ -504,9 +504,19 @@ int main(int argc, char **argv) {
                     /* TODO support older versions */
                     status = nlm4_null_4(NULL, target->client);
                 } else {
-                    /* TODO version 2 */
-                    /* this might work for both versions */
-                    status = nfsproc3_null_3(NULL, target->client);
+                    switch (version) {
+                        case 2:
+                            status = nfsproc_null_2(NULL, target->client);
+                            break;
+                        case 3:
+                            status = nfsproc3_null_3(NULL, target->client);
+                            break;
+                        case 4:
+                            status = nfsproc4_null_4(NULL, target->client);
+                            break;
+                        default:
+                            fatal("Unknown version: %i\n", version);
+                    }
                 }
                 /* second time marker */
                 gettimeofday(&call_end, NULL);
@@ -557,7 +567,17 @@ int main(int argc, char **argv) {
                     } else if (prognum == NLM_PROG) {
                         clnt_perror(target->client, "nlm4_null_4");
                     } else {
-                        clnt_perror(target->client, "nfsproc3_null_3");
+                        switch (version) {
+                            case 2:
+                                clnt_perror(target->client, "nfsproc_null_2");
+                                break;
+                            case 3:
+                                clnt_perror(target->client, "nfsproc3_null_3");
+                                break;
+                            case 4:
+                                clnt_perror(target->client, "nfsproc4_null_4");
+                                break;
+                        }
                     }
                     fflush(stderr);
                 }

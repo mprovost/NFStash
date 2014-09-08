@@ -12,7 +12,7 @@ NFSping is a command line utility for measuring the availability and response ti
 
 On modern NFS servers, the network stack and filesystem are often being run on separate cores or even hardware components. This means in practise that a fast ICMP ping response isn't indicative of how quickly the NFS services are responding. This tool directly tests the responsiveness of the server's NFS component. It can check four of the RPC protocols that are used by NFS: NFS, mount and portmap, and the network lock manager (NLM).
 
-For NFS, NFSping checks if the server is responding by sending an NFS NULL RPC and waiting for a response. The NULL procedure is a noop that is designed for testing. NFSping supports versions 2 and 3 of NFS. By default it doesn't use the RPC portmapper for NFS pings and sends NULL packets to port 2049 using the UDP transport. Use the -T option to use TCP, -M to query the portmapper, or -P to specify a port number.
+For NFS, NFSping checks if the server is responding by sending an NFS NULL RPC and waiting for a response. The NULL procedure is a noop that is designed for testing. NFSping supports versions 2, 3 and 4 of NFS. By default it doesn't use the RPC portmapper for NFS pings and sends NULL packets to port 2049 using the UDP transport. Use the -T option to use TCP, -M to query the portmapper, or -P to specify a port number.
 
 NFSping can also check the mount protocol response using the -n option. It uses the portmapper by default to discover the port that the mount protocol is bound to on the target. A port can be specified using the -P option.
 
@@ -135,6 +135,6 @@ Usage: nfsping [options] [targets...]
     -t n       timeout (in ms, default 2500)
     -T         use TCP (default UDP)
     -v         verbose output
-    -V n       specify NFS version (2 or 3, default 3)
+    -V n       specify NFS version (2/3/4, default 3)
 
 NFSping will handle multiple targets and iterate through them on each round. If there are multiple DNS responses for a target, only the first is used. All of them can be checked by using the -m option. The sleep interval between targets can be controlled with the -i option. If any of the targets fail to respond, the command will exit with a status code of 1.

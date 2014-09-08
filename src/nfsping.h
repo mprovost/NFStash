@@ -27,6 +27,7 @@
 #include "rpcsrc/mount.h"
 #include "rpcsrc/pmap_prot.h"
 #include "rpcsrc/nlm_prot.h"
+#include "rpcsrc/nfsv4_prot.h"
 
 #define fatal(x...) do { fprintf(stderr,x); usage(); } while (0)
 #define debug(x...) do { if (verbose) fprintf(stderr,x); } while (0)
