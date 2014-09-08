@@ -188,6 +188,26 @@ int main(int argc, char **argv) {
         .sin_addr = 0
     };
 
+    /* dispatch table for null function calls */
+    /* array is [protocol number][protocol version] */
+    /* protocol versions should relate to the corresponding NFS protocol */
+    /* for example, mount protocol version 1 is used with nfs version 2, so store it at index 2 */
+    proc_null_t null_dispatch[21][4] = { 0 };
+
+    /* rpc protocol numbers are offset by 100000, ie NFS = 100003 */
+    /* mount version 1 was used with nfs v2 */
+    null_dispatch[MOUNTPROG - 100000]  [2] = mountproc_null_1;
+    null_dispatch[MOUNTPROG - 100000]  [3] = mountproc_null_3;
+    /* only one version of portmap protocol */
+    null_dispatch[PMAPPROG - 100000]   [2] = pmapproc_null_2;
+    null_dispatch[PMAPPROG - 100000]   [3] = pmapproc_null_2;
+    null_dispatch[PMAPPROG - 100000]   [4] = pmapproc_null_2;
+    /* nfs v2 didn't have locks, v4 has it integrated into the nfs protocol */
+    null_dispatch[NLM_PROG - 100000]   [3] = nlm4_null_4;
+    null_dispatch[NFS_PROGRAM - 100000][2] = nfsproc_null_2;
+    null_dispatch[NFS_PROGRAM - 100000][3] = nfsproc3_null_3;
+    null_dispatch[NFS_PROGRAM - 100000][4] = nfsproc4_null_4;
+
     /* listen for ctrl-c */
     quitting = 0;
     signal(SIGINT, int_handler);
@@ -494,30 +514,15 @@ int main(int argc, char **argv) {
             } else {
                 /* first time marker */
                 gettimeofday(&call_start, NULL);
+
                 /* the actual ping */
-                if (prognum == MOUNTPROG) {
-                    /* TODO version 2 */
-                    status = mountproc_null_3(NULL, target->client);
-                } else if (prognum == PMAPPROG) {
-                    status = pmapproc_null_2(NULL, target->client);
-                } else if (prognum == NLM_PROG) {
-                    /* TODO support older versions */
-                    status = nlm4_null_4(NULL, target->client);
+                /* use a dispatch table instead of switch */
+                if (null_dispatch[prognum - 100000][version]) {
+                    status = null_dispatch[prognum - 100000][version](NULL, target->client);
                 } else {
-                    switch (version) {
-                        case 2:
-                            status = nfsproc_null_2(NULL, target->client);
-                            break;
-                        case 3:
-                            status = nfsproc3_null_3(NULL, target->client);
-                            break;
-                        case 4:
-                            status = nfsproc4_null_4(NULL, target->client);
-                            break;
-                        default:
-                            fatal("Unknown version: %i\n", version);
-                    }
+                    fatal("Unknown version: %i\n", version);
                 }
+
                 /* second time marker */
                 gettimeofday(&call_end, NULL);
                 target->sent++;

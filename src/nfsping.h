@@ -85,4 +85,7 @@ enum outputs {
     unixtime
 };
 
+/* for function pointers */
+typedef void *(*proc_null_t)(void *, CLIENT *);
+
 #endif /* NFSPING_H */
