@@ -1215,6 +1215,8 @@ struct rpcsec_gss_info {
 };
 
 /* RPCSEC_GSS has a value of '6' - See RFC 2203 */
+const RPCSEC_GSS                = 6;
+
 union secinfo4 switch (uint32_t flavor) {
  case RPCSEC_GSS:
          rpcsec_gss_info        flavor_info;
