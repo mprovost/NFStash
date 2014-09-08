@@ -99,17 +99,20 @@ u_int nfs_perror(nfsstat3 status) {
 
 /* break up a string filehandle into parts */
 /* this uses strtok so it will eat the input */
-size_t parse_fh(char *input, fsroots_t *next) {
+fsroots_t *parse_fh(char *input) {
     int i;
     char *tmp;
     char *copy;
     u_int fsroot_len;
     struct addrinfo *addr;
     struct addrinfo hints = {
-            .ai_family = AF_INET,
+        .ai_family = AF_INET,
     };
+    fsroots_t *next;
 
-    next->client_sock = malloc(sizeof(struct sockaddr_in));
+    next = malloc(sizeof(fsroots_t));
+    next->client_sock = NULL;
+    next->next = NULL;
 
     /* keep a copy of the original input around for error messages */
     copy = strdup(input);
@@ -123,6 +126,7 @@ size_t parse_fh(char *input, fsroots_t *next) {
     tmp = strtok(input, ":");
     /* DNS lookup */
     if (tmp && getaddrinfo(tmp, "nfs", &hints, &addr) == 0) {
+        next->client_sock = malloc(sizeof(struct sockaddr_in));
         next->client_sock->sin_addr = ((struct sockaddr_in *)addr->ai_addr)->sin_addr;
         next->client_sock->sin_family = AF_INET;
         next->client_sock->sin_port = 0; /* use portmapper */
@@ -166,10 +170,11 @@ size_t parse_fh(char *input, fsroots_t *next) {
 
 
     if (next->host && next->path && fsroot_len) {
-        return fsroot_len;
+        return next;
     } else {
-        free(next->client_sock);
-        return 0;
+        if (next->client_sock) free(next->client_sock);
+        free(next);
+        return NULL;
     }
 }
 
