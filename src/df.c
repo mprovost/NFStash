@@ -169,7 +169,6 @@ int main(int argc, char **argv) {
     char *input_fh;
     fsroots_t *current, *tail, dummy;
     int maxpath = 0;
-    int fsroot_len = 0;
     int maxhost = 0;
     CLIENT *client = NULL;
     struct sockaddr_in clnt_info;
@@ -288,12 +287,11 @@ int main(int argc, char **argv) {
     }
     
     while (input_fh) {
-        tail->next = malloc(sizeof(fsroots_t));
-        tail->next->next = NULL;
 
-        fsroot_len = parse_fh(input_fh, tail->next);
+        tail->next = parse_fh(input_fh);
 
-        if (fsroot_len) {
+        /* save the longest host/paths for display formatting */
+        if (tail->next) {
             if (strlen(tail->next->path) > maxpath)
                 maxpath = strlen(tail->next->path);
 
@@ -303,6 +301,7 @@ int main(int argc, char **argv) {
             tail = tail->next;
         }
 
+        /* parse next argument or line from stdin */
         if (optind == argc) {
             input_fh = fgets(input_fh, FHMAX, stdin);
         } else {

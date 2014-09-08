@@ -1,5 +1,6 @@
 #include "nfsping.h"
 #include "rpc.h"
+#include "util.h"
 
 int verbose = 0;
 
@@ -77,7 +78,7 @@ int main(int argc, char **argv) {
     int ch;
     int all = 0;
     char *input_fh;
-    fsroots_t current;
+    fsroots_t *current;
     struct addrinfo hints = {
         .ai_family = AF_INET,
         /* default to UDP */
@@ -132,26 +133,27 @@ int main(int argc, char **argv) {
     }
         
     while (input_fh) {
-        if (parse_fh(input_fh, &current)) {
-            current.client_sock->sin_family = AF_INET;
-            current.client_sock->sin_port = htons(NFS_PORT);
+        current = parse_fh(input_fh);
+        if (current) {
+            current->client_sock->sin_family = AF_INET;
+            current->client_sock->sin_port = htons(NFS_PORT);
 
             /* check if we can use the same client connection as the previous target */
             /* get the server address out of the client */
             if (client) {
                 clnt_control(client, CLGET_SERVER_ADDR, (char *)&clnt_info);
-                if (clnt_info.sin_addr.s_addr != current.client_sock->sin_addr.s_addr) {
+                if (clnt_info.sin_addr.s_addr != current->client_sock->sin_addr.s_addr) {
                     client = destroy_rpc_client(client);
                 }
             }
 
             if (client == NULL) {
                 /* connect to server */
-                client = create_rpc_client(current.client_sock, &hints, NFS_PROGRAM, version, timeout, src_ip);
+                client = create_rpc_client(current->client_sock, &hints, NFS_PROGRAM, version, timeout, src_ip);
                 client->cl_auth = authunix_create_default();
             }
 
-            entry = do_readdirplus(client, &current);
+            entry = do_readdirplus(client, current);
             while (entry) {
                 /* first check for hidden files */
                 if (all == 0) {
@@ -160,9 +162,9 @@ int main(int argc, char **argv) {
                         continue;
                     }
                 }
-                printf("%s:%s", current.host, current.path);
+                printf("%s:%s", current->host, current->path);
                 /* if the path doesn't already end in /, print one now */
-                if (current.path[strlen(current.path) - 1] != '/')
+                if (current->path[strlen(current->path) - 1] != '/')
                     printf("/");
                 /* the filename */
                 printf("%s", entry->name);

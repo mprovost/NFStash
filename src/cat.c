@@ -1,5 +1,6 @@
 #include "nfsping.h"
 #include "rpc.h"
+#include "util.h"
 
 int verbose = 0;
 
@@ -57,9 +58,9 @@ READ3res *do_read(CLIENT *client, fsroots_t *dir, offset3 offset, const unsigned
 
 int main(int argc, char **argv) {
     int ch;
-    char input_fh[FHMAX];
+    char *input_fh;
     CLIENT *client = NULL;
-    fsroots_t *current, *tail, dummy;
+    fsroots_t *current;
     READ3res *res;
     struct addrinfo hints = {
         .ai_family = AF_INET,
@@ -116,30 +117,26 @@ int main(int argc, char **argv) {
 
     }
 
-    dummy.next = NULL;
-    tail = &dummy;
-
-    while (fgets(input_fh, FHMAX, stdin)) {
-        tail->next = malloc(sizeof(fsroots_t));
-        tail = tail->next;
-        tail->next = NULL;
-
-        parse_fh(input_fh, tail);
-
-        tail->client_sock->sin_family = AF_INET;
-        tail->client_sock->sin_port = htons(NFS_PORT);
+    /* no arguments, use stdin */
+    if (optind == argc) {
+        /* make it the max size not the length of the current string because we'll reuse it for all filehandles */
+        input_fh = malloc(sizeof(char) * FHMAX);
+        fgets(input_fh, FHMAX, stdin);
+        /* first argument */
+    } else {
+        input_fh = argv[optind];
     }
 
-    /* skip the first empty struct */
-    current = dummy.next;
+    while (input_fh) {
 
-    /* loop through the list of targets */
-    while (current) {
-        /* check if we can use the same client connection as the previous target */
-        while (client && current) {
-            /* get the server address out of the client */
-            clnt_control(client, CLGET_SERVER_ADDR, (char *)&clnt_info);
-            while (current) {
+        current = parse_fh(input_fh);
+
+        while (current) {
+            /* check if we can use the same client connection as the previous target */
+            if (client) {
+                /* get the server address out of the client */
+                clnt_control(client, CLGET_SERVER_ADDR, (char *)&clnt_info);
+                /* ok to reuse client connection if it's the same target address */
                 if (clnt_info.sin_addr.s_addr == current->client_sock->sin_addr.s_addr) {
                     /* start at the beginning of the file */
                     offset = 0;
@@ -182,18 +179,34 @@ int main(int argc, char **argv) {
                         }
                     /* check for errors or end of file */
                     } while (res && res->status == NFS3_OK && res->READ3res_u.resok.eof == 0);
-
-                    current = current->next;
+                /* different client address, close the connection */
                 } else {
                     client = destroy_rpc_client(client);
                     break;
                 }
+
+                /* cleanup */
+                free(current->client_sock);
+                free(current);
+            /* no client connection */
+            } else {
+                current->client_sock->sin_family = AF_INET;
+                current->client_sock->sin_port = htons(NFS_PORT);
+                /* connect to server */
+                client = create_rpc_client(current->client_sock, &hints, NFS_PROGRAM, version, timeout, src_ip);
+                client->cl_auth = authunix_create_default();
+            }
+        } /* while(current) */
+        /* get the next filehandle*/
+        if (optind == argc) {
+            input_fh = fgets(input_fh, FHMAX, stdin);
+        } else {
+            optind++;
+            if (optind < argc) {
+                input_fh = argv[optind];
+            } else {
+                input_fh = NULL;
             }
         }
-        if (current) {
-            /* connect to server */
-            client = create_rpc_client(current->client_sock, &hints, NFS_PROGRAM, version, timeout, src_ip);
-            client->cl_auth = authunix_create_default();
-        }
-    }
+    } /* while(input_fh) */
 }
