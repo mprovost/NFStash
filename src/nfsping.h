@@ -87,5 +87,9 @@ enum outputs {
 
 /* for function pointers */
 typedef void *(*proc_null_t)(void *, CLIENT *);
+struct null_procs {
+    proc_null_t proc;
+    char *name;
+};
 
 #endif /* NFSPING_H */

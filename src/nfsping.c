@@ -192,21 +192,30 @@ int main(int argc, char **argv) {
     /* array is [protocol number][protocol version] */
     /* protocol versions should relate to the corresponding NFS protocol */
     /* for example, mount protocol version 1 is used with nfs version 2, so store it at index 2 */
-    proc_null_t null_dispatch[21][4] = { 0 };
+    //proc_null_t null_dispatch[21][4] = { 0 };
 
+    struct null_procs null_dispatch[21][4] = { 0 };
     /* rpc protocol numbers are offset by 100000, ie NFS = 100003 */
     /* mount version 1 was used with nfs v2 */
-    null_dispatch[MOUNTPROG - 100000]  [2] = mountproc_null_1;
-    null_dispatch[MOUNTPROG - 100000]  [3] = mountproc_null_3;
+    null_dispatch[MOUNTPROG - 100000]  [2].proc = mountproc_null_1;
+    null_dispatch[MOUNTPROG - 100000]  [2].name = "mountproc_null_1";
+
+    null_dispatch[MOUNTPROG - 100000]  [3].proc = mountproc_null_3;
+    null_dispatch[MOUNTPROG - 100000]  [3].name = "mountproc_null_3";
     /* only one version of portmap protocol */
-    null_dispatch[PMAPPROG - 100000]   [2] = pmapproc_null_2;
-    null_dispatch[PMAPPROG - 100000]   [3] = pmapproc_null_2;
-    null_dispatch[PMAPPROG - 100000]   [4] = pmapproc_null_2;
+    null_dispatch[PMAPPROG - 100000]   [2].proc = pmapproc_null_2;
+    null_dispatch[PMAPPROG - 100000]   [2].name = "pmapproc_null_2";
+    null_dispatch[PMAPPROG - 100000]   [3] = null_dispatch[PMAPPROG - 100000][2];
+    null_dispatch[PMAPPROG - 100000]   [4] = null_dispatch[PMAPPROG - 100000][2];
     /* nfs v2 didn't have locks, v4 has it integrated into the nfs protocol */
-    null_dispatch[NLM_PROG - 100000]   [3] = nlm4_null_4;
-    null_dispatch[NFS_PROGRAM - 100000][2] = nfsproc_null_2;
-    null_dispatch[NFS_PROGRAM - 100000][3] = nfsproc3_null_3;
-    null_dispatch[NFS_PROGRAM - 100000][4] = nfsproc4_null_4;
+    null_dispatch[NLM_PROG - 100000]   [3].proc = nlm4_null_4;
+    null_dispatch[NLM_PROG - 100000]   [3].name = "nlm4_null_4";
+    null_dispatch[NFS_PROGRAM - 100000][2].proc = nfsproc_null_2;
+    null_dispatch[NFS_PROGRAM - 100000][2].name = "nfsproc_null_2";
+    null_dispatch[NFS_PROGRAM - 100000][3].proc = nfsproc3_null_3;
+    null_dispatch[NFS_PROGRAM - 100000][3].name = "nfsproc3_null_3";
+    null_dispatch[NFS_PROGRAM - 100000][4].proc = nfsproc4_null_4;
+    null_dispatch[NFS_PROGRAM - 100000][4].name = "nfsproc4_null_4";
 
     /* listen for ctrl-c */
     quitting = 0;
@@ -517,10 +526,10 @@ int main(int argc, char **argv) {
 
                 /* the actual ping */
                 /* use a dispatch table instead of switch */
-                if (null_dispatch[prognum - 100000][version]) {
-                    status = null_dispatch[prognum - 100000][version](NULL, target->client);
+                if (null_dispatch[prognum - 100000][version].proc) {
+                    status = null_dispatch[prognum - 100000][version].proc(NULL, target->client);
                 } else {
-                    fatal("Unknown version: %i\n", version);
+                    fatal("Illegal version: %i\n", version);
                 }
 
                 /* second time marker */
@@ -560,30 +569,7 @@ int main(int argc, char **argv) {
                 if (target->client) {
                     fprintf(stderr, "%s : ", target->name);
                     clnt_geterr(target->client, &clnt_err);
-
-                    if (prognum == MOUNTPROG) {
-                        clnt_perror(target->client, "mountproc_null_3");
-                        /* TODO is this needed with portmapper on by default? */
-                        /* mount port isn't very standard so print a warning */
-                        if (target->client_sock->sin_port && clnt_err.re_status == RPC_CANTRECV)
-                            fprintf(stderr, "Unable to contact mount port, consider using portmapper (-M)\n");
-                    } else if (prognum == PMAPPROG) {
-                        clnt_perror(target->client, "pmapproc_null_2");
-                    } else if (prognum == NLM_PROG) {
-                        clnt_perror(target->client, "nlm4_null_4");
-                    } else {
-                        switch (version) {
-                            case 2:
-                                clnt_perror(target->client, "nfsproc_null_2");
-                                break;
-                            case 3:
-                                clnt_perror(target->client, "nfsproc3_null_3");
-                                break;
-                            case 4:
-                                clnt_perror(target->client, "nfsproc4_null_4");
-                                break;
-                        }
-                    }
+                    clnt_perror(target->client, null_dispatch[prognum - 100000][version].name);
                     fflush(stderr);
                 }
 
