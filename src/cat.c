@@ -131,73 +131,75 @@ int main(int argc, char **argv) {
 
         current = parse_fh(input_fh);
 
-        while (current) {
-            /* check if we can use the same client connection as the previous target */
-            if (client) {
-                /* get the server address out of the client */
-                clnt_control(client, CLGET_SERVER_ADDR, (char *)&clnt_info);
-                /* ok to reuse client connection if it's the same target address */
-                if (clnt_info.sin_addr.s_addr == current->client_sock->sin_addr.s_addr) {
-                    /* start at the beginning of the file */
-                    offset = 0;
-                    sent = received = 0;
-                    do {
-                        res = do_read(client, current, offset, blocksize, &us);
-                        sent++;
-                        if (res && res->status == NFS3_OK) {
-                            received++;
-                            loss = (sent - received) / (double)sent * 100;
-                            /* TODO the final read could be short and take less time, discard? */
-                            /* what about files that come back in a single RPC? */
-                            if (us < min) min = us;
-                            if (us > max) max = us;
-                            /* calculate the average time */
-                            avg = (avg * (received - 1) + us) / received;
-
-                            if (count) {
-                                fprintf(stderr, "%s:%s: [%lu] %lu bytes %03.2f ms (xmt/rcv/%%loss = %lu/%lu/%.0f%%, min/avg/max = %.2f/%.2f/%.2f)\n",
-                                    current->host,
-                                    current->path,
-                                    received - 1, res->READ3res_u.resok.count, us
-                                    / 1000.0,
-                                    sent,
-                                    received,
-                                    loss,
-                                    min / 1000.0,
-                                    avg / 1000.0,
-                                    max / 1000.0 );
-                            } else {
-                                /* write to stdout */
-                                fwrite(res->READ3res_u.resok.data.data_val, 1, res->READ3res_u.resok.data.data_len, stdout);
-                            }
-
-                            offset += res->READ3res_u.resok.count;
-                        }
-                        /* check count argument */
-                        if (count && sent > count) {
-                            break;
-                        }
-                    /* check for errors or end of file */
-                    } while (res && res->status == NFS3_OK && res->READ3res_u.resok.eof == 0);
+        /* check if we can use the same client connection as the previous target */
+        if (client) {
+            /* get the server address out of the client */
+            clnt_control(client, CLGET_SERVER_ADDR, (char *)&clnt_info);
+            /* ok to reuse client connection if it's the same target address */
+            if (clnt_info.sin_addr.s_addr != current->client_sock->sin_addr.s_addr) {
                 /* different client address, close the connection */
-                } else {
-                    client = destroy_rpc_client(client);
+                client = destroy_rpc_client(client);
+            }
+        }
+
+        /* no client connection */
+        if (client == NULL) {
+            current->client_sock->sin_family = AF_INET;
+            current->client_sock->sin_port = htons(NFS_PORT);
+            /* connect to server */
+            client = create_rpc_client(current->client_sock, &hints, NFS_PROGRAM, version, timeout, src_ip);
+            client->cl_auth = authunix_create_default();
+        }
+
+        if (client) {
+            /* start at the beginning of the file */
+            offset = 0;
+            sent = received = 0;
+            do {
+                res = do_read(client, current, offset, blocksize, &us);
+                sent++;
+                if (res && res->status == NFS3_OK) {
+                    received++;
+                    loss = (sent - received) / (double)sent * 100;
+                    /* TODO the final read could be short and take less time, discard? */
+                    /* what about files that come back in a single RPC? */
+                    if (us < min) min = us;
+                    if (us > max) max = us;
+                    /* calculate the average time */
+                    avg = (avg * (received - 1) + us) / received;
+
+                    if (count) {
+                        fprintf(stderr, "%s:%s: [%lu] %lu bytes %03.2f ms (xmt/rcv/%%loss = %lu/%lu/%.0f%%, min/avg/max = %.2f/%.2f/%.2f)\n",
+                            current->host,
+                            current->path,
+                            received - 1, res->READ3res_u.resok.count, us
+                            / 1000.0,
+                            sent,
+                            received,
+                            loss,
+                            min / 1000.0,
+                            avg / 1000.0,
+                            max / 1000.0 );
+                    } else {
+                        /* write to stdout */
+                        fwrite(res->READ3res_u.resok.data.data_val, 1, res->READ3res_u.resok.data.data_len, stdout);
+                    }
+
+                    offset += res->READ3res_u.resok.count;
+                }
+                /* check count argument */
+                if (count && sent > count) {
                     break;
                 }
+            /* check for errors or end of file */
+            } while (res && res->status == NFS3_OK && res->READ3res_u.resok.eof == 0);
+        }
 
-                /* cleanup */
-                free(current->client_sock);
-                free(current);
-            /* no client connection */
-            } else {
-                current->client_sock->sin_family = AF_INET;
-                current->client_sock->sin_port = htons(NFS_PORT);
-                /* connect to server */
-                client = create_rpc_client(current->client_sock, &hints, NFS_PROGRAM, version, timeout, src_ip);
-                client->cl_auth = authunix_create_default();
-            }
-        } /* while(current) */
-        /* get the next filehandle*/
+        /* cleanup */
+        free(current->client_sock);
+        free(current);
+
+        /* get the next filehandle */
         if (optind == argc) {
             input_fh = fgets(input_fh, FHMAX, stdin);
         } else {
@@ -208,5 +210,8 @@ int main(int argc, char **argv) {
                 input_fh = NULL;
             }
         }
+
     } /* while(input_fh) */
+
+    return(0);
 }
