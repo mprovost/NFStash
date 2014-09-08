@@ -133,11 +133,10 @@ int main(int argc, char **argv) {
     }
         
     while (input_fh) {
-        current = parse_fh(input_fh);
-        if (current) {
-            current->client_sock->sin_family = AF_INET;
-            current->client_sock->sin_port = htons(NFS_PORT);
 
+        current = parse_fh(input_fh);
+
+        if (current) {
             /* check if we can use the same client connection as the previous target */
             /* get the server address out of the client */
             if (client) {
@@ -148,41 +147,55 @@ int main(int argc, char **argv) {
             }
 
             if (client == NULL) {
+                current->client_sock->sin_family = AF_INET;
+                current->client_sock->sin_port = htons(NFS_PORT);
                 /* connect to server */
                 client = create_rpc_client(current->client_sock, &hints, NFS_PROGRAM, version, timeout, src_ip);
                 client->cl_auth = authunix_create_default();
             }
 
-            entry = do_readdirplus(client, current);
-            while (entry) {
-                /* first check for hidden files */
-                if (all == 0) {
-                    if (entry->name[0] == '.') {
-                        entry = entry->nextentry;
-                        continue;
+            if (client) {
+                entry = do_readdirplus(client, current);
+
+                while (entry) {
+                    /* first check for hidden files */
+                    if (all == 0) {
+                        if (entry->name[0] == '.') {
+                            entry = entry->nextentry;
+                            continue;
+                        }
                     }
-                }
-                printf("%s:%s", current->host, current->path);
-                /* if the path doesn't already end in /, print one now */
-                if (current->path[strlen(current->path) - 1] != '/')
-                    printf("/");
-                /* the filename */
-                printf("%s", entry->name);
-                /* if it's a directory print a trailing slash */
-                /* TODO this seems to be 0 sometimes */
-                if (entry->name_attributes.post_op_attr_u.attributes.type == NF3DIR)
-                    printf("/");
-                printf(":");
+                    /* if there is no filehandle (/dev, /proc, etc) don't print */
+                    /* none of the other utilities can do anything without a filehandle */
+                    /* TODO unless -a ? */
+                    if (entry->name_handle.post_op_fh3_u.handle.data.data_len) {
+                        printf("%s:%s", current->host, current->path);
+                        /* if the path doesn't already end in /, print one now */
+                        if (current->path[strlen(current->path) - 1] != '/')
+                            printf("/");
+                        /* the filename */
+                        printf("%s", entry->name);
+                        /* if it's a directory print a trailing slash */
+                        /* TODO this seems to be 0 sometimes */
+                        if (entry->name_attributes.post_op_attr_u.attributes.type == NF3DIR)
+                            printf("/");
+                        printf(":");
 
-                /* print the filehandle in hex */
-                for (i = 0; i < entry->name_handle.post_op_fh3_u.handle.data.data_len; i++) {
-                    printf("%02hhx", entry->name_handle.post_op_fh3_u.handle.data.data_val[i]);
-                }
-                printf("\n");
+                        /* print the filehandle in hex */
+                        for (i = 0; i < entry->name_handle.post_op_fh3_u.handle.data.data_len; i++) {
+                            printf("%02hhx", entry->name_handle.post_op_fh3_u.handle.data.data_val[i]);
+                        }
+                        printf("\n");
+                    }
 
-                entry = entry->nextentry;
+                    entry = entry->nextentry;
+                }
             }
         }
+
+        /* cleanup */
+        free(current->client_sock);
+        free(current);
 
         /* get the next filehandle*/
         if (optind == argc) {
