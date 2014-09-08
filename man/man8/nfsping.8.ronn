@@ -7,7 +7,7 @@ nfsping(8) -- send RPC NULL requests to NFS servers
 
 ## DESCRIPTION
 
-`nfsping` sends RPC NULL requests to an NFS server to determine if it is responding and to measure the response time. It supports the portmap, mount, network lock manager (NLM) and network file system (NFS) RPC protocols. The default protocol is NFS over UDP to port 2049. Without any arguments it will send a single NULL request and report whether the server is alive or dead based on whether it receives a response or not.
+`nfsping` sends RPC NULL requests to an NFS server to determine if it is responding and to measure the response time. It supports the portmap, mount, network lock manager (NLM) and network file system (NFS) RPC protocols. The default protocol is NFS version 3. Without any arguments it will send a single NFSv3 NULL request to UDP port 2049 and report whether the server is alive or dead based on whether it receives a response or not.
 
 ## OPTIONS
 
@@ -81,7 +81,7 @@ nfsping(8) -- send RPC NULL requests to NFS servers
   Display debug output on `stderr`.
 
 * `-V` <version>:
-  Use protocol `version`. Default = 3 for NFS, can use version 2. Not supported for other protocols.
+  Use protocol `version`. Default = 3 for NFS, can use versions 2/3/4. Not supported for other protocols.
 
 ## RETURN VALUES
 
@@ -99,3 +99,4 @@ Matt Provost, mprovost@termcap.net
 
 Copyright 2014 Matt Provost  
 RPC files Copyright Sun Microsystems
+NFSv4 files Copyright IETF
