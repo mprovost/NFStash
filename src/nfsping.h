@@ -85,10 +85,12 @@ enum outputs {
     unixtime
 };
 
-/* for function pointers */
+/* for NULL procedure function pointers */
 typedef void *(*proc_null_t)(void *, CLIENT *);
+
 struct null_procs {
     proc_null_t proc;
+    /* store the name as a string for error messages */
     char *name;
 };
 

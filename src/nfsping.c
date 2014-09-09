@@ -188,18 +188,18 @@ int main(int argc, char **argv) {
         .sin_addr = 0
     };
 
-    /* dispatch table for null function calls */
+    /* dispatch table for null function calls, this saves us from a bunch of if statements */
     /* array is [protocol number][protocol version] */
     /* protocol versions should relate to the corresponding NFS protocol */
     /* for example, mount protocol version 1 is used with nfs version 2, so store it at index 2 */
-    //proc_null_t null_dispatch[21][4] = { 0 };
 
+    /* NLM protocol number is 100021 */
+    /* initialise to zeros so we can detect when we're calling an unknown protocol/version */
     struct null_procs null_dispatch[21][4] = { 0 };
     /* rpc protocol numbers are offset by 100000, ie NFS = 100003 */
     /* mount version 1 was used with nfs v2 */
     null_dispatch[MOUNTPROG - 100000]  [2].proc = mountproc_null_1;
     null_dispatch[MOUNTPROG - 100000]  [2].name = "mountproc_null_1";
-
     null_dispatch[MOUNTPROG - 100000]  [3].proc = mountproc_null_3;
     null_dispatch[MOUNTPROG - 100000]  [3].name = "mountproc_null_3";
     /* only one version of portmap protocol */
@@ -210,6 +210,7 @@ int main(int argc, char **argv) {
     /* nfs v2 didn't have locks, v4 has it integrated into the nfs protocol */
     null_dispatch[NLM_PROG - 100000]   [3].proc = nlm4_null_4;
     null_dispatch[NLM_PROG - 100000]   [3].name = "nlm4_null_4";
+    /* nfs */
     null_dispatch[NFS_PROGRAM - 100000][2].proc = nfsproc_null_2;
     null_dispatch[NFS_PROGRAM - 100000][2].name = "nfsproc_null_2";
     null_dispatch[NFS_PROGRAM - 100000][3].proc = nfsproc3_null_3;
