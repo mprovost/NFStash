@@ -72,40 +72,39 @@ CLIENT *create_rpc_client(struct sockaddr_in *client_sock, struct addrinfo *hint
             /* portmapper doesn't need a reserved port */
             src_ip.sin_port = 0;
 
-            if (bind(sock, (struct sockaddr *) &src_ip, sizeof(src_ip)) == 0) {
-                /* it worked, we have a socket */
-                if (verbose) {
-                    if (getsockname(sock, (struct sockaddr *)&getaddr, &len) == -1) {
-                        perror("getsockname");
-                    } else {
-                        inet_ntop(AF_INET, (struct sockaddr_in *)&getaddr.sin_addr, ip, INET_ADDRSTRLEN);
-                        debug("portmap source port = %s:%u\n", ip, ntohs(getaddr.sin_port));
-                    }
-                }
-            } else {
+            if (bind(sock, (struct sockaddr *) &src_ip, sizeof(src_ip)) == -1) {
                 perror("create_rpc_client");
                 exit(EXIT_FAILURE); /* TODO should this be a different return code? */
             }
         }
 
-        /* TCP */
-        if (hints->ai_socktype == SOCK_STREAM) {
-            protocol = PMAP_IPPROTO_TCP;
-            if (connect(sock, (struct sockaddr *)client_sock, sizeof(struct sockaddr)) == 0) {
-                client = clnttcp_create(client_sock, PMAPPROG, PMAPVERS, &sock, 0, 0);
-                if (client == NULL) {
-                    clnt_pcreateerror("clnttcp_create");
-                }
+        if (connect(sock, (struct sockaddr *)client_sock, sizeof(struct sockaddr)) == 0) {
+            /* TCP */
+            if (hints->ai_socktype == SOCK_STREAM) {
+                protocol = PMAP_IPPROTO_TCP;
+                    client = clnttcp_create(client_sock, PMAPPROG, PMAPVERS, &sock, 0, 0);
+                    if (client == NULL) {
+                        clnt_pcreateerror("clnttcp_create");
+                    }
+            /* UDP */
             } else {
-                perror("connect");
-                exit(EXIT_FAILURE);
+                protocol = PMAP_IPPROTO_UDP;
+                client = clntudp_create(client_sock, PMAPPROG, PMAPVERS, timeout, &sock);
+                if (client == NULL) {
+                    clnt_pcreateerror("clntudp_create");
+                }
             }
-        /* UDP */
         } else {
-            protocol = PMAP_IPPROTO_UDP;
-            client = clntudp_create(client_sock, PMAPPROG, PMAPVERS, timeout, &sock);
-            if (client == NULL) {
-                clnt_pcreateerror("clntudp_create");
+            perror("connect");
+            exit(EXIT_FAILURE);
+        }
+
+        if (verbose) {
+            if (getsockname(sock, (struct sockaddr *)&getaddr, &len) == -1) {
+                perror("getsockname");
+            } else {
+                inet_ntop(AF_INET, (struct sockaddr_in *)&getaddr.sin_addr, ip, INET_ADDRSTRLEN);
+                debug("portmap source port = %s:%u\n", ip, ntohs(getaddr.sin_port));
             }
         }
 
@@ -144,7 +143,7 @@ CLIENT *create_rpc_client(struct sockaddr_in *client_sock, struct addrinfo *hint
         src_ip.sin_port = htons(666);
 
         while (ntohs(src_ip.sin_port) < 1024) {
-            if (bind(sock, (struct sockaddr *) &src_ip, sizeof(src_ip)) < 0) {
+            while (bind(sock, (struct sockaddr *) &src_ip, sizeof(src_ip)) == -1) {
                 /* permission denied, ie we aren't root */
                 if (errno == EACCES) {
                     /* try an ephemeral port */
@@ -162,38 +161,36 @@ CLIENT *create_rpc_client(struct sockaddr_in *client_sock, struct addrinfo *hint
                     perror("create_rpc_client");
                     exit(EXIT_FAILURE); /* TODO should this be a different return code? */
                 }
-            /* it worked, we have a socket */
-            } else {
-                if (verbose) {
-                    if (getsockname(sock, (struct sockaddr *)&getaddr, &len) == -1) {
-                        perror("getsockname");
-                    } else {
-                        inet_ntop(AF_INET, (struct sockaddr_in *)&getaddr.sin_addr, ip, INET_ADDRSTRLEN);
-                        debug("source port = %s:%u\n", ip, ntohs(getaddr.sin_port));
-                    }
-                }
-                break;
             }
         }
     }
 
-    /* TCP */
-    if (hints->ai_socktype == SOCK_STREAM) {
-        if (connect(sock, (struct sockaddr *)client_sock, sizeof(struct sockaddr)) == 0) {
-            /* TODO set recvsz and sendsz to the NFS blocksize */
-            client = clnttcp_create(client_sock, prognum, version, &sock, 0, 0);
-            if (client == NULL) {
-                clnt_pcreateerror("clnttcp_create");
-            }
+    if (connect(sock, (struct sockaddr *)client_sock, sizeof(struct sockaddr)) == 0) {
+        /* TCP */
+        if (hints->ai_socktype == SOCK_STREAM) {
+                /* TODO set recvsz and sendsz to the NFS blocksize */
+                client = clnttcp_create(client_sock, prognum, version, &sock, 0, 0);
+                if (client == NULL) {
+                    clnt_pcreateerror("clnttcp_create");
+                }
+        /* UDP */
         } else {
-            perror("connect");
-            exit(EXIT_FAILURE);
+            client = clntudp_create(client_sock, prognum, version, timeout, &sock);
+            if (client == NULL) {
+                clnt_pcreateerror("clntudp_create");
+            }
         }
-    /* UDP */
     } else {
-        client = clntudp_create(client_sock, prognum, version, timeout, &sock);
-        if (client == NULL) {
-            clnt_pcreateerror("clntudp_create");
+        perror("connect");
+        exit(EXIT_FAILURE);
+    }
+
+    if (verbose) {
+        if (getsockname(sock, (struct sockaddr *)&getaddr, &len) == -1) {
+            perror("getsockname");
+        } else {
+            inet_ntop(AF_INET, (struct sockaddr_in *)&getaddr.sin_addr, ip, INET_ADDRSTRLEN);
+            debug("source port = %s:%u\n", ip, ntohs(getaddr.sin_port));
         }
     }
 
