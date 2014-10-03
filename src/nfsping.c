@@ -530,7 +530,7 @@ int main(int argc, char **argv) {
                 if (null_dispatch[prognum - 100000][version].proc) {
                     status = null_dispatch[prognum - 100000][version].proc(NULL, target->client);
                 } else {
-                    fatal("Illegal version: %i\n", version);
+                    fatal("Illegal version: %lu\n", version);
                 }
 
                 /* second time marker */
