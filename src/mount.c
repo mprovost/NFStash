@@ -208,11 +208,8 @@ int main(int argc, char **argv) {
         getaddr = getaddrinfo(host, "nfs", &hints, &addr);
 
         if (getaddr == 0) { /* success! */
-
             /* loop through possibly multiple DNS responses */
             while (addr) {
-
-
                 client_sock.sin_addr = ((struct sockaddr_in *)addr->ai_addr)->sin_addr;
                 client_sock.sin_family = AF_INET;
                 client_sock.sin_port = 0; /* use portmapper */
@@ -258,10 +255,10 @@ int main(int argc, char **argv) {
                     clnt_pcreateerror("pmap_getport");
                     mountres->fhs_status = MNT3ERR_SERVERFAULT; /* is this the most appropriate error code? */
                 }
+
                 if (multiple) {
                     addr = addr->ai_next;
-                }
-                else {
+                } else {
                     break;
                 }
             }
