@@ -145,7 +145,8 @@ int main(int argc, char **argv) {
     exports ex;
     int exports_count = 0, exports_ok = 0;
     int ch, first, index;
-    int showmount = 0;
+    /* command line options */
+    int multiple = 0, showmount = 0;
     CLIENT *client;
     u_long version = 3;
     struct timeval timeout = NFS_TIMEOUT;
@@ -166,7 +167,7 @@ int main(int argc, char **argv) {
     if (argc == 1)
         usage();
 
-    while ((ch = getopt(argc, argv, "ehS:Tv")) != -1) {
+    while ((ch = getopt(argc, argv, "ehmS:Tv")) != -1) {
         switch(ch) {
             /* output like showmount -e */
             case 'e':
@@ -177,6 +178,11 @@ int main(int argc, char **argv) {
                 if (inet_pton(AF_INET, optarg, &src_ip.sin_addr) != 1) {
                     fatal("Invalid source IP address!\n");
                 }
+                break;
+            /* use multiple IP addresses if found */
+            /* TODO in this case do we also want to default to showing IP addresses instead of names? */
+            case 'm':
+                multiple = 1;
                 break;
             /* use TCP */
             case 'T':
@@ -202,50 +208,62 @@ int main(int argc, char **argv) {
         getaddr = getaddrinfo(host, "nfs", &hints, &addr);
 
         if (getaddr == 0) { /* success! */
-            client_sock.sin_addr = ((struct sockaddr_in *)addr->ai_addr)->sin_addr;
-            client_sock.sin_family = AF_INET;
-            client_sock.sin_port = 0; /* use portmapper */
 
-            /* create an rpc connection */
-            client = create_rpc_client(&client_sock, &hints, MOUNTPROG, version, timeout, src_ip);
-            /* mounts don't need authentication because they return a list of authentication flavours supported */
-            client->cl_auth = authnone_create();
+            /* loop through possibly multiple DNS responses */
+            while (addr) {
 
-            if (client_sock.sin_port) {
-                if (path) {
-                    mountres = get_root_filehandle(host, client, path);
-                    exports_count++;
-                    if (mountres && mountres->fhs_status == MNT3_OK) {
-                        exports_ok++;
-                        /* print the filehandle in hex */
-                        print_fh(host, path, mountres->mountres3_u.mountinfo.fhandle);
-                    }
-                } else {
-                    /* get the list of all exported filesystems from the server */
-                    ex = *mountproc_export_3(NULL, client);
 
-                    if (ex) {
-                        if (showmount) {
-                            exports_count = print_exports(host, ex);
-                            /* if the call succeeds at all it can't return individual bad results */
-                            exports_ok = exports_count;
-                        } else {
-                            while (ex) {
-                                mountres = get_root_filehandle(host, client, ex->ex_dir);
-                                exports_count++;
-                                if (mountres && mountres->fhs_status == MNT3_OK) {
-                                    exports_ok++;
-                                    /* print the filehandle in hex */
-                                    print_fh(host, ex->ex_dir, mountres->mountres3_u.mountinfo.fhandle);
+                client_sock.sin_addr = ((struct sockaddr_in *)addr->ai_addr)->sin_addr;
+                client_sock.sin_family = AF_INET;
+                client_sock.sin_port = 0; /* use portmapper */
+
+                /* create an rpc connection */
+                client = create_rpc_client(&client_sock, &hints, MOUNTPROG, version, timeout, src_ip);
+                /* mounts don't need authentication because they return a list of authentication flavours supported */
+                client->cl_auth = authnone_create();
+
+                if (client_sock.sin_port) {
+                    if (path) {
+                        mountres = get_root_filehandle(host, client, path);
+                        exports_count++;
+                        if (mountres && mountres->fhs_status == MNT3_OK) {
+                            exports_ok++;
+                            /* print the filehandle in hex */
+                            print_fh(host, path, mountres->mountres3_u.mountinfo.fhandle);
+                        }
+                    } else {
+                        /* get the list of all exported filesystems from the server */
+                        ex = *mountproc_export_3(NULL, client);
+
+                        if (ex) {
+                            if (showmount) {
+                                exports_count = print_exports(host, ex);
+                                /* if the call succeeds at all it can't return individual bad results */
+                                exports_ok = exports_count;
+                            } else {
+                                while (ex) {
+                                    mountres = get_root_filehandle(host, client, ex->ex_dir);
+                                    exports_count++;
+                                    if (mountres && mountres->fhs_status == MNT3_OK) {
+                                        exports_ok++;
+                                        /* print the filehandle in hex */
+                                        print_fh(host, ex->ex_dir, mountres->mountres3_u.mountinfo.fhandle);
+                                    }
+                                    ex = ex->ex_next;
                                 }
-                                ex = ex->ex_next;
                             }
                         }
                     }
+                } else {
+                    clnt_pcreateerror("pmap_getport");
+                    mountres->fhs_status = MNT3ERR_SERVERFAULT; /* is this the most appropriate error code? */
                 }
-            } else {
-                clnt_pcreateerror("pmap_getport");
-                mountres->fhs_status = MNT3ERR_SERVERFAULT; /* is this the most appropriate error code? */
+                if (multiple) {
+                    addr = addr->ai_next;
+                }
+                else {
+                    break;
+                }
             }
         } else {
             fprintf(stderr, "%s: %s\n", host, gai_strerror(getaddr));
