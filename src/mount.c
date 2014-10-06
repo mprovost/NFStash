@@ -105,12 +105,12 @@ int print_exports(char *host, struct exportnode *ex) {
             max = strlen(ex->ex_dir);
         }
 
-        ex = ex->ex_next; 
+        ex = ex->ex_next;
     }
 
     ex = first;
     max++; /* spacing */
-    
+
     while (ex) {
         printf("%s:%-*s", host, (int)max, ex->ex_dir);
         gr = ex->ex_groups;
