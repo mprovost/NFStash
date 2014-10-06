@@ -142,6 +142,9 @@ int main(int argc, char **argv) {
     struct addrinfo hints, *addr;
     char *host;
     char *path;
+    char *host_str;
+    int host_str_len;
+    char ip[INET_ADDRSTRLEN];
     exports ex;
     int exports_count = 0, exports_ok = 0;
     int ch, first, index;
@@ -180,7 +183,6 @@ int main(int argc, char **argv) {
                 }
                 break;
             /* use multiple IP addresses if found */
-            /* TODO in this case do we also want to default to showing IP addresses instead of names? */
             case 'm':
                 multiple = 1;
                 break;
@@ -219,6 +221,17 @@ int main(int argc, char **argv) {
                 /* mounts don't need authentication because they return a list of authentication flavours supported */
                 client->cl_auth = authnone_create();
 
+		if (multiple) {
+		  inet_ntop(client_sock.sin_family, &client_sock.sin_addr, ip, INET_ADDRSTRLEN);
+		  host_str_len = (strlen(ip) + strlen(host) + 3);
+		  host_str = malloc(host_str_len);
+		  snprintf(host_str, host_str_len, "%s(%s)", host, ip);
+		}
+		else {
+		  host_str_len = (strlen(host));
+		  host_str = strcpy(host_str, host);
+		}
+
                 if (client_sock.sin_port) {
                     if (path) {
                         mountres = get_root_filehandle(host, client, path);
@@ -226,7 +239,7 @@ int main(int argc, char **argv) {
                         if (mountres && mountres->fhs_status == MNT3_OK) {
                             exports_ok++;
                             /* print the filehandle in hex */
-                            print_fh(host, path, mountres->mountres3_u.mountinfo.fhandle);
+                            print_fh(host_str, path, mountres->mountres3_u.mountinfo.fhandle);
                         }
                     } else {
                         /* get the list of all exported filesystems from the server */
@@ -244,7 +257,7 @@ int main(int argc, char **argv) {
                                     if (mountres && mountres->fhs_status == MNT3_OK) {
                                         exports_ok++;
                                         /* print the filehandle in hex */
-                                        print_fh(host, ex->ex_dir, mountres->mountres3_u.mountinfo.fhandle);
+                                        print_fh(host_str, ex->ex_dir, mountres->mountres3_u.mountinfo.fhandle);
                                     }
                                     ex = ex->ex_next;
                                 }
@@ -255,6 +268,8 @@ int main(int argc, char **argv) {
                     clnt_pcreateerror("pmap_getport");
                     mountres->fhs_status = MNT3ERR_SERVERFAULT; /* is this the most appropriate error code? */
                 }
+
+		free(host_str);
 
                 if (multiple) {
                     addr = addr->ai_next;
