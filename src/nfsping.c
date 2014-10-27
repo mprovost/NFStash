@@ -185,7 +185,7 @@ int main(int argc, char **argv) {
     /* source ip address for packets */
     struct sockaddr_in src_ip = {
         .sin_family = AF_INET,
-        .sin_addr = 0
+        .sin_addr = INADDR_ANY
     };
 
     /* dispatch table for null function calls, this saves us from a bunch of if statements */
@@ -193,9 +193,10 @@ int main(int argc, char **argv) {
     /* protocol versions should relate to the corresponding NFS protocol */
     /* for example, mount protocol version 1 is used with nfs version 2, so store it at index 2 */
 
-    /* NLM protocol number is 100021 */
+    /* NLM protocol number is 100021, that's the highest */
     /* initialise to zeros so we can detect when we're calling an unknown protocol/version */
-    struct null_procs null_dispatch[21][4] = { 0 };
+    /* waste a bit of memory with a mostly empty array */
+    struct null_procs null_dispatch[22][5] = { 0 };
     /* rpc protocol numbers are offset by 100000, ie NFS = 100003 */
     /* mount version 1 was used with nfs v2 */
     null_dispatch[MOUNTPROG - 100000]  [2].proc = mountproc_null_1;
@@ -208,6 +209,7 @@ int main(int argc, char **argv) {
     null_dispatch[PMAPPROG - 100000]   [3] = null_dispatch[PMAPPROG - 100000][2];
     null_dispatch[PMAPPROG - 100000]   [4] = null_dispatch[PMAPPROG - 100000][2];
     /* nfs v2 didn't have locks, v4 has it integrated into the nfs protocol */
+    /* NLM version 4 is used by NFS version 3 */
     null_dispatch[NLM_PROG - 100000]   [3].proc = nlm4_null_4;
     null_dispatch[NLM_PROG - 100000]   [3].name = "nlm4_null_4";
     /* nfs */
@@ -286,8 +288,9 @@ int main(int argc, char **argv) {
                     prognum = NLM_PROG;
                     /* default to the portmapper */
                     port = 0;
-                    /* TODO add support for version 2 for NFSv2 */
-                    version = 4; /* 4 == NFSv3 */
+                    if (version != 3) {
+                        fatal("Only NFS version 3 supported!\n");
+                    }
                 } else {
                     fatal("Only one protocol!\n");
                 }
@@ -389,6 +392,9 @@ int main(int argc, char **argv) {
             /* specify NFS version */
             case 'V':
                 version = strtoul(optarg, NULL, 10);
+                if (prognum == NLM_PROG && version != 3) {
+                    fatal("Only NFS version 3 supported!\n");
+                }
                 break;
             case 'h':
             case '?':
