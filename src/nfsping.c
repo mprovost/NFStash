@@ -525,9 +525,7 @@ int main(int argc, char **argv) {
                 target->client = create_rpc_client(target->client_sock, &hints, prognum, version, timeout, src_ip);
             }
             /* now see if we've reconnected */
-            if (target->client == NULL) {
-                status = NULL;
-            } else {
+            if (target->client) {
                 /* first time marker */
                 gettimeofday(&call_start, NULL);
 
@@ -543,7 +541,15 @@ int main(int argc, char **argv) {
                 gettimeofday(&call_end, NULL);
                 target->sent++;
 
-                if (status != NULL) {
+                /* check for failure */
+                if (status == NULL) {
+                    if (target->client) {
+                        fprintf(stderr, "%s : ", target->name);
+                        clnt_geterr(target->client, &clnt_err);
+                        clnt_perror(target->client, null_dispatch[prognum - 100000][version].name);
+                        fflush(stderr);
+                    } /* TODO else? */
+                } else {
                     target->received++;
 
                     /* check if we're not looping */
@@ -571,15 +577,9 @@ int main(int argc, char **argv) {
                     }
                 }
             }
+
             /* something went wrong */
             if (status == NULL) {
-                if (target->client) {
-                    fprintf(stderr, "%s : ", target->name);
-                    clnt_geterr(target->client, &clnt_err);
-                    clnt_perror(target->client, null_dispatch[prognum - 100000][version].name);
-                    fflush(stderr);
-                }
-
                 print_lost(format, prefix, target, prognum, call_end);
                 fflush(stdout);
 
