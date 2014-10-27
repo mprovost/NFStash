@@ -208,8 +208,4 @@ int main(int argc, char **argv) {
             }
         }
     }
-
-    /* no arguments passed */
-    if (argc == 1)
-        usage();
 }
