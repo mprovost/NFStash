@@ -131,7 +131,7 @@ int main(int argc, char **argv) {
     } else {
         input_fh = argv[optind];
     }
-        
+
     while (input_fh) {
 
         current = parse_fh(input_fh);
@@ -191,11 +191,10 @@ int main(int argc, char **argv) {
                     entry = entry->nextentry;
                 }
             }
+            /* cleanup */
+            free(current->client_sock);
+            free(current);
         }
-
-        /* cleanup */
-        free(current->client_sock);
-        free(current);
 
         /* get the next filehandle*/
         if (optind == argc) {
@@ -209,4 +208,8 @@ int main(int argc, char **argv) {
             }
         }
     }
+
+    /* no arguments passed */
+    if (argc == 1)
+        usage();
 }
