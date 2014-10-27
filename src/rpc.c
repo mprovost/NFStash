@@ -45,6 +45,7 @@ CLIENT *destroy_rpc_client(CLIENT *client) {
 
 /* create an RPC client */
 /* takes an initialised sockaddr_in with the address and port */
+/* returns an initialised client, or NULL on error */
 CLIENT *create_rpc_client(struct sockaddr_in *client_sock, struct addrinfo *hints, unsigned long prognum, unsigned long version, struct timeval timeout, struct sockaddr_in src_ip) {
     CLIENT *client;
     int sock;
@@ -57,14 +58,14 @@ CLIENT *create_rpc_client(struct sockaddr_in *client_sock, struct addrinfo *hint
     /* this applies to pmap_getport or clnt*_create */
     /* so use our own get_rpc_port */
 
-    /* check if we need to use the portmapper */
+    /* check if we need to use the portmapper, 0 = yes */
     if (client_sock->sin_port == 0) {
         client_sock->sin_port = htons(PMAPPORT); /* 111 */
 
         sock = socket(AF_INET, hints->ai_socktype, 0);
         if (sock < 0) {
-            perror("create_rpc_client");
-            exit(EXIT_FAILURE); /* TODO should this be a different return code? */
+            perror("create_rpc_client(socket)");
+            return NULL;
         }
 
         /* set the source address if specified */
@@ -73,8 +74,8 @@ CLIENT *create_rpc_client(struct sockaddr_in *client_sock, struct addrinfo *hint
             src_ip.sin_port = 0;
 
             if (bind(sock, (struct sockaddr *) &src_ip, sizeof(src_ip)) == -1) {
-                perror("create_rpc_client");
-                exit(EXIT_FAILURE); /* TODO should this be a different return code? */
+                perror("create_rpc_client(bind)");
+                return NULL;
             }
         }
 
@@ -95,13 +96,14 @@ CLIENT *create_rpc_client(struct sockaddr_in *client_sock, struct addrinfo *hint
                 }
             }
         } else {
-            perror("connect");
-            exit(EXIT_FAILURE);
+            perror("create_rpc_client(connect)");
+            return NULL;
         }
 
         if (verbose) {
             if (getsockname(sock, (struct sockaddr *)&getaddr, &len) == -1) {
-                perror("getsockname");
+                perror("create_rpc_client(getsockname)");
+                /* this is just verbose output so don't return an error */
             } else {
                 inet_ntop(AF_INET, (struct sockaddr_in *)&getaddr.sin_addr, ip, INET_ADDRSTRLEN);
                 debug("portmap source port = %s:%u\n", ip, ntohs(getaddr.sin_port));
@@ -125,7 +127,7 @@ CLIENT *create_rpc_client(struct sockaddr_in *client_sock, struct addrinfo *hint
     sock = socket(AF_INET, hints->ai_socktype, 0);
     if (sock < 0) {
         perror("create_rpc_client(socket)");
-        exit(EXIT_FAILURE); /* TODO should this be a different return code? */
+        return NULL;
     }
 
     /* always try and bind to a low port first */
@@ -151,7 +153,7 @@ CLIENT *create_rpc_client(struct sockaddr_in *client_sock, struct addrinfo *hint
             }
         } else {
             perror("create_rpc_client(bind)");
-            exit(EXIT_FAILURE); /* TODO should this be a different return code? */
+            return NULL;
         }
     }
 
@@ -172,13 +174,14 @@ CLIENT *create_rpc_client(struct sockaddr_in *client_sock, struct addrinfo *hint
             }
         }
     } else {
-        perror("connect");
-        exit(EXIT_FAILURE);
+        perror("create_rpc_client(connect)");
+        return NULL;
     }
 
     if (verbose) {
         if (getsockname(sock, (struct sockaddr *)&getaddr, &len) == -1) {
-            perror("getsockname");
+            perror("create_rpc_client(getsockname)");
+            /* this is just verbose output so don't return an error */
         } else {
             inet_ntop(AF_INET, (struct sockaddr_in *)&getaddr.sin_addr, ip, INET_ADDRSTRLEN);
             debug("source port = %s:%u\n", ip, ntohs(getaddr.sin_port));
