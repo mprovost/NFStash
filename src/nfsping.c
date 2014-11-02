@@ -16,6 +16,7 @@ void usage() {
     struct timespec sleep_time = NFS_SLEEP;
 
     printf("Usage: nfsping [options] [targets...]\n\
+    -a         check the NFS ACL protocol (default NFS)\n\
     -A         show IP addresses\n\
     -c n       count of pings to send to target\n\
     -C n       same as -c, output parseable format\n\
@@ -193,10 +194,11 @@ int main(int argc, char **argv) {
     /* protocol versions should relate to the corresponding NFS protocol */
     /* for example, mount protocol version 1 is used with nfs version 2, so store it at index 2 */
 
-    /* NLM protocol number is 100021, that's the highest */
+    /* NFS ACL protocol number is 100227, that's the highest */
     /* initialise to zeros so we can detect when we're calling an unknown protocol/version */
     /* waste a bit of memory with a mostly empty array */
-    struct null_procs null_dispatch[22][5] = { 0 };
+    /* TODO have another struct to map RPC protocol numbers to lower numbers and get the array size down */
+    struct null_procs null_dispatch[228][5] = { 0 };
     /* rpc protocol numbers are offset by 100000, ie NFS = 100003 */
     /* mount version 1 was used with nfs v2 */
     null_dispatch[MOUNTPROG - 100000]  [2].proc = mountproc_null_1;
@@ -219,6 +221,11 @@ int main(int argc, char **argv) {
     null_dispatch[NFS_PROGRAM - 100000][3].name = "nfsproc3_null_3";
     null_dispatch[NFS_PROGRAM - 100000][4].proc = nfsproc4_null_4;
     null_dispatch[NFS_PROGRAM - 100000][4].name = "nfsproc4_null_4";
+    /* nfs acl */
+    null_dispatch[NFS_ACL_PROGRAM - 100000][2].proc = aclproc2_null_2;
+    null_dispatch[NFS_ACL_PROGRAM - 100000][2].name = "aclproc2_null_2";
+    null_dispatch[NFS_ACL_PROGRAM - 100000][3].proc = aclproc3_null_3;
+    null_dispatch[NFS_ACL_PROGRAM - 100000][3].name = "aclproc2_null_3";
 
     /* listen for ctrl-c */
     quitting = 0;
@@ -235,8 +242,17 @@ int main(int argc, char **argv) {
     if (argc == 1)
         usage();
 
-    while ((ch = getopt(argc, argv, "Ac:C:dDg:hi:lLmMnNo:p:P:qr:S:t:TvV:")) != -1) {
+    while ((ch = getopt(argc, argv, "aAc:C:dDg:hi:lLmMnNo:p:P:qr:S:t:TvV:")) != -1) {
         switch(ch) {
+            /* NFS ACL protocol */
+            case 'a':
+                if (prognum == NFS_PROGRAM) {
+                    prognum = NFS_ACL_PROGRAM;
+                    /* this usually runs on 2049 alongside NFS so leave port as default */
+                } else {
+                    fatal("Only one protocol!\n");
+                }
+                break;
             /* show IP addresses */
             case 'A':
                 ip = 1;
@@ -392,6 +408,7 @@ int main(int argc, char **argv) {
             /* specify NFS version */
             case 'V':
                 version = strtoul(optarg, NULL, 10);
+                /* TODO check null_dispatch table for supported versions for all protocols */
                 if (prognum == NLM_PROG && version != 3) {
                     fatal("Only NFS version 3 supported!\n");
                 }

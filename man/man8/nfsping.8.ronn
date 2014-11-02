@@ -3,13 +3,16 @@ nfsping(8) -- send RPC NULL requests to NFS servers
 
 ## SYNOPSIS
 
-`nfsping` [`-AdDhlLmMnNqTv`] [`-c` <count>] [`-C` <count>] [`-g` <prefix>] [`-i` <interval>] [`-o` <format>] [`-p` <pause>] [`-P` <port>] [`-r` <reconnect>] [`-S` <source>] [`-t` <timeout>] [`-V` <version>] <servers...>
+`nfsping` [`-aAdDhlLmMnNqTv`] [`-c` <count>] [`-C` <count>] [`-g` <prefix>] [`-i` <interval>] [`-o` <format>] [`-p` <pause>] [`-P` <port>] [`-r` <reconnect>] [`-S` <source>] [`-t` <timeout>] [`-V` <version>] <servers...>
 
 ## DESCRIPTION
 
-`nfsping` sends RPC NULL requests to an NFS server to determine if it is responding and to measure the response time. It supports the portmap, mount, network lock manager (NLM) and network file system (NFS) RPC protocols. The default protocol is NFS version 3. Without any arguments it will send a single NFSv3 NULL request to UDP port 2049 and report whether the server is alive or dead based on whether it receives a response or not.
+`nfsping` sends RPC NULL requests to an NFS server to determine if it is responding and to measure the response time. It supports the network file system (NFS), mount, network lock manager (NLM) and NFS ACL RPC protocols. The default protocol is NFS version 3 over UDP port 2049. Without any arguments it will send a single NULL request to the server and report whether it is alive or dead based on whether it receives a response or not.
 
 ## OPTIONS
+
+* `-a`:
+  Send NFS ACL protocol NULL requests to port 2049.
 
 * `-A`:
   Display IP addresses (instead of hostnames).
@@ -39,7 +42,7 @@ nfsping(8) -- send RPC NULL requests to NFS servers
   Loop forever. Like traditional ICMP `ping(8)`. Exit loop with Ctrl-c.
 
 * `-L`:
-  Send network lock manager (NLM) protocol NULL requests.
+  Send network lock manager (NLM) protocol NULL requests. Implies `-M`.
 
 * `-m`:
   Use multiple target IP addresses if found. For servers with multiple DNS A records (round-robin).
@@ -48,7 +51,7 @@ nfsping(8) -- send RPC NULL requests to NFS servers
   Use the portmapper to discover the listening port for the protocol on the server. Default no for NFS, yes for mount and NLM.
 
 * `-n`:
-  Send mount protocol NULL requests.
+  Send mount protocol NULL requests. Implies `-M`.
 
 * `-N`:
   Send portmap protocol NULL requests.
@@ -60,7 +63,7 @@ nfsping(8) -- send RPC NULL requests to NFS servers
   Number of milliseconds to pause between requests to target. Default = 1000 (one second).
 
 * `-P` <port>:
-  The port on the server. Default = 2049 for NFS, 111 for portmap. The portmapper on the server is queried for other protocols.
+  The port on the server. Default = 2049 for NFS and NFS ACL, 111 for portmap. The portmapper on the server is queried for other protocols.
 
 * `-q`:
   Quiet. Only print a summary.
