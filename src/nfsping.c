@@ -194,39 +194,32 @@ int main(int argc, char **argv) {
     /* protocol versions should relate to the corresponding NFS protocol */
     /* for example, mount protocol version 1 is used with nfs version 2, so store it at index 2 */
 
-    /* NFS ACL protocol number is 100227, that's the highest */
-    /* initialise to zeros so we can detect when we're calling an unknown protocol/version */
     /* waste a bit of memory with a mostly empty array */
-    /* TODO have another struct to map RPC protocol numbers to lower numbers and get the array size down */
-    struct null_procs null_dispatch[228][5] = { 0 };
+    /* TODO have another struct to map RPC protocol numbers to lower numbers and get the array size down? */
     /* rpc protocol numbers are offset by 100000, ie NFS = 100003 */
+    /* NFS ACL protocol number is 100227, that's the highest */
+    static const struct null_procs null_dispatch[228][5] = {
     /* mount version 1 was used with nfs v2 */
-    null_dispatch[MOUNTPROG - 100000]  [2].proc = mountproc_null_1;
-    null_dispatch[MOUNTPROG - 100000]  [2].name = "mountproc_null_1";
-    null_dispatch[MOUNTPROG - 100000]  [3].proc = mountproc_null_3;
-    null_dispatch[MOUNTPROG - 100000]  [3].name = "mountproc_null_3";
+    [MOUNTPROG - 100000]      [2] = { .proc = mountproc_null_1, .name = "mountproc_null_1" },
+    [MOUNTPROG - 100000]      [3] = { .proc = mountproc_null_3, .name = "mountproc_null_3" },
+    /* nfs v4 has mounting built in */
     /* only one version of portmap protocol */
-    null_dispatch[PMAPPROG - 100000]   [2].proc = pmapproc_null_2;
-    null_dispatch[PMAPPROG - 100000]   [2].name = "pmapproc_null_2";
-    null_dispatch[PMAPPROG - 100000]   [3] = null_dispatch[PMAPPROG - 100000][2];
-    null_dispatch[PMAPPROG - 100000]   [4] = null_dispatch[PMAPPROG - 100000][2];
+    [PMAPPROG - 100000]       [2] = { .proc = pmapproc_null_2, .name = "pmapproc_null_2" },
+    [PMAPPROG - 100000]       [3] = { .proc = pmapproc_null_2, .name = "pmapproc_null_2" },
+    [PMAPPROG - 100000]       [4] = { .proc = pmapproc_null_2, .name = "pmapproc_null_2" },
     /* nfs v2 didn't have locks, v4 has it integrated into the nfs protocol */
     /* NLM version 4 is used by NFS version 3 */
-    null_dispatch[NLM_PROG - 100000]   [3].proc = nlm4_null_4;
-    null_dispatch[NLM_PROG - 100000]   [3].name = "nlm4_null_4";
+    [NLM_PROG - 100000]       [3] = { .proc = nlm4_null_4, .name = "nlm4_null_4"},
     /* nfs */
-    null_dispatch[NFS_PROGRAM - 100000][2].proc = nfsproc_null_2;
-    null_dispatch[NFS_PROGRAM - 100000][2].name = "nfsproc_null_2";
-    null_dispatch[NFS_PROGRAM - 100000][3].proc = nfsproc3_null_3;
-    null_dispatch[NFS_PROGRAM - 100000][3].name = "nfsproc3_null_3";
-    null_dispatch[NFS_PROGRAM - 100000][4].proc = nfsproc4_null_4;
-    null_dispatch[NFS_PROGRAM - 100000][4].name = "nfsproc4_null_4";
+    [NFS_PROGRAM - 100000]    [2] = { .proc = nfsproc_null_2, .name = "nfsproc_null_2" },
+    [NFS_PROGRAM - 100000]    [3] = { .proc = nfsproc3_null_3, .name = "nfsproc3_null_3" },
+    [NFS_PROGRAM - 100000]    [4] = { .proc = nfsproc4_null_4, .name = "nfsproc4_null_4" },
     /* nfs acl */
-    null_dispatch[NFS_ACL_PROGRAM - 100000][2].proc = aclproc2_null_2;
-    null_dispatch[NFS_ACL_PROGRAM - 100000][2].name = "aclproc2_null_2";
-    null_dispatch[NFS_ACL_PROGRAM - 100000][3].proc = aclproc3_null_3;
-    null_dispatch[NFS_ACL_PROGRAM - 100000][3].name = "aclproc2_null_3";
-
+    [NFS_ACL_PROGRAM - 100000][2] = { .proc = aclproc2_null_2, .name = "aclproc2_null_2" },
+    [NFS_ACL_PROGRAM - 100000][3] = { .proc = aclproc3_null_3, .name = "aclproc3_null_3" }
+    /* nfs v4 has ACLs built in */
+    };
+    
     /* listen for ctrl-c */
     quitting = 0;
     signal(SIGINT, int_handler);
