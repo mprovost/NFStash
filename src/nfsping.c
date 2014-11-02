@@ -297,9 +297,6 @@ int main(int argc, char **argv) {
                     prognum = NLM_PROG;
                     /* default to the portmapper */
                     port = 0;
-                    if (version != 3) {
-                        fatal("Only NFS version 3 supported!\n");
-                    }
                 } else {
                     fatal("Only one protocol!\n");
                 }
@@ -333,7 +330,6 @@ int main(int argc, char **argv) {
                 if (prognum == NFS_PROGRAM) {
                     prognum = PMAPPROG;
                     port = htons(PMAPPORT); /* 111 */
-                    version = 2; /* not sure if this is needed */
                 } else {
                     fatal("Only one protocol!\n");
                 }
@@ -401,16 +397,17 @@ int main(int argc, char **argv) {
             /* specify NFS version */
             case 'V':
                 version = strtoul(optarg, NULL, 10);
-                /* TODO check null_dispatch table for supported versions for all protocols */
-                if (prognum == NLM_PROG && version != 3) {
-                    fatal("Only NFS version 3 supported!\n");
-                }
                 break;
             case 'h':
             case '?':
             default:
                 usage();
         }
+    }
+
+    /* check null_dispatch table for supported versions for all protocols */
+    if (null_dispatch[prognum - 100000][version].proc == 0) {
+        fatal("Illegal version %lu\n", version);
     }
 
     /* output formatting doesn't make sense for the simple check */
@@ -541,6 +538,7 @@ int main(int argc, char **argv) {
 
                 /* the actual ping */
                 /* use a dispatch table instead of switch */
+                /* doublecheck that the procedure exists, should have been checked above */
                 if (null_dispatch[prognum - 100000][version].proc) {
                     status = null_dispatch[prognum - 100000][version].proc(NULL, target->client);
                 } else {
