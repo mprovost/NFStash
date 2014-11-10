@@ -561,7 +561,7 @@ int main(int argc, char **argv) {
                 target->sent++;
             } /* else not connected */
 
-            /* check for failure */
+            /* check for success */
             if (status) {
                 target->received++;
 
@@ -603,9 +603,8 @@ int main(int argc, char **argv) {
                     clnt_perror(target->client, null_dispatch[prognum - 100000][version].name);
                     fflush(stderr);
 
-                    /* check for broken pipes */
-                    /* TODO try and reconnect before we get the broken pipe, we get a "Connection reset by peer" first */
-                    if (clnt_err.re_errno == EPIPE) {
+                    /* check for broken pipes or reset connections and try and reconnect next time */
+                    if (clnt_err.re_errno == EPIPE || ECONNRESET) {
                         target->client = destroy_rpc_client(target->client);
                     }
                 } /* TODO else? */
