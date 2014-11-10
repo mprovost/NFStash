@@ -447,9 +447,6 @@ int main(int argc, char **argv) {
                 /* don't reverse an IP address */
                 target->ndqf = target->name;
             }
-            target->client = create_rpc_client(target->client_sock, &hints, prognum, version, timeout, src_ip);
-            if (target->client == NULL)
-                exit(EXIT_FAILURE);
         } else {
             /* if that fails, do a DNS lookup */
             /* we don't call freeaddrinfo because we keep a pointer to the sin_addr in the target */
@@ -464,10 +461,6 @@ int main(int argc, char **argv) {
                         inet_ntop(AF_INET, &((struct sockaddr_in *)addr->ai_addr)->sin_addr, target->name, INET_ADDRSTRLEN);
                     }
                     target->ndqf = reverse_fqdn(target->name);
-
-                    target->client = create_rpc_client(target->client_sock, &hints, prognum, version, timeout, src_ip);
-                    if (target->client == NULL)
-                        exit(EXIT_FAILURE);
 
                     /* multiple results */
                     if (addr->ai_next) {
@@ -526,12 +519,16 @@ int main(int argc, char **argv) {
         target = targets;
 
         while (target) {
-            /* check if we were disconnected (TCP) */
+            /* reset */
+            status == NULL;
+
+            /* check if we were disconnected (TCP) or if this is the first iteration */
             if (target->client == NULL) {
-                /* try and reconnect */
+                /* try and (re)connect */
                 target->client = create_rpc_client(target->client_sock, &hints, prognum, version, timeout, src_ip);
             }
-            /* now see if we've reconnected */
+
+            /* now see if we're connected */
             if (target->client) {
                 /* first time marker */
                 gettimeofday(&call_start, NULL);
@@ -584,7 +581,7 @@ int main(int argc, char **argv) {
                         fflush(stdout);
                     }
                 }
-            }
+            } /* else not connected */
 
             /* something went wrong */
             if (status == NULL) {
