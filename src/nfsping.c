@@ -623,15 +623,7 @@ int main(int argc, char **argv) {
 
         /* if we're not looping we can exit now */
         if (!count && !loop) {
-            /* loop through the targets, if we find any that errored, exit with a failure */
-            while (target) {
-                if (target->received)
-                    target = target->next;
-                else
-                    exit(EXIT_FAILURE);
-            }
-            /* didn't find any failures */
-            exit(EXIT_SUCCESS);
+            break;
         }
 
         /* check the first target */
@@ -642,13 +634,11 @@ int main(int argc, char **argv) {
         /* see if we should disconnect and reconnect */
         if (reconnect && targets->sent % reconnect == 0) {
             destroy_rpc_client(target->client);
-            target->client = create_rpc_client(target->client_sock, &hints, prognum, version, timeout, src_ip);
-            if (target->client == NULL)
-                exit(EXIT_FAILURE);
         }
 
         nanosleep(&sleep_time, NULL);
-    }
+    } /* while(1) */
+
     fflush(stdout);
     /* these print to stderr */
     if (!quiet && (format == human || format == fping || format == unixtime))
