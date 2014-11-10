@@ -53,6 +53,13 @@ void print_summary(targets_t targets) {
 
     while (target) {
         loss = (target->sent - target->received) / (double)target->sent * 100;
+
+        /* check if this is still set to the default value */
+        /* that means we never saw any responses */
+        if (target->min == ULONG_MAX) {
+            target->min = 0;
+        }
+
         fprintf(stderr, "%s : xmt/rcv/%%loss = %u/%u/%.0f%%, min/avg/max = %.2f/%.2f/%.2f\n",
             target->name, target->sent, target->received, loss, target->min / 1000.0, target->avg / 1000.0, target->max / 1000.0);
         target = target->next;
