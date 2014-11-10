@@ -60,8 +60,15 @@ void print_summary(targets_t targets) {
             target->min = 0;
         }
 
-        fprintf(stderr, "%s : xmt/rcv/%%loss = %u/%u/%.0f%%, min/avg/max = %.2f/%.2f/%.2f\n",
-            target->name, target->sent, target->received, loss, target->min / 1000.0, target->avg / 1000.0, target->max / 1000.0);
+        fprintf(stderr, "%s : xmt/rcv/%%loss = %u/%u/%.0f%%",
+            target->name, target->sent, target->received, loss);
+        /* only print times if we got any responses */
+        if (target->received) {
+            fprintf(stderr, ", min/avg/max = %.2f/%.2f/%.2f",
+                target->min / 1000.0, target->avg / 1000.0, target->max / 1000.0);
+        }
+        fprintf(stderr, "\n");
+
         target = target->next;
     }
 }
