@@ -559,46 +559,37 @@ int main(int argc, char **argv) {
                 /* second time marker */
                 gettimeofday(&call_end, NULL);
                 target->sent++;
-
-                /* check for failure */
-                if (status == NULL) {
-                    if (target->client) {
-                        fprintf(stderr, "%s : ", target->name);
-                        clnt_geterr(target->client, &clnt_err);
-                        clnt_perror(target->client, null_dispatch[prognum - 100000][version].name);
-                        fflush(stderr);
-                    } /* TODO else? */
-                } else {
-                    target->received++;
-
-                    /* check if we're not looping */
-                    if (!count && !loop) {
-                        printf("%s is alive\n", target->name);
-                        target = target->next;
-                        continue;
-                    }
-
-                    us = tv2us(call_end) - tv2us(call_start);
-
-                    /* TODO discard first ping in case of ARP delay? Only for TCP for handshake? */
-                    if (us < target->min) target->min = us;
-                    if (us > target->max) target->max = us;
-                    /* calculate the average time */
-                    target->avg = (target->avg * (target->received - 1) + us) / target->received;
-
-                    if (format == fping)
-                        target->results[target->sent - 1] = us;
-
-                    if (!quiet) {
-                        /* TODO estimate the time by getting the midpoint of call_start and call_end? */
-                        print_output(format, prefix, target, prognum, call_end, us);
-                        fflush(stdout);
-                    }
-                }
             } /* else not connected */
 
+            /* check for failure */
+            if (status) {
+                target->received++;
+
+                /* check if we're not looping */
+                if (!count && !loop) {
+                    printf("%s is alive\n", target->name);
+                    target = target->next;
+                    continue;
+                }
+
+                us = tv2us(call_end) - tv2us(call_start);
+
+                /* TODO discard first ping in case of ARP delay? Only for TCP for handshake? */
+                if (us < target->min) target->min = us;
+                if (us > target->max) target->max = us;
+                /* calculate the average time */
+                target->avg = (target->avg * (target->received - 1) + us) / target->received;
+
+                if (format == fping)
+                    target->results[target->sent - 1] = us;
+
+                if (!quiet) {
+                    /* TODO estimate the time by getting the midpoint of call_start and call_end? */
+                    print_output(format, prefix, target, prognum, call_end, us);
+                    fflush(stdout);
+                }
             /* something went wrong */
-            if (status == NULL) {
+            } else {
                 print_lost(format, prefix, target, prognum, call_end);
                 fflush(stdout);
 
@@ -606,10 +597,18 @@ int main(int argc, char **argv) {
                     printf("%s is dead\n", target->name);
                 }
 
-                /* check for broken pipes */
-                if (clnt_err.re_errno == EPIPE) {
-                    target->client = destroy_rpc_client(target->client);
-                }
+                if (target->client) {
+                    fprintf(stderr, "%s : ", target->name);
+                    clnt_geterr(target->client, &clnt_err);
+                    clnt_perror(target->client, null_dispatch[prognum - 100000][version].name);
+                    fflush(stderr);
+
+                    /* check for broken pipes */
+                    /* TODO try and reconnect before we get the broken pipe, we get a "Connection reset by peer" first */
+                    if (clnt_err.re_errno == EPIPE) {
+                        target->client = destroy_rpc_client(target->client);
+                    }
+                } /* TODO else? */
             }
 
             target = target->next;
