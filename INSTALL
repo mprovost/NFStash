@@ -1,0 +1,3 @@
+cd NFSping
+make
+sudo make install

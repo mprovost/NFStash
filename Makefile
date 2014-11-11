@@ -1,4 +1,4 @@
-.PHONY: all clean rpcgen nfsping nfsmount nfsdf nfscat man
+.PHONY: all clean rpcgen nfsping nfsmount nfsdf nfscat man install
 
 all: nfsping nfsmount nfsdf nfsls nfscat
 
@@ -68,6 +68,10 @@ tests/util_tests: tests/util_tests.c tests/minunit.h util.o util.h
 
 # man pages
 man: $(addprefix man/man8/, nfsping.8 nfsping.8.html)
+
+# quick install
+install: all
+	install bin/* /usr/local/bin/
 
 # include generated dependency files
 ifneq ($(MAKECMDGOALS),clean)
