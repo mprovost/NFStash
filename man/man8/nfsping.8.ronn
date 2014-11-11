@@ -12,16 +12,16 @@ nfsping(8) -- send RPC NULL requests to NFS servers
 ## OPTIONS
 
 * `-a`:
-  Send NFS ACL protocol NULL requests to port 2049.
+  Send NFS ACL protocol NULL requests. Uses UDP port 2049 by default, use the portmapper with `-M`.
 
 * `-A`:
   Display IP addresses (instead of hostnames).
 
 * `-c` <count>:
-  Count of ping requests to send to target(s) before exiting.
+  Count of ping requests to send to target(s) before exiting. Print a line of output after each response is received (unless the `-q` option is specified). A summary of all responses is printed when the count is reached or the program is interrupted.
 
 * `-C` <count>:
-  Count of ping requests to send to target(s), output `fping(8)` compatible parseable format.
+  Count of ping requests to send to target(s), outputs `fping(8)` compatible parseable summary when the count is reached or the program is interrupted.
 
 * `-d`:
   Perform reverse DNS lookups for target(s).
@@ -48,7 +48,7 @@ nfsping(8) -- send RPC NULL requests to NFS servers
   Use multiple target IP addresses if found. For servers with multiple DNS A records (round-robin).
 
 * `-M`:
-  Use the portmapper to discover the listening port for the protocol on the server. Default no for NFS, yes for mount and NLM.
+  Use the RPC portmapper to discover the listening port for the protocol on the server. Default no for NFS and NFS ACL, yes for mount and NLM. Uses UDP by default or TCP if the `-T` option is specified.
 
 * `-n`:
   Send mount protocol NULL requests. Implies `-M`.
@@ -84,7 +84,7 @@ nfsping(8) -- send RPC NULL requests to NFS servers
   Display debug output on `stderr`.
 
 * `-V` <version>:
-  Use protocol `version`. Default = 3 for NFS, can use versions 2/3/4. Not supported for other protocols.
+  Use protocol `version`. Default = 3 for NFS, can use versions 2/3/4. Other protocols use the corresponding NFS version (except the portmapper which always uses version 2 of the portmap protocol). An error is returned for illegal or unsupported versions of the specified protocol.
 
 ## RETURN VALUES
 
@@ -101,5 +101,5 @@ Matt Provost, mprovost@termcap.net
 ## COPYRIGHT
 
 Copyright 2014 Matt Provost  
-RPC files Copyright Sun Microsystems
-NFSv4 files Copyright IETF
+RPC files Copyright Sun Microsystems  
+NFSv4 files Copyright IETF  
