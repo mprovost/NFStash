@@ -607,14 +607,11 @@ int main(int argc, char **argv) {
                 print_lost(format, prefix, target, prognum, call_end);
                 fflush(stdout);
 
-                if (!count && !loop) {
-                    printf("%s is dead\n", target->name);
-                }
-
                 if (target->client) {
                     fprintf(stderr, "%s : ", target->name);
                     clnt_geterr(target->client, &clnt_err);
                     clnt_perror(target->client, null_dispatch[prognum - 100000][version].name);
+                    fprintf(stderr, "\n");
                     fflush(stderr);
 
                     /* check for broken pipes or reset connections and try and reconnect next time */
@@ -622,6 +619,10 @@ int main(int argc, char **argv) {
                         target->client = destroy_rpc_client(target->client);
                     }
                 } /* TODO else? */
+
+                if (!count && !loop) {
+                    printf("%s is dead\n", target->name);
+                }
             }
 
             target = target->next;
