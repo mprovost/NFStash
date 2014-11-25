@@ -646,7 +646,7 @@ int main(int argc, char **argv) {
 
         /* see if we should disconnect and reconnect */
         if (reconnect && targets->sent % reconnect == 0) {
-            destroy_rpc_client(target->client);
+            target->client = destroy_rpc_client(target->client);
         }
 
         nanosleep(&sleep_time, NULL);
