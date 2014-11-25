@@ -652,14 +652,19 @@ int main(int argc, char **argv) {
     } /* while(1) */
 
     fflush(stdout);
-    /* these print to stderr */
-    if (!quiet && (format == human || format == fping || format == unixtime))
-        fprintf(stderr, "\n");
-    /* don't print summary for formatted output */
-    if (format == fping)
-        print_fping_summary(*targets);
-    else if (format == human || format == unixtime)
-        print_summary(*targets);
+
+    /* only print summary if looping */
+    if (count || loop) {
+        /* these print to stderr */
+        if (!quiet && (format == human || format == fping || format == unixtime))
+            fprintf(stderr, "\n");
+        /* don't print summary for formatted output */
+        if (format == fping)
+            print_fping_summary(*targets);
+        else if (format == human || format == unixtime)
+            print_summary(*targets);
+    }
+
     /* loop through the targets and find any that didn't get a response
      * exit with a failure if there were any missing responses */
     target = targets;
