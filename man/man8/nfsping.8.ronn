@@ -3,11 +3,11 @@ nfsping(8) -- send RPC NULL requests to NFS servers
 
 ## SYNOPSIS
 
-`nfsping` [`-aAdDhlLmMnNqTv`] [`-c` <count>] [`-C` <count>] [`-g` <prefix>] [`-i` <interval>] [`-o` <format>] [`-p` <pause>] [`-P` <port>] [`-r` <reconnect>] [`-S` <source>] [`-t` <timeout>] [`-V` <version>] <servers...>
+`nfsping` [`-aAdDhlLmMnNqsTv`] [`-c` <count>] [`-C` <count>] [`-g` <prefix>] [`-i` <interval>] [`-o` <format>] [`-p` <pause>] [`-P` <port>] [`-r` <reconnect>] [`-S` <source>] [`-t` <timeout>] [`-V` <version>] <servers...>
 
 ## DESCRIPTION
 
-`nfsping` sends RPC NULL requests to an NFS server to determine if it is responding and to measure the response time. It supports the network file system (NFS), mount, network lock manager (NLM) and NFS ACL RPC protocols. The default protocol is NFS version 3 over UDP port 2049. Without any arguments it will send a single NULL request to the server and report whether it is alive or dead based on whether it receives a response or not.
+`nfsping` sends RPC NULL requests to an NFS server to determine if it is responding and to measure the response time. It supports the network file system (NFS), mount, network lock manager (NLM), NFS ACL RPC and network status monitor (NSM) protocols. The default protocol is NFS version 3 over UDP port 2049. Without any arguments it will send a single NULL request to the server and report whether it is alive or dead based on whether it receives a response or not.
 
 ## OPTIONS
 
@@ -70,6 +70,9 @@ nfsping(8) -- send RPC NULL requests to NFS servers
 
 * `-r` <reconnect>:
   Disconnect and reconnect to the server after the specified number of requests.
+
+* `-s`:
+  Send network status monitor (NSM) protocol NULL requests. Imples `-M`. Note that not all servers support the NULL procedure.
 
 * `-S` <source>:
   Use the specified source IP address for request packets.

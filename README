@@ -10,7 +10,7 @@ filer1 : xmt/rcv/%loss = 5/5/0%, min/avg/max = 0.33/0.55/1.18
 
 NFSping is a command line utility for measuring the availability and response times of an NFS server by sending probe packets. It's basically a copy of the fping interface but doesn't share any code with that project.
 
-On modern NFS servers, the network stack and filesystem are often being run on separate cores or even hardware components. This means in practise that a fast ICMP ping response isn't indicative of how quickly the NFS services are responding. This tool directly tests the responsiveness of the server's NFS component. It can check five of the RPC protocols that are used by NFS: NFS, mount, portmap, the network lock manager (NLM) and Sun's ACL sideband protocol.
+On modern NFS servers, the network stack and filesystem are often being run on separate cores or even hardware components. This means in practise that a fast ICMP ping response isn't indicative of how quickly the NFS services are responding. This tool directly tests the responsiveness of the server's NFS component. It can check six of the RPC protocols that are used by NFS: NFS, mount, portmap, the network lock manager (NLM), Sun's ACL sideband protocol, and the network status monitor (NSM) protocol.
 
 For NFS, NFSping checks if the server is responding by sending an NFS NULL RPC and waiting for a response. The NULL procedure is a noop that is designed for testing. NFSping supports versions 2, 3 and 4 of NFS. By default it doesn't use the RPC portmapper for NFS pings and sends NULL packets to port 2049 using the UDP transport. Use the -T option to use TCP, -M to query the portmapper, or -P to specify a port number.
 
@@ -21,6 +21,8 @@ The -L option will check the network lock manager (NLM) protocol, using the port
 The -N option will check the portmap protocol itself (listening on port 111).
 
 The -a option will check the NFS ACL protocol which usually listens on port 2049 alongside NFS but is a separate RPC protocol.
+
+The -s option will check the network status monitor (NSM) protocol which is used to notify NFS peers of host reboots. Note that some server implementations (such as Linux's rpc.statd) do not support the NULL procedure in which case an RPC error is returned.
 
 To build the nfsping executable:
 
@@ -134,6 +136,7 @@ Usage: nfsping [options] [targets...]
     -P n       specify port (default: NFS 2049)
     -q         quiet, only print summary
     -r n       reconnect to server every n pings
+    -s         check the network status monitor (NSM) protocol (default NFS)
     -S addr    set source address
     -t n       timeout (in ms, default 2500)
     -T         use TCP (default UDP)
