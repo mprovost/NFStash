@@ -29,6 +29,7 @@
 #include "rpcsrc/nlm_prot.h"
 #include "rpcsrc/nfsv4_prot.h"
 #include "rpcsrc/nfs_acl.h"
+#include "rpcsrc/sm_inter.h"
 
 #define fatal(x...) do { fprintf(stderr,x); usage(); } while (0)
 #define debug(x...) do { if (verbose) fprintf(stderr,x); } while (0)

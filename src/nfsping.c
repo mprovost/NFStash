@@ -36,6 +36,7 @@ void usage() {
     -P n       specify port (default: NFS %i, portmap %i)\n\
     -q         quiet, only print summary\n\
     -r n       reconnect to server every n pings\n\
+    -s         check the network status monitor (NSM) protocol (default NFS)\n\
     -S addr    set source address\n\
     -t n       timeout (in ms, default %lu)\n\
     -T         use TCP (default UDP)\n\
@@ -230,8 +231,11 @@ int main(int argc, char **argv) {
     [NFS_PROGRAM - 100000]    [4] = { .proc = nfsproc4_null_4, .name = "nfsproc4_null_4" },
     /* nfs acl */
     [NFS_ACL_PROGRAM - 100000][2] = { .proc = aclproc2_null_2, .name = "aclproc2_null_2" },
-    [NFS_ACL_PROGRAM - 100000][3] = { .proc = aclproc3_null_3, .name = "aclproc3_null_3" }
+    [NFS_ACL_PROGRAM - 100000][3] = { .proc = aclproc3_null_3, .name = "aclproc3_null_3" },
     /* nfs v4 has ACLs built in */
+    /* NSM network status monitor, only has one version */
+    [SM_PROG - 100000][2] = { .proc = sm_null_1, .name = "sm_null_1" },
+    [SM_PROG - 100000][3] = { .proc = sm_null_1, .name = "sm_null_1" },
     };
     
     /* listen for ctrl-c */
@@ -249,7 +253,7 @@ int main(int argc, char **argv) {
     if (argc == 1)
         usage();
 
-    while ((ch = getopt(argc, argv, "aAc:C:dDg:hi:lLmMnNo:p:P:qr:S:t:TvV:")) != -1) {
+    while ((ch = getopt(argc, argv, "aAc:C:dDg:hi:lLmMnNo:p:P:qr:sS:t:TvV:")) != -1) {
         switch(ch) {
             /* NFS ACL protocol */
             case 'a':
@@ -386,6 +390,16 @@ int main(int argc, char **argv) {
                 break;
             case 'r':
                 reconnect = strtoul(optarg, NULL, 10);
+                break;
+            /* check NSM */
+            case 's':
+                if (prognum == NFS_PROGRAM) {
+                    prognum = SM_PROG;
+                    /* default to using the portmapper */
+                    port = 0;
+                } else {
+                    fatal("Only one protocol!\n");
+                }
                 break;
             /* source ip address for packets */
             case 'S':
