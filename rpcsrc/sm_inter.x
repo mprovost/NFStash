@@ -44,6 +44,7 @@
 
 program SM_PROG { 
 	version SM_VERS  {
+        void SM_NULL(void) = 0;
 		/* res_stat = stat_succ if status monitor agrees to monitor */
 		/* res_stat = stat_fail if status monitor cannot monitor */
 		/* if res_stat == stat_succ, state = state number of site sm_name */
