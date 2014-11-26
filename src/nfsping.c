@@ -390,6 +390,9 @@ int main(int argc, char **argv) {
                 break;
             case 'r':
                 reconnect = strtoul(optarg, NULL, 10);
+                if (reconnect == 0 || reconnect == ULONG_MAX) {
+                    fatal("Invalid reconnect count!\n");
+                }
                 break;
             /* check NSM */
             case 's':
