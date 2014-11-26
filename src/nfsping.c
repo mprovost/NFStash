@@ -443,6 +443,11 @@ int main(int argc, char **argv) {
         fatal("Can't specify output format without ping count!");
     }
 
+    /* check that the reconnect argument makes sense */
+    if (count && (reconnect >= count)) {
+        fatal("Ping count must be higher than reconnect!\n");
+    }
+
     /* mark the first non-option argument */
     first = optind;
 
