@@ -279,7 +279,7 @@ int main(int argc, char **argv) {
             /* number of pings per target */
             case 'c':
                 count = strtoul(optarg, NULL, 10);
-                if (count == 0) {
+                if (count == 0 || count == ULONG_MAX) {
                     fatal("Zero count, nothing to do!\n");
                 }
                 break;
@@ -428,6 +428,9 @@ int main(int argc, char **argv) {
             /* specify NFS version */
             case 'V':
                 version = strtoul(optarg, NULL, 10);
+                if (version == 0 || version == ULONG_MAX) {
+                    fatal("Illegal version %lu\n", version);
+                }
                 break;
             case 'h':
             case '?':
