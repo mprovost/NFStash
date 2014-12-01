@@ -40,6 +40,18 @@ int main(int argc, char **argv) {
     pid_t mypid;
     int getaddr;
     char nodename[NI_MAXHOST];
+    char *nlm4_stats_labels[] = {
+        "granted",
+        "denied",
+        "denied_nolocks",
+        "blocked",
+        "denied_grace_period",
+        "deadlock",
+        "read_only_filesystem",
+        "stale_filehandle",
+        "file_too_big",
+        "failed"
+    };
 
     while ((ch = getopt(argc, argv, "hTv")) != -1) {
         switch(ch) {
@@ -115,27 +127,14 @@ int main(int argc, char **argv) {
             testargs.alock.l_len = 0;
 
             if (client) {
+                /* run the test procedure */
                 res = nlm4_test_4(&testargs, client);
             }
 
             if (res) {
-                switch (res->stat.stat) {
-                    case nlm4_failed:
-                        printf("failed\n");
-                        break;
-                    case nlm4_granted:
-                        printf("granted\n");
-                        break;
-                    case nlm4_denied:
-                        printf("denied\n");
-                        break;
-                    case nlm4_denied_nolocks:
-                        printf("nolocks\n");
-                        break;
-                    case nlm4_denied_grace_period:
-                        printf("grace\n");
-                        break;
-                }
+                printf("%s\n", nlm4_stats_labels[res->stat.stat]);
+            } else {
+                clnt_perror(client, "nlm4_test_4");
             }
 
             /* cleanup */
