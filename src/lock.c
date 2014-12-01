@@ -34,9 +34,10 @@ int main(int argc, char **argv) {
     };
     nlm4_testres *res = NULL;
     nlm4_testargs testargs = {
-        .cookie    = 0,
+        .cookie    = 0, /* the cookie is only used in async RPC calls */
         .exclusive = FALSE,
     };
+    pid_t mypid;
 
     while ((ch = getopt(argc, argv, "hTv")) != -1) {
         switch(ch) {
@@ -84,17 +85,20 @@ int main(int argc, char **argv) {
                 /* connect to server */
                 client = create_rpc_client(current->client_sock, &hints, NLM_PROG, version, timeout, src_ip);
                 client->cl_auth = authunix_create_default();
+                //client->cl_auth = authunix_create(char *host, int uid, int gid, int len, int *aup_gids);
             }
 
+            /* get the pid of the current process to use in the lock request */
+            mypid = getpid();
+
             testargs.alock.caller_name = "nfsping";
-            testargs.alock.svid = 666;
-            //memcpy(&lock->fh, NFS_FH(file_inode(fl->fl_file)), sizeof(struct nfs_fh));
+            testargs.alock.svid = mypid;
             /* copy the filehandle */
             memcpy(&testargs.alock.fh, &current->fsroot, sizeof(nfs_fh3));
-            testargs.alock.oh.n_bytes = "666@nfsping";
-            testargs.alock.oh.n_len = 11;
+            /* don't need to count the terminating null */
+            testargs.alock.oh.n_len = asprintf(&testargs.alock.oh.n_bytes, "%i@nfsping", mypid);
             testargs.alock.l_offset = 0;
-            testargs.alock.l_len = 8;
+            testargs.alock.l_len = 0;
 
             if (client) {
                 res = nlm4_test_4(&testargs, client);
