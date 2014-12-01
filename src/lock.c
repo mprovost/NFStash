@@ -37,10 +37,11 @@ int main(int argc, char **argv) {
         .cookie    = 0, /* the cookie is only used in async RPC calls */
         .exclusive = FALSE,
     };
+    int status = 0;
     pid_t mypid;
     int getaddr;
     char nodename[NI_MAXHOST];
-    char *nlm4_stats_labels[] = {
+    const char *nlm4_stats_labels[] = {
         "granted",
         "denied",
         "denied_nolocks",
@@ -111,7 +112,7 @@ int main(int argc, char **argv) {
                 if (getaddr > 0) { /* failure! */
                     fprintf(stderr, "%s: %s\n", current->host, gai_strerror(getaddr));
                     /* use something that doesn't overlap with values in nlm4_testres.stat */
-                    exit(-1);
+                    exit(10);
                 }
             }
 
@@ -133,11 +134,19 @@ int main(int argc, char **argv) {
 
             if (res) {
                 printf("%s\n", nlm4_stats_labels[res->stat.stat]);
+                /* if we got an error, update the status for return */
+                if (res->stat.stat) {
+                    status = res->stat.stat;
+                }
             } else {
                 clnt_perror(client, "nlm4_test_4");
+                /* use something that doesn't overlap with values in nlm4_testres.stat */
+                status = 10;
             }
 
             /* cleanup */
+            //free(testargs.alock.fh);
+            free(testargs.alock.oh.n_bytes);
             free(current->client_sock);
             free(current);
         }
@@ -154,4 +163,7 @@ int main(int argc, char **argv) {
             }
         }
     }
+
+    /* this is zero if everything worked, or the last error code seen */
+    return status;
 }
