@@ -65,6 +65,9 @@ int main(int argc, char **argv) {
         input_fh = argv[optind];
     }
 
+    /* get the pid of the current process to use in the lock request(s) */
+    mypid = getpid();
+
     while (input_fh) {
 
         current = parse_fh(input_fh);
@@ -87,9 +90,6 @@ int main(int argc, char **argv) {
                 client->cl_auth = authunix_create_default();
                 //client->cl_auth = authunix_create(char *host, int uid, int gid, int len, int *aup_gids);
             }
-
-            /* get the pid of the current process to use in the lock request */
-            mypid = getpid();
 
             testargs.alock.caller_name = "nfsping";
             testargs.alock.svid = mypid;
