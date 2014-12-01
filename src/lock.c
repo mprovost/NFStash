@@ -38,6 +38,8 @@ int main(int argc, char **argv) {
         .exclusive = FALSE,
     };
     pid_t mypid;
+    int getaddr;
+    char nodename[NI_MAXHOST];
 
     while ((ch = getopt(argc, argv, "hTv")) != -1) {
         switch(ch) {
@@ -76,7 +78,6 @@ int main(int argc, char **argv) {
             /* check if we can use the same client connection as the previous target */
             /* get the server address out of the client */
             if (client) {
-                clnt_control(client, CLGET_SERVER_ADDR, (char *)&clnt_info);
                 if (clnt_info.sin_addr.s_addr != current->client_sock->sin_addr.s_addr) {
                     client = destroy_rpc_client(client);
                 }
@@ -89,14 +90,27 @@ int main(int argc, char **argv) {
                 client = create_rpc_client(current->client_sock, &hints, NLM_PROG, version, timeout, src_ip);
                 client->cl_auth = authunix_create_default();
                 //client->cl_auth = authunix_create(char *host, int uid, int gid, int len, int *aup_gids);
+
+                /* look up the address that was used to connect to the server */
+                clnt_control(client, CLGET_SERVER_ADDR, (char *)&clnt_info);
+
+                /* do a reverse lookup to find our client name */
+                getaddr = getnameinfo((struct sockaddr *)&clnt_info, sizeof(struct sockaddr_in), nodename, NI_MAXHOST, NULL, 0, 0);
+                if (getaddr > 0) { /* failure! */
+                    fprintf(stderr, "%s: %s\n", current->host, gai_strerror(getaddr));
+                    /* use something that doesn't overlap with values in nlm4_testres.stat */
+                    exit(-1);
+                }
             }
 
-            testargs.alock.caller_name = "nfsping";
+            /* build the arguments for the test procedure */
+            /* TODO should we append nfslock to the nodename so it's easy to distinguish from the kernel's own locks? */
+            testargs.alock.caller_name = nodename;
             testargs.alock.svid = mypid;
             /* copy the filehandle */
             memcpy(&testargs.alock.fh, &current->fsroot, sizeof(nfs_fh3));
             /* don't need to count the terminating null */
-            testargs.alock.oh.n_len = asprintf(&testargs.alock.oh.n_bytes, "%i@nfsping", mypid);
+            testargs.alock.oh.n_len = asprintf(&testargs.alock.oh.n_bytes, "%i@%s", mypid, nodename);
             testargs.alock.l_offset = 0;
             testargs.alock.l_len = 0;
 
