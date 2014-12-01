@@ -1,6 +1,6 @@
 .PHONY: all clean rpcgen nfsping nfsmount nfsdf nfscat man install
 
-all: nfsping nfsmount nfsdf nfsls nfscat
+all: nfsping nfsmount nfsdf nfsls nfscat nfslock
 
 clean:
 	rm -rf obj bin deps rpcsrc/*.c rpcsrc/*.h
@@ -60,6 +60,10 @@ bin/nfsls: $(addprefix obj/, ls.o nfs_prot_clnt.o nfs_prot_xdr.o pmap_prot_clnt.
 
 nfscat: bin/nfscat
 bin/nfscat: $(addprefix obj/, cat.o nfs_prot_clnt.o nfs_prot_xdr.o pmap_prot_clnt.o pmap_prot_xdr.o util.o rpc.o) | bin
+	gcc ${CFLAGS} $^ -o $@
+
+nfslock: bin/nfslock
+bin/nfslock: $(addprefix obj/, lock.o nlm_prot_clnt.o nlm_prot_xdr.o pmap_prot_clnt.o pmap_prot_xdr.o util.o rpc.o) | bin
 	gcc ${CFLAGS} $^ -o $@
 
 tests: tests/util_tests
