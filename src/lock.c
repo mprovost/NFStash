@@ -84,7 +84,7 @@ int main(int argc, char **argv) {
     char *input_fh;
     fsroots_t *filehandles;
     fsroots_t *current;
-    fsroots_t filehandles_dummy;
+    fsroots_t fh_dummy;
     struct addrinfo hints = {
         .ai_family = AF_INET,
         /* default to UDP */
@@ -136,7 +136,7 @@ int main(int argc, char **argv) {
     }
 
     /* pointer to head of list */
-    current = &filehandles_dummy;
+    current = &fh_dummy;
     filehandles = current;
 
     /* get the pid of the current process to use in the lock request(s) */
@@ -144,7 +144,8 @@ int main(int argc, char **argv) {
 
     while (input_fh) {
 
-        current = parse_fh(input_fh);
+        current->next = parse_fh(input_fh);
+        current = current->next;
 
         if (current) {
             /* check if we can use the same client connection as the previous target */
@@ -177,14 +178,6 @@ int main(int argc, char **argv) {
 
             /* the RPC */
             status = do_nlm_test(client, nodename, mypid, current);
-
-            /* cleanup */
-            //free(testargs.alock.fh);
-            /*
-            free(testargs.alock.oh.n_bytes);
-            free(current->client_sock);
-            free(current);
-            */
         }
 
         /* get the next filehandle*/
@@ -199,7 +192,49 @@ int main(int argc, char **argv) {
             }
         }
 
-        current = current->next;
+    }
+
+    /* skip the first dummy entry */
+    filehandles = filehandles->next;
+
+    while (loop) {
+        /* reset to start of list */
+        current = filehandles;
+
+        while (current) {
+            /* check if we can use the same client connection as the previous target */
+            /* get the server address out of the client */
+            if (client) {
+                if (clnt_info.sin_addr.s_addr != current->client_sock->sin_addr.s_addr) {
+                    client = destroy_rpc_client(client);
+                }
+            }
+
+            if (client == NULL) {
+                current->client_sock->sin_family = AF_INET;
+                current->client_sock->sin_port = 0;
+                /* connect to server */
+                client = create_rpc_client(current->client_sock, &hints, NLM_PROG, version, timeout, src_ip);
+                client->cl_auth = authunix_create_default();
+                //client->cl_auth = authunix_create(char *host, int uid, int gid, int len, int *aup_gids);
+
+                /* look up the address that was used to connect to the server */
+                clnt_control(client, CLGET_SERVER_ADDR, (char *)&clnt_info);
+
+                /* do a reverse lookup to find our client name */
+                getaddr = getnameinfo((struct sockaddr *)&clnt_info, sizeof(struct sockaddr_in), nodename, NI_MAXHOST, NULL, 0, 0);
+                if (getaddr > 0) { /* failure! */
+                    fprintf(stderr, "%s: %s\n", current->host, gai_strerror(getaddr));
+                    /* use something that doesn't overlap with values in nlm4_testres.stat */
+                    exit(10);
+                }
+            }
+
+            /* the RPC */
+            status = do_nlm_test(client, nodename, mypid, current);
+
+            current = current->next;
+        }
     }
 
     /* this is zero if everything worked, or the last error code seen */
