@@ -41,6 +41,9 @@ int main(int argc, char **argv) {
     pid_t mypid;
     int getaddr;
     char nodename[NI_MAXHOST];
+    unsigned long us;
+    struct timeval call_start, call_end;
+    /* string labels corresponding to return values in nlm4_stats enum */
     const char *nlm4_stats_labels[] = {
         "granted",
         "denied",
@@ -128,16 +131,22 @@ int main(int argc, char **argv) {
             testargs.alock.l_len = 0;
 
             if (client) {
+                gettimeofday(&call_start, NULL);
                 /* run the test procedure */
                 res = nlm4_test_4(&testargs, client);
+                gettimeofday(&call_end, NULL);
             }
 
             if (res) {
-                printf("%s\n", nlm4_stats_labels[res->stat.stat]);
+                fprintf(stderr, "%s\n", nlm4_stats_labels[res->stat.stat]);
                 /* if we got an error, update the status for return */
                 if (res->stat.stat) {
                     status = res->stat.stat;
                 }
+
+                us = tv2us(call_end) - tv2us(call_start);
+
+                printf("nfslock.%s.test.usec %lu %li\n", current->host, us, call_end.tv_sec);
             } else {
                 clnt_perror(client, "nlm4_test_4");
                 /* use something that doesn't overlap with values in nlm4_testres.stat */
