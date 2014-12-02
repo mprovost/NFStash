@@ -94,6 +94,7 @@ int main(int argc, char **argv) {
     struct sockaddr_in clnt_info;
     int version = 4;
     int loop = 0;
+    struct timespec sleep_time = NFS_SLEEP;
     struct timeval timeout = NFS_TIMEOUT;
     /* source ip address for packets */
     struct sockaddr_in src_ip = {
@@ -235,6 +236,7 @@ int main(int argc, char **argv) {
 
             current = current->next;
         }
+        nanosleep(&sleep_time, NULL);
     }
 
     /* this is zero if everything worked, or the last error code seen */
