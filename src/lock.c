@@ -7,6 +7,7 @@ int verbose = 0;
 void usage() {
     printf("Usage: nfslock [options] [filehandle...]\n\
     -h       display this help and exit\n\
+    -l       loop forever\n\
     -T       use TCP (default UDP)\n\
     -v       verbose output\n"); 
 
@@ -14,35 +15,15 @@ void usage() {
 }
 
 
-int main(int argc, char **argv) {
-    int ch;
-    char *input_fh;
-    fsroots_t *current;
-    struct addrinfo hints = {
-        .ai_family = AF_INET,
-        /* default to UDP */
-        .ai_socktype = SOCK_DGRAM,
-    };
-    CLIENT *client = NULL;
-    struct sockaddr_in clnt_info;
-    int version = 4;
-    struct timeval timeout = NFS_TIMEOUT;
-    /* source ip address for packets */
-    struct sockaddr_in src_ip = {
-        .sin_family = AF_INET,
-        .sin_addr = 0
-    };
+int do_nlm_test(CLIENT *client, char *nodename, pid_t mypid, fsroots_t *current) {
+    int status;
+    unsigned long us;
+    struct timeval call_start, call_end;
     nlm4_testres *res = NULL;
     nlm4_testargs testargs = {
         .cookie    = 0, /* the cookie is only used in async RPC calls */
         .exclusive = FALSE,
     };
-    int status = 0;
-    pid_t mypid;
-    int getaddr;
-    char nodename[NI_MAXHOST];
-    unsigned long us;
-    struct timeval call_start, call_end;
     /* string labels corresponding to return values in nlm4_stats enum */
     const char *nlm4_stats_labels[] = {
         "granted",
@@ -57,8 +38,79 @@ int main(int argc, char **argv) {
         "failed"
     };
 
-    while ((ch = getopt(argc, argv, "hTv")) != -1) {
+    /* build the arguments for the test procedure */
+    /* TODO should we append nfslock to the nodename so it's easy to distinguish from the kernel's own locks? */
+    testargs.alock.caller_name = nodename;
+    testargs.alock.svid = mypid;
+    /* copy the filehandle */
+    memcpy(&testargs.alock.fh, &current->fsroot, sizeof(nfs_fh3));
+    /* don't need to count the terminating null */
+    testargs.alock.oh.n_len = asprintf(&testargs.alock.oh.n_bytes, "%i@%s", mypid, nodename);
+    testargs.alock.l_offset = 0;
+    testargs.alock.l_len = 0;
+
+    if (client) {
+        gettimeofday(&call_start, NULL);
+
+        /* run the test procedure */
+        res = nlm4_test_4(&testargs, client);
+
+        gettimeofday(&call_end, NULL);
+    }
+
+    if (res) {
+        fprintf(stderr, "%s\n", nlm4_stats_labels[res->stat.stat]);
+        /* if we got an error, update the status for return */
+        if (res->stat.stat) {
+            status = res->stat.stat;
+        }
+
+        us = tv2us(call_end) - tv2us(call_start);
+
+        /* graphite output for now */
+        printf("nfslock.%s.test.usec %lu %li\n", current->host, us, call_end.tv_sec);
+    } else {
+        clnt_perror(client, "nlm4_test_4");
+        /* use something that doesn't overlap with values in nlm4_testres.stat */
+        status = 10;
+    }
+
+    return status;
+}
+
+
+int main(int argc, char **argv) {
+    int ch;
+    char *input_fh;
+    fsroots_t *filehandles;
+    fsroots_t *current;
+    fsroots_t filehandles_dummy;
+    struct addrinfo hints = {
+        .ai_family = AF_INET,
+        /* default to UDP */
+        .ai_socktype = SOCK_DGRAM,
+    };
+    CLIENT *client = NULL;
+    struct sockaddr_in clnt_info;
+    int version = 4;
+    int loop = 0;
+    struct timeval timeout = NFS_TIMEOUT;
+    /* source ip address for packets */
+    struct sockaddr_in src_ip = {
+        .sin_family = AF_INET,
+        .sin_addr = 0
+    };
+    int status = 0;
+    pid_t mypid;
+    int getaddr;
+    char nodename[NI_MAXHOST];
+
+    while ((ch = getopt(argc, argv, "hlTv")) != -1) {
         switch(ch) {
+            /* loop forever */
+            case 'l':
+                loop = 1;
+                break;
             /* use TCP */
             case 'T':
                 hints.ai_socktype = SOCK_STREAM;
@@ -82,6 +134,10 @@ int main(int argc, char **argv) {
     } else {
         input_fh = argv[optind];
     }
+
+    /* pointer to head of list */
+    current = &filehandles_dummy;
+    filehandles = current;
 
     /* get the pid of the current process to use in the lock request(s) */
     mypid = getpid();
@@ -119,45 +175,16 @@ int main(int argc, char **argv) {
                 }
             }
 
-            /* build the arguments for the test procedure */
-            /* TODO should we append nfslock to the nodename so it's easy to distinguish from the kernel's own locks? */
-            testargs.alock.caller_name = nodename;
-            testargs.alock.svid = mypid;
-            /* copy the filehandle */
-            memcpy(&testargs.alock.fh, &current->fsroot, sizeof(nfs_fh3));
-            /* don't need to count the terminating null */
-            testargs.alock.oh.n_len = asprintf(&testargs.alock.oh.n_bytes, "%i@%s", mypid, nodename);
-            testargs.alock.l_offset = 0;
-            testargs.alock.l_len = 0;
-
-            if (client) {
-                gettimeofday(&call_start, NULL);
-                /* run the test procedure */
-                res = nlm4_test_4(&testargs, client);
-                gettimeofday(&call_end, NULL);
-            }
-
-            if (res) {
-                fprintf(stderr, "%s\n", nlm4_stats_labels[res->stat.stat]);
-                /* if we got an error, update the status for return */
-                if (res->stat.stat) {
-                    status = res->stat.stat;
-                }
-
-                us = tv2us(call_end) - tv2us(call_start);
-
-                printf("nfslock.%s.test.usec %lu %li\n", current->host, us, call_end.tv_sec);
-            } else {
-                clnt_perror(client, "nlm4_test_4");
-                /* use something that doesn't overlap with values in nlm4_testres.stat */
-                status = 10;
-            }
+            /* the RPC */
+            status = do_nlm_test(client, nodename, mypid, current);
 
             /* cleanup */
             //free(testargs.alock.fh);
+            /*
             free(testargs.alock.oh.n_bytes);
             free(current->client_sock);
             free(current);
+            */
         }
 
         /* get the next filehandle*/
@@ -171,6 +198,8 @@ int main(int argc, char **argv) {
                 input_fh = NULL;
             }
         }
+
+        current = current->next;
     }
 
     /* this is zero if everything worked, or the last error code seen */
