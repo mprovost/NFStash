@@ -113,6 +113,10 @@ void print_output(enum outputs format, char *prefix, targets_t *target, unsigned
             printf("portmap");
         } else if (prognum == NLM_PROG) {
             printf("nlm");
+        } else if (prognum == NFS_ACL_PROGRAM) {
+            printf("acl");
+        } else if (prognum == SM_PROG) {
+            printf("nsm");
         } else {
             printf("ping");
         }
@@ -138,6 +142,10 @@ void print_lost(enum outputs format, char *prefix, targets_t *target, unsigned l
             printf("portmap");
         } else if (prognum == NLM_PROG) {
             printf("nlm");
+        } else if (prognum == NFS_ACL_PROGRAM) {
+            printf("acl");
+        } else if (prognum == SM_PROG) {
+            printf("nsm");
         } else {
             printf("ping");
         }
@@ -213,7 +221,7 @@ int main(int argc, char **argv) {
     /* TODO have another struct to map RPC protocol numbers to lower numbers and get the array size down? */
     /* rpc protocol numbers are offset by 100000, ie NFS = 100003 */
     /* NFS ACL protocol number is 100227, that's the highest */
-    static const struct null_procs null_dispatch[228][5] = {
+    static const struct null_procs null_dispatch[][5] = {
     /* mount version 1 was used with nfs v2 */
     [MOUNTPROG - 100000]      [2] = { .proc = mountproc_null_1, .name = "mountproc_null_1" },
     [MOUNTPROG - 100000]      [3] = { .proc = mountproc_null_3, .name = "mountproc_null_3" },
@@ -446,7 +454,7 @@ int main(int argc, char **argv) {
 
     /* output formatting doesn't make sense for the simple check */
     if (count == 0 && loop == 0 && format != human) {
-        fatal("Can't specify output format without ping count!");
+        fatal("Can't specify output format without ping count!\n");
     }
 
     /* check that the reconnect argument makes sense */
