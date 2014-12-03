@@ -6,9 +6,45 @@
 volatile sig_atomic_t quitting;
 int verbose = 0;
 
+/* dispatch table for null function calls, this saves us from a bunch of if statements */
+/* array is [protocol number][protocol version] */
+/* protocol versions should relate to the corresponding NFS protocol */
+/* for example, mount protocol version 1 is used with nfs version 2, so store it at index 2 */
+
+/* waste a bit of memory with a mostly empty array */
+/* TODO have another struct to map RPC protocol numbers to lower numbers and get the array size down? */
+/* rpc protocol numbers are offset by 100000, ie NFS = 100003 */
+static const struct null_procs null_dispatch[][5] = {
+    /* mount version 1 was used with nfs v2 */
+    [MOUNTPROG - 100000]      [2] = { .proc = mountproc_null_1, .name = "mountproc_null_1", .protocol = "mountv1" },
+    [MOUNTPROG - 100000]      [3] = { .proc = mountproc_null_3, .name = "mountproc_null_3", .protocol = "mountv3" },
+    /* nfs v4 has mounting built in */
+    /* only one version of portmap protocol */
+    [PMAPPROG - 100000]       [2] = { .proc = pmapproc_null_2, .name = "pmapproc_null_2", .protocol = "portmap" },
+    [PMAPPROG - 100000]       [3] = { .proc = pmapproc_null_2, .name = "pmapproc_null_2", .protocol = "portmap" },
+    [PMAPPROG - 100000]       [4] = { .proc = pmapproc_null_2, .name = "pmapproc_null_2", .protocol = "portmap" },
+    /* nfs v2 didn't have locks, v4 has it integrated into the nfs protocol */
+    /* NLM version 4 is used by NFS version 3 */
+    [NLM_PROG - 100000]       [3] = { .proc = nlm4_null_4, .name = "nlm4_null_4", .protocol = "nlmv4" },
+    /* nfs */
+    [NFS_PROGRAM - 100000]    [2] = { .proc = nfsproc_null_2, .name = "nfsproc_null_2" , .protocol = "nfsv2" },
+    [NFS_PROGRAM - 100000]    [3] = { .proc = nfsproc3_null_3, .name = "nfsproc3_null_3", .protocol = "nfsv3" },
+    [NFS_PROGRAM - 100000]    [4] = { .proc = nfsproc4_null_4, .name = "nfsproc4_null_4", .protocol = "nfsv4" },
+    /* nfs acl */
+    [NFS_ACL_PROGRAM - 100000][2] = { .proc = aclproc2_null_2, .name = "aclproc2_null_2", .protocol = "nfs_aclv2" },
+    [NFS_ACL_PROGRAM - 100000][3] = { .proc = aclproc3_null_3, .name = "aclproc3_null_3", .protocol = "nfs_aclv3" },
+    /* nfs v4 has ACLs built in */
+    /* NSM network status monitor, only has one version */
+    /* call it "status" to match rpcinfo */
+    [SM_PROG - 100000][2] = { .proc = sm_null_1, .name = "sm_null_1", .protocol = "status" },
+    [SM_PROG - 100000][3] = { .proc = sm_null_1, .name = "sm_null_1", .protocol = "status" },
+};
+
+
 void int_handler(int sig) {
     quitting = 1;
 }
+
 
 void usage() {
     struct timeval  timeout    = NFS_TIMEOUT;
@@ -74,6 +110,7 @@ void print_summary(targets_t targets) {
     }
 }
 
+
 /* TODO target output spacing */
 /* print a parseable summary string when finished in fping-compatible format */
 void print_fping_summary(targets_t targets) {
@@ -93,8 +130,9 @@ void print_fping_summary(targets_t targets) {
     }
 }
 
+
 /* print formatted output after each ping */
-void print_output(enum outputs format, char *prefix, targets_t *target, unsigned long prognum, struct timeval now, unsigned long us) {
+void print_output(enum outputs format, char *prefix, targets_t *target, unsigned long prognum, u_long version, struct timeval now, unsigned long us) {
     double loss;
 
     if (format == unixtime) {
@@ -107,19 +145,7 @@ void print_output(enum outputs format, char *prefix, targets_t *target, unsigned
         printf("%s : [%u], %03.2f ms (%03.2f avg, %.0f%% loss)\n", target->name, target->sent - 1, us / 1000.0, target->avg / 1000.0, loss);
     } else if (format == graphite || format == statsd) {
         printf("%s.%s.", prefix, target->ndqf);
-        if (prognum == MOUNTPROG) {
-            printf("mount");
-        } else if (prognum == PMAPPROG) {
-            printf("portmap");
-        } else if (prognum == NLM_PROG) {
-            printf("nlm");
-        } else if (prognum == NFS_ACL_PROGRAM) {
-            printf("acl");
-        } else if (prognum == SM_PROG) {
-            printf("nsm");
-        } else {
-            printf("ping");
-        }
+        printf("%s", null_dispatch[prognum - 100000][version].protocol);
         if (format == graphite) {
             printf(".usec %lu %li\n", us, now.tv_sec);
         } else if (format == statsd) {
@@ -131,24 +157,12 @@ void print_output(enum outputs format, char *prefix, targets_t *target, unsigned
 
 
 /* print missing packets for formatted output */
-void print_lost(enum outputs format, char *prefix, targets_t *target, unsigned long prognum, struct timeval now) {
+void print_lost(enum outputs format, char *prefix, targets_t *target, unsigned long prognum, u_long version, struct timeval now) {
     /* send to stdout even though it could be considered an error, presumably these are being piped somewhere */
     /* stderr prints the errors themselves which can be discarded */
     if (format == graphite || format == statsd) {
         printf("%s.%s.", prefix, target->ndqf);
-        if (prognum == MOUNTPROG) {
-            printf("mount");
-        } else if (prognum == PMAPPROG) {
-            printf("portmap");
-        } else if (prognum == NLM_PROG) {
-            printf("nlm");
-        } else if (prognum == NFS_ACL_PROGRAM) {
-            printf("acl");
-        } else if (prognum == SM_PROG) {
-            printf("nsm");
-        } else {
-            printf("ping");
-        }
+        printf("%s", null_dispatch[prognum - 100000][version].protocol);
         if (format == graphite) {
             printf(".lost 1 %li\n", now.tv_sec);
         } else if (format == statsd) {
@@ -210,41 +224,6 @@ int main(int argc, char **argv) {
     struct sockaddr_in src_ip = {
         .sin_family = AF_INET,
         .sin_addr = INADDR_ANY
-    };
-
-    /* dispatch table for null function calls, this saves us from a bunch of if statements */
-    /* array is [protocol number][protocol version] */
-    /* protocol versions should relate to the corresponding NFS protocol */
-    /* for example, mount protocol version 1 is used with nfs version 2, so store it at index 2 */
-
-    /* waste a bit of memory with a mostly empty array */
-    /* TODO have another struct to map RPC protocol numbers to lower numbers and get the array size down? */
-    /* rpc protocol numbers are offset by 100000, ie NFS = 100003 */
-    /* NFS ACL protocol number is 100227, that's the highest */
-    static const struct null_procs null_dispatch[][5] = {
-    /* mount version 1 was used with nfs v2 */
-    [MOUNTPROG - 100000]      [2] = { .proc = mountproc_null_1, .name = "mountproc_null_1", .protocol = "mountv1" },
-    [MOUNTPROG - 100000]      [3] = { .proc = mountproc_null_3, .name = "mountproc_null_3", .protocol = "mountv3" },
-    /* nfs v4 has mounting built in */
-    /* only one version of portmap protocol */
-    [PMAPPROG - 100000]       [2] = { .proc = pmapproc_null_2, .name = "pmapproc_null_2", .protocol = "portmap" },
-    [PMAPPROG - 100000]       [3] = { .proc = pmapproc_null_2, .name = "pmapproc_null_2", .protocol = "portmap" },
-    [PMAPPROG - 100000]       [4] = { .proc = pmapproc_null_2, .name = "pmapproc_null_2", .protocol = "portmap" },
-    /* nfs v2 didn't have locks, v4 has it integrated into the nfs protocol */
-    /* NLM version 4 is used by NFS version 3 */
-    [NLM_PROG - 100000]       [3] = { .proc = nlm4_null_4, .name = "nlm4_null_4", .protocol = "nlm" },
-    /* nfs */
-    [NFS_PROGRAM - 100000]    [2] = { .proc = nfsproc_null_2, .name = "nfsproc_null_2" , .protocol = "nfsv2" },
-    [NFS_PROGRAM - 100000]    [3] = { .proc = nfsproc3_null_3, .name = "nfsproc3_null_3", .protocol = "nfsv3" },
-    [NFS_PROGRAM - 100000]    [4] = { .proc = nfsproc4_null_4, .name = "nfsproc4_null_4", .protocol = "nfsv4" },
-    /* nfs acl */
-    [NFS_ACL_PROGRAM - 100000][2] = { .proc = aclproc2_null_2, .name = "aclproc2_null_2", .protocol = "nfs_aclv2" },
-    [NFS_ACL_PROGRAM - 100000][3] = { .proc = aclproc3_null_3, .name = "aclproc3_null_3", .protocol = "nfs_aclv3" },
-    /* nfs v4 has ACLs built in */
-    /* NSM network status monitor, only has one version */
-    /* call it "status" to match rpcinfo */
-    [SM_PROG - 100000][2] = { .proc = sm_null_1, .name = "sm_null_1", .protocol = "status" },
-    [SM_PROG - 100000][3] = { .proc = sm_null_1, .name = "sm_null_1", .protocol = "status" },
     };
 
     /* listen for ctrl-c */
@@ -619,12 +598,12 @@ int main(int argc, char **argv) {
 
                 if (!quiet) {
                     /* TODO estimate the time by getting the midpoint of call_start and call_end? */
-                    print_output(format, prefix, target, prognum, call_end, us);
+                    print_output(format, prefix, target, prognum, version, call_end, us);
                     fflush(stdout);
                 }
             /* something went wrong */
             } else {
-                print_lost(format, prefix, target, prognum, call_end);
+                print_lost(format, prefix, target, prognum, version, call_end);
                 fflush(stdout);
 
                 if (target->client) {
