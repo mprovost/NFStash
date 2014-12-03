@@ -143,6 +143,8 @@ int main(int argc, char **argv) {
     /* get the pid of the current process to use in the lock request(s) */
     mypid = getpid();
 
+    /* first loop through all of the inputs, either arguments or stdin */
+    /* ping each one as we see it, don't wait for the full list to come in on stdin */
     while (input_fh) {
 
         current->next = parse_fh(input_fh);
@@ -162,24 +164,30 @@ int main(int argc, char **argv) {
                 current->client_sock->sin_port = 0;
                 /* connect to server */
                 client = create_rpc_client(current->client_sock, &hints, NLM_PROG, version, timeout, src_ip);
-                client->cl_auth = authunix_create_default();
-                //client->cl_auth = authunix_create(char *host, int uid, int gid, int len, int *aup_gids);
+                if (client) {
+                    client->cl_auth = authunix_create_default();
+                    //client->cl_auth = authunix_create(char *host, int uid, int gid, int len, int *aup_gids);
 
-                /* look up the address that was used to connect to the server */
-                clnt_control(client, CLGET_SERVER_ADDR, (char *)&clnt_info);
+                    /* look up the address that was used to connect to the server */
+                    clnt_control(client, CLGET_SERVER_ADDR, (char *)&clnt_info);
 
-                /* do a reverse lookup to find our client name */
-                getaddr = getnameinfo((struct sockaddr *)&clnt_info, sizeof(struct sockaddr_in), nodename, NI_MAXHOST, NULL, 0, 0);
-                if (getaddr > 0) { /* failure! */
-                    fprintf(stderr, "%s: %s\n", current->host, gai_strerror(getaddr));
-                    /* use something that doesn't overlap with values in nlm4_testres.stat */
-                    exit(10);
+                    /* do a reverse lookup to find our client name */
+                    /* we need this to populate the nlm test arguments */
+                    getaddr = getnameinfo((struct sockaddr *)&clnt_info, sizeof(struct sockaddr_in), nodename, NI_MAXHOST, NULL, 0, 0);
+                    if (getaddr > 0) { /* failure! */
+                        fprintf(stderr, "%s: %s\n", current->host, gai_strerror(getaddr));
+                        /* use something that doesn't overlap with values in nlm4_testres.stat */
+                        exit(10);
+                    }
                 }
             }
 
             /* the RPC */
-            status = do_nlm_test(client, nodename, mypid, current);
-        }
+            if (client) {
+                status = do_nlm_test(client, nodename, mypid, current);
+            }
+
+        } /* TODO else (bad filehandle) */
 
         /* get the next filehandle*/
         if (optind == argc) {
@@ -198,6 +206,7 @@ int main(int argc, char **argv) {
     /* skip the first dummy entry */
     filehandles = filehandles->next;
 
+    /* now check if we're looping through the filehandles */
     while (loop) {
         /* reset to start of list */
         current = filehandles;
@@ -216,26 +225,33 @@ int main(int argc, char **argv) {
                 current->client_sock->sin_port = 0;
                 /* connect to server */
                 client = create_rpc_client(current->client_sock, &hints, NLM_PROG, version, timeout, src_ip);
-                client->cl_auth = authunix_create_default();
-                //client->cl_auth = authunix_create(char *host, int uid, int gid, int len, int *aup_gids);
+                if (client) {
+                    client->cl_auth = authunix_create_default();
+                    //client->cl_auth = authunix_create(char *host, int uid, int gid, int len, int *aup_gids);
 
-                /* look up the address that was used to connect to the server */
-                clnt_control(client, CLGET_SERVER_ADDR, (char *)&clnt_info);
+                    /* look up the address that was used to connect to the server */
+                    clnt_control(client, CLGET_SERVER_ADDR, (char *)&clnt_info);
 
-                /* do a reverse lookup to find our client name */
-                getaddr = getnameinfo((struct sockaddr *)&clnt_info, sizeof(struct sockaddr_in), nodename, NI_MAXHOST, NULL, 0, 0);
-                if (getaddr > 0) { /* failure! */
-                    fprintf(stderr, "%s: %s\n", current->host, gai_strerror(getaddr));
-                    /* use something that doesn't overlap with values in nlm4_testres.stat */
-                    exit(10);
+                    /* do a reverse lookup to find our client name */
+                    /* we need this to populate the nlm test arguments */
+                    getaddr = getnameinfo((struct sockaddr *)&clnt_info, sizeof(struct sockaddr_in), nodename, NI_MAXHOST, NULL, 0, 0);
+                    if (getaddr > 0) { /* failure! */
+                        fprintf(stderr, "%s: %s\n", current->host, gai_strerror(getaddr));
+                        /* use something that doesn't overlap with values in nlm4_testres.stat */
+                        exit(10);
+                    }
                 }
             }
 
             /* the RPC */
-            status = do_nlm_test(client, nodename, mypid, current);
+            if (client) {
+                status = do_nlm_test(client, nodename, mypid, current);
+            }
 
             current = current->next;
         }
+
+        /* sleep between requests */
         nanosleep(&sleep_time, NULL);
     }
 
