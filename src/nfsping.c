@@ -223,29 +223,30 @@ int main(int argc, char **argv) {
     /* NFS ACL protocol number is 100227, that's the highest */
     static const struct null_procs null_dispatch[][5] = {
     /* mount version 1 was used with nfs v2 */
-    [MOUNTPROG - 100000]      [2] = { .proc = mountproc_null_1, .name = "mountproc_null_1" },
-    [MOUNTPROG - 100000]      [3] = { .proc = mountproc_null_3, .name = "mountproc_null_3" },
+    [MOUNTPROG - 100000]      [2] = { .proc = mountproc_null_1, .name = "mountproc_null_1", .protocol = "mountv1" },
+    [MOUNTPROG - 100000]      [3] = { .proc = mountproc_null_3, .name = "mountproc_null_3", .protocol = "mountv3" },
     /* nfs v4 has mounting built in */
     /* only one version of portmap protocol */
-    [PMAPPROG - 100000]       [2] = { .proc = pmapproc_null_2, .name = "pmapproc_null_2" },
-    [PMAPPROG - 100000]       [3] = { .proc = pmapproc_null_2, .name = "pmapproc_null_2" },
-    [PMAPPROG - 100000]       [4] = { .proc = pmapproc_null_2, .name = "pmapproc_null_2" },
+    [PMAPPROG - 100000]       [2] = { .proc = pmapproc_null_2, .name = "pmapproc_null_2", .protocol = "portmap" },
+    [PMAPPROG - 100000]       [3] = { .proc = pmapproc_null_2, .name = "pmapproc_null_2", .protocol = "portmap" },
+    [PMAPPROG - 100000]       [4] = { .proc = pmapproc_null_2, .name = "pmapproc_null_2", .protocol = "portmap" },
     /* nfs v2 didn't have locks, v4 has it integrated into the nfs protocol */
     /* NLM version 4 is used by NFS version 3 */
-    [NLM_PROG - 100000]       [3] = { .proc = nlm4_null_4, .name = "nlm4_null_4"},
+    [NLM_PROG - 100000]       [3] = { .proc = nlm4_null_4, .name = "nlm4_null_4", .protocol = "nlm" },
     /* nfs */
-    [NFS_PROGRAM - 100000]    [2] = { .proc = nfsproc_null_2, .name = "nfsproc_null_2" },
-    [NFS_PROGRAM - 100000]    [3] = { .proc = nfsproc3_null_3, .name = "nfsproc3_null_3" },
-    [NFS_PROGRAM - 100000]    [4] = { .proc = nfsproc4_null_4, .name = "nfsproc4_null_4" },
+    [NFS_PROGRAM - 100000]    [2] = { .proc = nfsproc_null_2, .name = "nfsproc_null_2" , .protocol = "nfsv2" },
+    [NFS_PROGRAM - 100000]    [3] = { .proc = nfsproc3_null_3, .name = "nfsproc3_null_3", .protocol = "nfsv3" },
+    [NFS_PROGRAM - 100000]    [4] = { .proc = nfsproc4_null_4, .name = "nfsproc4_null_4", .protocol = "nfsv4" },
     /* nfs acl */
-    [NFS_ACL_PROGRAM - 100000][2] = { .proc = aclproc2_null_2, .name = "aclproc2_null_2" },
-    [NFS_ACL_PROGRAM - 100000][3] = { .proc = aclproc3_null_3, .name = "aclproc3_null_3" },
+    [NFS_ACL_PROGRAM - 100000][2] = { .proc = aclproc2_null_2, .name = "aclproc2_null_2", .protocol = "nfs_aclv2" },
+    [NFS_ACL_PROGRAM - 100000][3] = { .proc = aclproc3_null_3, .name = "aclproc3_null_3", .protocol = "nfs_aclv3" },
     /* nfs v4 has ACLs built in */
     /* NSM network status monitor, only has one version */
-    [SM_PROG - 100000][2] = { .proc = sm_null_1, .name = "sm_null_1" },
-    [SM_PROG - 100000][3] = { .proc = sm_null_1, .name = "sm_null_1" },
+    /* call it "status" to match rpcinfo */
+    [SM_PROG - 100000][2] = { .proc = sm_null_1, .name = "sm_null_1", .protocol = "status" },
+    [SM_PROG - 100000][3] = { .proc = sm_null_1, .name = "sm_null_1", .protocol = "status" },
     };
-    
+
     /* listen for ctrl-c */
     quitting = 0;
     signal(SIGINT, int_handler);

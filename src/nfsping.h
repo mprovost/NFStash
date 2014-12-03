@@ -91,9 +91,12 @@ enum outputs {
 typedef void *(*proc_null_t)(void *, CLIENT *);
 
 struct null_procs {
+    /* function pointer */
     proc_null_t proc;
     /* store the name as a string for error messages */
     char *name;
+    /* protocol name for output functions */
+    char *protocol;
 };
 
 #endif /* NFSPING_H */
