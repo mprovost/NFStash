@@ -48,7 +48,7 @@ nfsping(8) -- send RPC NULL requests to NFS servers
   Use multiple target IP addresses if found. For servers with multiple DNS A records (round-robin).
 
 * `-M`:
-  Use the RPC portmapper to discover the listening port for the protocol on the server. Default no for NFS and NFS ACL, yes for mount and NLM. Uses UDP by default or TCP if the `-T` option is specified.
+  Use the RPC portmapper to discover the listening port for the protocol on the server. Default no for NFS and NFS ACL, yes for mount, NLM and NSM. Uses UDP by default or TCP if the `-T` option is specified.
 
 * `-n`:
   Send mount protocol NULL requests. Implies `-M`.
@@ -72,7 +72,7 @@ nfsping(8) -- send RPC NULL requests to NFS servers
   Disconnect and reconnect to the server after the specified number of requests.
 
 * `-s`:
-  Send network status monitor (NSM) protocol NULL requests. Imples `-M`. Note that not all servers support the NULL procedure.
+  Send network status monitor (NSM) protocol NULL requests. Imples `-M`.
 
 * `-S` <source>:
   Use the specified source IP address for request packets.

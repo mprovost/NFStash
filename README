@@ -22,7 +22,7 @@ The -N option will check the portmap protocol itself (listening on port 111).
 
 The -a option will check the NFS ACL protocol which usually listens on port 2049 alongside NFS but is a separate RPC protocol.
 
-The -s option will check the network status monitor (NSM) protocol which is used to notify NFS peers of host reboots. Note that some server implementations (such as Linux's rpc.statd) do not support the NULL procedure in which case an RPC error is returned.
+The -s option will check the network status monitor (NSM) protocol which is used to notify NFS peers of host reboots.
 
 To build the nfsping executable:
 
@@ -128,7 +128,7 @@ Usage: nfsping [options] [targets...]
     -l         loop forever
     -L         check the network lock manager (NLM) protocol (default NFS)
     -m         use multiple target IP addresses if found
-    -M         use the portmapper (default: NFS no, mount/NLM yes)
+    -M         use the portmapper (default: NFS no, mount/NLM/NSM yes)
     -n         check the mount protocol (default NFS)
     -N         check the portmap protocol (default NFS)
     -o F       output format ([G]raphite, [S]tatsd, default human readable)

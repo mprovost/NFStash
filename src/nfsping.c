@@ -64,7 +64,7 @@ void usage() {
     -l         loop forever\n\
     -L         check the network lock manager (NLM) protocol (default NFS)\n\
     -m         use multiple target IP addresses if found\n\
-    -M         use the portmapper (default: NFS no, mount/NLM yes)\n\
+    -M         use the portmapper (default: NFS no, mount/NLM/NSM yes)\n\
     -n         check the mount protocol (default NFS)\n\
     -N         check the portmap protocol (default NFS)\n\
     -o F       output format ([G]raphite, [S]tatsd, default human readable)\n\
