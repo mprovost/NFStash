@@ -22,12 +22,12 @@ void usage() {
 }
 
 
-FSSTAT3res *get_fsstat(CLIENT *client, fsroots_t *fs) {
+FSSTAT3res *get_fsstat(CLIENT *client, nfs_fh_list *fs) {
     FSSTAT3args fsstatarg;
     FSSTAT3res  *fsstatres;
     struct rpc_err clnt_err;
 
-    fsstatarg.fsroot = fs->fsroot;
+    fsstatarg.fsroot = fs->nfs_fh;
 
     fsstatres = nfsproc3_fsstat_3(&fsstatarg, client);
 
@@ -167,7 +167,7 @@ int main(int argc, char **argv) {
     char output_prefix[255] = "nfs";
     int width  = 0;
     char *input_fh;
-    fsroots_t *current, *tail, dummy;
+    nfs_fh_list *current, *tail, dummy;
     int maxpath = 0;
     int maxhost = 0;
     CLIENT *client = NULL;

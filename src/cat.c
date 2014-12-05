@@ -20,10 +20,10 @@ void usage() {
 /* the NFS READ call */
 /* read a file from offset with a size of blocksize */
 /* returns the RPC result, updates us with the time that the call took */
-READ3res *do_read(CLIENT *client, fsroots_t *dir, offset3 offset, const unsigned long blocksize, unsigned long *us) {
+READ3res *do_read(CLIENT *client, nfs_fh_list *dir, offset3 offset, const unsigned long blocksize, unsigned long *us) {
     READ3res *readres;
     READ3args args = {
-        .file = dir->fsroot,
+        .file = dir->nfs_fh,
         .offset = 0,
         .count = blocksize,
     };
@@ -60,7 +60,7 @@ int main(int argc, char **argv) {
     int ch;
     char *input_fh;
     CLIENT *client = NULL;
-    fsroots_t *current;
+    nfs_fh_list *current;
     READ3res *res;
     struct addrinfo hints = {
         .ai_family = AF_INET,

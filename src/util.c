@@ -99,16 +99,16 @@ u_int nfs_perror(nfsstat3 status) {
 
 /* break up a string filehandle into parts */
 /* this uses strtok so it will eat the input */
-fsroots_t *parse_fh(char *input) {
+nfs_fh_list *parse_fh(char *input) {
     int i;
     char *tmp;
     char *copy;
-    u_int fsroot_len;
+    u_int fh_len;
     struct addrinfo *addr;
     struct addrinfo hints = {
         .ai_family = AF_INET,
     };
-    fsroots_t *next;
+    nfs_fh_list *next;
 
     /* sanity check */
     if (strlen(input) == 0) {
@@ -116,7 +116,7 @@ fsroots_t *parse_fh(char *input) {
         return NULL;
     }
 
-    next = malloc(sizeof(fsroots_t));
+    next = malloc(sizeof(nfs_fh_list));
     next->client_sock = NULL;
     next->next = NULL;
 
@@ -147,15 +147,15 @@ fsroots_t *parse_fh(char *input) {
                 /* the root filehandle in hex */
                 if (tmp = strtok(NULL, ":")) {
                     /* hex takes two characters for each byte */
-                    fsroot_len = strlen(tmp) / 2;
+                    fh_len = strlen(tmp) / 2;
 
-                    if (fsroot_len && fsroot_len % 2 == 0 && fsroot_len <= FHSIZE3) {
-                        next->fsroot.data.data_len = fsroot_len;
-                        next->fsroot.data.data_val = malloc(fsroot_len);
+                    if (fh_len && fh_len % 2 == 0 && fh_len <= FHSIZE3) {
+                        next->nfs_fh.data.data_len = fh_len;
+                        next->nfs_fh.data.data_val = malloc(fh_len);
 
                         /* convert from the hex string to a byte array */
-                        for (i = 0; i <= next->fsroot.data.data_len; i++) {
-                            sscanf(&tmp[i * 2], "%2hhx", &next->fsroot.data.data_val[i]);
+                        for (i = 0; i <= next->nfs_fh.data.data_len; i++) {
+                            sscanf(&tmp[i * 2], "%2hhx", &next->nfs_fh.data.data_val[i]);
                         }
                     } else {
                         fprintf(stderr, "Invalid filehandle: %s\n", copy);
@@ -181,7 +181,7 @@ fsroots_t *parse_fh(char *input) {
     /* TODO check for junk at end of input string */
 
 
-    if (next->host && next->path && fsroot_len) {
+    if (next->host && next->path && fh_len) {
         return next;
     } else {
         if (next->client_sock) free(next->client_sock);

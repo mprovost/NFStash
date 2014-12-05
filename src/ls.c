@@ -17,11 +17,11 @@ void usage() {
 
 
 /* do readdirplus calls to get a full list of directory entries */
-entryplus3 *do_readdirplus(CLIENT *client, fsroots_t *dir) {
+entryplus3 *do_readdirplus(CLIENT *client, nfs_fh_list *dir) {
     READDIRPLUS3res *res;
     entryplus3 *entry, *current, dummy;
     READDIRPLUS3args args = {
-        .dir = dir->fsroot,
+        .dir = dir->nfs_fh,
         .cookie = 0,
         .dircount = 512,
         .maxcount = 8192,
@@ -78,7 +78,8 @@ int main(int argc, char **argv) {
     int ch;
     int all = 0;
     char *input_fh;
-    fsroots_t *current;
+    char *filename;
+    nfs_fh_list *current;
     struct addrinfo hints = {
         .ai_family = AF_INET,
         /* default to UDP */

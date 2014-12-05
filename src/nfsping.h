@@ -69,13 +69,14 @@ typedef struct targets {
     float avg;
 } targets_t;
 
-typedef struct fsroots {
+/* a singly linked list of nfs filehandles */
+typedef struct nfs_fh_list {
     char *host;
     struct sockaddr_in *client_sock;
     char *path;
-    nfs_fh3 fsroot;
-    struct fsroots *next;
-} fsroots_t;
+    nfs_fh3 nfs_fh; /* generic name so we can include v2/v4 later */
+    struct nfs_fh_list *next;
+} nfs_fh_list;
 
 /* TODO capitalise? */
 enum outputs {

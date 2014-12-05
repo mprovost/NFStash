@@ -15,7 +15,7 @@ void usage() {
 }
 
 
-int do_nlm_test(CLIENT *client, char *nodename, pid_t mypid, fsroots_t *current) {
+int do_nlm_test(CLIENT *client, char *nodename, pid_t mypid, nfs_fh_list *current) {
     int status;
     unsigned long us;
     struct timeval call_start, call_end;
@@ -43,7 +43,7 @@ int do_nlm_test(CLIENT *client, char *nodename, pid_t mypid, fsroots_t *current)
     testargs.alock.caller_name = nodename;
     testargs.alock.svid = mypid;
     /* copy the filehandle */
-    memcpy(&testargs.alock.fh, &current->fsroot, sizeof(nfs_fh3));
+    memcpy(&testargs.alock.fh, &current->nfs_fh, sizeof(nfs_fh3));
     /* don't need to count the terminating null */
     testargs.alock.oh.n_len = asprintf(&testargs.alock.oh.n_bytes, "%i@%s", mypid, nodename);
     testargs.alock.l_offset = 0;
@@ -82,9 +82,7 @@ int do_nlm_test(CLIENT *client, char *nodename, pid_t mypid, fsroots_t *current)
 int main(int argc, char **argv) {
     int ch;
     char *input_fh;
-    fsroots_t *filehandles;
-    fsroots_t *current;
-    fsroots_t fh_dummy;
+    nfs_fh_list *filehandles, *current, fh_dummy;
     struct addrinfo hints = {
         .ai_family = AF_INET,
         /* default to UDP */
