@@ -174,14 +174,14 @@ void print_lost(enum outputs format, char *prefix, targets_t *target, unsigned l
 
 
 /* make a new target */
-targets_t *make_target(char *name, unsigned long prognum, uint16_t port, enum outputs format) {
+targets_t *make_target(char *name, unsigned long prognum, uint16_t port) {
     targets_t *target;
 
     target = calloc(1, sizeof(targets_t));
     target->next = NULL;
     target->name = name;
-    if (format == graphite)
-        target->ndqf = reverse_fqdn(target->name);
+    /* always set this even if we might not need it, it should be quick */
+    target->ndqf = reverse_fqdn(target->name);
 
     target->client_sock = calloc(1, sizeof(struct sockaddr_in));
     target->client_sock->sin_family = AF_INET;
@@ -456,7 +456,7 @@ int main(int argc, char **argv) {
 
     /* process the targets from the command line */
     for (index = optind; index < argc; index++) {
-        target->next = make_target(argv[index], prognum, port, format);
+        target->next = make_target(argv[index], prognum, port);
         target = target->next;
 
         /* first try treating the hostname as an IP address */
@@ -493,7 +493,7 @@ int main(int argc, char **argv) {
                     if (addr->ai_next) {
                         if (multiple) {
                             /* create the next target */
-                            target->next = make_target(argv[index], prognum, port, format);
+                            target->next = make_target(argv[index], prognum, port);
                             target = target->next;
                         } else {
                             /* we have to look up the IP address if we haven't already for the warning */
