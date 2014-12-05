@@ -98,6 +98,8 @@ struct null_procs {
     char *name;
     /* protocol name for output functions */
     char *protocol;
+    /* protocol version */
+    u_long version;
 };
 
 #endif /* NFSPING_H */
