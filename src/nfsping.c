@@ -132,7 +132,7 @@ void print_fping_summary(targets_t targets) {
 
 
 /* print formatted output after each ping */
-void print_output(enum outputs format, char *prefix, targets_t *target, unsigned long prognum, u_long version, struct timeval now, unsigned long us) {
+void print_output(enum outputs format, char *prefix, targets_t *target, unsigned long prognum_offset, u_long version, struct timeval now, unsigned long us) {
     double loss;
 
     if (format == unixtime) {
@@ -145,7 +145,7 @@ void print_output(enum outputs format, char *prefix, targets_t *target, unsigned
         printf("%s : [%u], %03.2f ms (%03.2f avg, %.0f%% loss)\n", target->name, target->sent - 1, us / 1000.0, target->avg / 1000.0, loss);
     } else if (format == graphite || format == statsd) {
         printf("%s.%s.", prefix, target->ndqf);
-        printf("%s", null_dispatch[prognum - 100000][version].protocol);
+        printf("%s", null_dispatch[prognum_offset][version].protocol);
         if (format == graphite) {
             printf(".usec %lu %li\n", us, now.tv_sec);
         } else if (format == statsd) {
@@ -157,12 +157,12 @@ void print_output(enum outputs format, char *prefix, targets_t *target, unsigned
 
 
 /* print missing packets for formatted output */
-void print_lost(enum outputs format, char *prefix, targets_t *target, unsigned long prognum, u_long version, struct timeval now) {
+void print_lost(enum outputs format, char *prefix, targets_t *target, unsigned long prognum_offset, u_long version, struct timeval now) {
     /* send to stdout even though it could be considered an error, presumably these are being piped somewhere */
     /* stderr prints the errors themselves which can be discarded */
     if (format == graphite || format == statsd) {
         printf("%s.%s.", prefix, target->ndqf);
-        printf("%s", null_dispatch[prognum - 100000][version].protocol);
+        printf("%s", null_dispatch[prognum_offset][version].protocol);
         if (format == graphite) {
             printf(".lost 1 %li\n", now.tv_sec);
         } else if (format == statsd) {
@@ -174,7 +174,7 @@ void print_lost(enum outputs format, char *prefix, targets_t *target, unsigned l
 
 
 /* make a new target */
-targets_t *make_target(char *name, unsigned long prognum, uint16_t port) {
+targets_t *make_target(char *name, uint16_t port) {
     targets_t *target;
 
     target = calloc(1, sizeof(targets_t));
@@ -203,6 +203,7 @@ int main(int argc, char **argv) {
     struct timespec wait_time = NFS_WAIT;
     uint16_t port = htons(NFS_PORT);
     unsigned long prognum = NFS_PROGRAM;
+    unsigned long prognum_offset = NFS_PROGRAM - 100000;
     struct addrinfo hints = {0}, *addr;
     struct rpc_err clnt_err;
     int getaddr;
@@ -427,8 +428,11 @@ int main(int argc, char **argv) {
         }
     }
 
+    /* calcuate this once */
+    prognum_offset = prognum - 100000;
+
     /* check null_dispatch table for supported versions for all protocols */
-    if (null_dispatch[prognum - 100000][version].proc == 0) {
+    if (null_dispatch[prognum_offset][version].proc == 0) {
         fatal("Illegal version %lu\n", version);
     }
 
@@ -456,7 +460,7 @@ int main(int argc, char **argv) {
 
     /* process the targets from the command line */
     for (index = optind; index < argc; index++) {
-        target->next = make_target(argv[index], prognum, port);
+        target->next = make_target(argv[index], port);
         target = target->next;
 
         /* first try treating the hostname as an IP address */
@@ -493,7 +497,7 @@ int main(int argc, char **argv) {
                     if (addr->ai_next) {
                         if (multiple) {
                             /* create the next target */
-                            target->next = make_target(argv[index], prognum, port);
+                            target->next = make_target(argv[index], port);
                             target = target->next;
                         } else {
                             /* we have to look up the IP address if we haven't already for the warning */
@@ -552,7 +556,7 @@ int main(int argc, char **argv) {
             /* check if we were disconnected (TCP) or if this is the first iteration */
             if (target->client == NULL) {
                 /* try and (re)connect */
-                target->client = create_rpc_client(target->client_sock, &hints, prognum, null_dispatch[prognum - 100000][version].version, timeout, src_ip);
+                target->client = create_rpc_client(target->client_sock, &hints, prognum, null_dispatch[prognum_offset][version].version, timeout, src_ip);
             }
 
             /* now see if we're connected */
@@ -563,8 +567,8 @@ int main(int argc, char **argv) {
                 /* the actual ping */
                 /* use a dispatch table instead of switch */
                 /* doublecheck that the procedure exists, should have been checked above */
-                if (null_dispatch[prognum - 100000][version].proc) {
-                    status = null_dispatch[prognum - 100000][version].proc(NULL, target->client);
+                if (null_dispatch[prognum_offset][version].proc) {
+                    status = null_dispatch[prognum_offset][version].proc(NULL, target->client);
                 } else {
                     fatal("Illegal version: %lu\n", version);
                 }
@@ -598,18 +602,18 @@ int main(int argc, char **argv) {
 
                 if (!quiet) {
                     /* TODO estimate the time by getting the midpoint of call_start and call_end? */
-                    print_output(format, prefix, target, prognum, version, call_end, us);
+                    print_output(format, prefix, target, prognum_offset, version, call_end, us);
                     fflush(stdout);
                 }
             /* something went wrong */
             } else {
-                print_lost(format, prefix, target, prognum, version, call_end);
+                print_lost(format, prefix, target, prognum_offset, version, call_end);
                 fflush(stdout);
 
                 if (target->client) {
                     fprintf(stderr, "%s : ", target->name);
                     clnt_geterr(target->client, &clnt_err);
-                    clnt_perror(target->client, null_dispatch[prognum - 100000][version].name);
+                    clnt_perror(target->client, null_dispatch[prognum_offset][version].name);
                     fprintf(stderr, "\n");
                     fflush(stderr);
 
