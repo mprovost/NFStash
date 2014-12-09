@@ -428,7 +428,7 @@ int main(int argc, char **argv) {
         }
     }
 
-    /* calcuate this once */
+    /* calculate this once */
     prognum_offset = prognum - 100000;
 
     /* check null_dispatch table for supported versions for all protocols */
@@ -540,55 +540,44 @@ int main(int argc, char **argv) {
         }
     }
 
+    target = targets;
+
     /* the main loop */
-    while(1) {
-        if (quitting) {
-            break;
+    while (target) {
+        /* reset */
+        status == NULL;
+
+        /* check if we were disconnected (TCP) or if this is the first iteration */
+        if (target->client == NULL) {
+            /* try and (re)connect */
+            target->client = create_rpc_client(target->client_sock, &hints, prognum, null_dispatch[prognum_offset][version].version, timeout, src_ip);
         }
 
-        /* reset back to start of list */
-        target = targets;
+        /* now see if we're connected */
+        if (target->client) {
+            /* first time marker */
+            gettimeofday(&call_start, NULL);
 
-        while (target) {
-            /* reset */
-            status == NULL;
-
-            /* check if we were disconnected (TCP) or if this is the first iteration */
-            if (target->client == NULL) {
-                /* try and (re)connect */
-                target->client = create_rpc_client(target->client_sock, &hints, prognum, null_dispatch[prognum_offset][version].version, timeout, src_ip);
+            /* the actual ping */
+            /* use a dispatch table instead of switch */
+            /* doublecheck that the procedure exists, should have been checked above */
+            if (null_dispatch[prognum_offset][version].proc) {
+                status = null_dispatch[prognum_offset][version].proc(NULL, target->client);
+            } else {
+                fatal("Illegal version: %lu\n", version);
             }
 
-            /* now see if we're connected */
-            if (target->client) {
-                /* first time marker */
-                gettimeofday(&call_start, NULL);
+            /* second time marker */
+            gettimeofday(&call_end, NULL);
+            target->sent++;
+        } /* else not connected */
 
-                /* the actual ping */
-                /* use a dispatch table instead of switch */
-                /* doublecheck that the procedure exists, should have been checked above */
-                if (null_dispatch[prognum_offset][version].proc) {
-                    status = null_dispatch[prognum_offset][version].proc(NULL, target->client);
-                } else {
-                    fatal("Illegal version: %lu\n", version);
-                }
+        /* check for success */
+        if (status) {
+            target->received++;
 
-                /* second time marker */
-                gettimeofday(&call_end, NULL);
-                target->sent++;
-            } /* else not connected */
-
-            /* check for success */
-            if (status) {
-                target->received++;
-
-                /* check if we're not looping */
-                if (!count && !loop) {
-                    printf("%s is alive\n", target->name);
-                    target = target->next;
-                    continue;
-                }
-
+            /* check if we're looping */
+            if (count || loop) {
                 us = tv2us(call_end) - tv2us(call_start);
 
                 /* TODO discard first ping in case of ARP delay? Only for TCP for handshake? */
@@ -605,46 +594,30 @@ int main(int argc, char **argv) {
                     print_output(format, prefix, target, prognum_offset, version, call_end, us);
                     fflush(stdout);
                 }
-            /* something went wrong */
             } else {
-                print_lost(format, prefix, target, prognum_offset, version, call_end);
-                fflush(stdout);
-
-                if (target->client) {
-                    fprintf(stderr, "%s : ", target->name);
-                    clnt_geterr(target->client, &clnt_err);
-                    clnt_perror(target->client, null_dispatch[prognum_offset][version].name);
-                    fprintf(stderr, "\n");
-                    fflush(stderr);
-
-                    /* check for broken pipes or reset connections and try and reconnect next time */
-                    if (clnt_err.re_errno == EPIPE || ECONNRESET) {
-                        target->client = destroy_rpc_client(target->client);
-                    }
-                } /* TODO else? */
-
-                if (!count && !loop) {
-                    printf("%s is dead\n", target->name);
-                }
+                printf("%s is alive\n", target->name);
             }
+        /* something went wrong */
+        } else {
+            print_lost(format, prefix, target, prognum_offset, version, call_end);
+            fflush(stdout);
 
-            target = target->next;
-            if (target)
-                nanosleep(&wait_time, NULL);
-        }
+            if (target->client) {
+                fprintf(stderr, "%s : ", target->name);
+                clnt_geterr(target->client, &clnt_err);
+                clnt_perror(target->client, null_dispatch[prognum_offset][version].name);
+                fprintf(stderr, "\n");
+                fflush(stderr);
 
-        /* reset back to start of list */
-        /* do this at the end of the loop not the start so we can check if we're done or need to sleep */
-        target = targets;
+                /* check for broken pipes or reset connections and try and reconnect next time */
+                if (clnt_err.re_errno == EPIPE || ECONNRESET) {
+                    target->client = destroy_rpc_client(target->client);
+                }
+            } /* TODO else? */
 
-        /* if we're not looping we can exit now */
-        if (!count && !loop) {
-            break;
-        }
-
-        /* check the first target */
-        if (count && targets->sent >= count) {
-            break;
+            if (!count && !loop) {
+                printf("%s is dead\n", target->name);
+            }
         }
 
         /* see if we should disconnect and reconnect */
@@ -652,8 +625,25 @@ int main(int argc, char **argv) {
             target->client = destroy_rpc_client(target->client);
         }
 
-        nanosleep(&sleep_time, NULL);
-    } /* while(1) */
+        target = target->next;
+
+        if (target) {
+            nanosleep(&wait_time, NULL);
+        /* at the end of the targets list, see if we need to loop */
+        } else {
+            /* check the first target */
+            if ((count && targets->sent < count) || loop) {
+                /* reset back to start of list */
+                /* do this at the end of the loop not the start so we can check if we're done or need to sleep */
+                /* see if we've been signalled */
+                if (!quitting) {
+                    target = targets;
+                    /* sleep between rounds */
+                    nanosleep(&sleep_time, NULL);
+                }
+            }
+        }
+    } /* while(target) */
 
     fflush(stdout);
 
