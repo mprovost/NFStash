@@ -153,6 +153,7 @@ void print_output(enum outputs format, char *prefix, targets_t *target, unsigned
             printf(":%03.2f|ms\n", us / 1000.0 );
         }
     }
+    fflush(stdout);
 }
 
 
@@ -170,6 +171,7 @@ void print_lost(enum outputs format, char *prefix, targets_t *target, unsigned l
             printf(".lost:1|c\n");
         }
     }
+    fflush(stdout);
 }
 
 
@@ -592,7 +594,6 @@ int main(int argc, char **argv) {
                 if (!quiet) {
                     /* TODO estimate the time by getting the midpoint of call_start and call_end? */
                     print_output(format, prefix, target, prognum_offset, version, call_end, us);
-                    fflush(stdout);
                 }
             } else {
                 printf("%s is alive\n", target->name);
@@ -600,7 +601,6 @@ int main(int argc, char **argv) {
         /* something went wrong */
         } else {
             print_lost(format, prefix, target, prognum_offset, version, call_end);
-            fflush(stdout);
 
             if (target->client) {
                 fprintf(stderr, "%s : ", target->name);
