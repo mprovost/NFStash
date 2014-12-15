@@ -467,19 +467,8 @@ int main(int argc, char **argv) {
 
         /* first try treating the hostname as an IP address */
         if (inet_pton(AF_INET, target->name, &((struct sockaddr_in *)target->client_sock)->sin_addr)) {
-            /* if we have reverse lookups enabled */
-            if (dns) {
-                target->name = calloc(1, NI_MAXHOST);
-                getaddr = getnameinfo((struct sockaddr *)target->client_sock, sizeof(struct sockaddr_in), target->name, NI_MAXHOST, NULL, 0, 0);
-                if (getaddr > 0) { /* failure! */
-                    fprintf(stderr, "%s: %s\n", target->name, gai_strerror(getaddr));
-                    exit(2); /* ping and fping return 2 for name resolution failures */
-                }
-                target->ndqf = reverse_fqdn(target->name);
-            } else {
-                /* don't reverse an IP address */
-                target->ndqf = target->name;
-            }
+            /* don't reverse an IP address */
+            target->ndqf = target->name;
         } else {
             /* if that fails, do a DNS lookup */
             /* we don't call freeaddrinfo because we keep a pointer to the sin_addr in the target */
@@ -538,6 +527,22 @@ int main(int argc, char **argv) {
                 fprintf(stderr, "nfsping: couldn't allocate memory for results!\n");
                 exit(3);
             }
+            target = target->next;
+        }
+    }
+
+    /* if we have reverse lookups enabled */
+    if (dns) {
+        target = targets;
+        while (target) {
+            target->name = calloc(1, NI_MAXHOST);
+            getaddr = getnameinfo((struct sockaddr *)target->client_sock, sizeof(struct sockaddr_in), target->name, NI_MAXHOST, NULL, 0, 0);
+            if (getaddr > 0) { /* failure! */
+                fprintf(stderr, "%s: %s\n", target->name, gai_strerror(getaddr));
+                exit(2); /* ping and fping return 2 for name resolution failures */
+            }
+            target->ndqf = reverse_fqdn(target->name);
+
             target = target->next;
         }
     }
