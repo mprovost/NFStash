@@ -10,6 +10,7 @@ void usage() {
     -h       display human readable sizes (default)\n\
     -i       display inodes\n\
     -k       display sizes in kilobytes\n\
+    -l       loop forever\n\
     -m       display sizes in megabytes\n\
     -o       output format ([G]raphite, [S]tatsd, Open[T]sdb, default human readable)\n\
     -t       display sizes in terabytes\n\
@@ -167,12 +168,14 @@ int main(int argc, char **argv) {
     char output_prefix[255] = "nfs";
     int width  = 0;
     char *input_fh;
-    nfs_fh_list *current, *tail, dummy;
+    nfs_fh_list *filehandles, *current, fh_dummy;
+    int loop = 0;
     int maxpath = 0;
     int maxhost = 0;
     CLIENT *client = NULL;
     struct sockaddr_in clnt_info;
     unsigned long version = 3;
+    struct timespec sleep_time = NFS_SLEEP;
     struct timeval timeout = NFS_TIMEOUT;
     struct timeval call_start, call_end;
     struct addrinfo hints = {
@@ -187,7 +190,7 @@ int main(int argc, char **argv) {
         .sin_addr = 0
     };
 
-    while ((ch = getopt(argc, argv, "ghikmo:S:tTv")) != -1) {
+    while ((ch = getopt(argc, argv, "ghiklmo:S:tTv")) != -1) {
         switch(ch) {
             /* display gigabytes */
             case 'g':
@@ -216,6 +219,10 @@ int main(int argc, char **argv) {
                 } else {
                     prefix = KILO;
                 }
+                break;
+            /* loop forever */
+            case 'l':
+                loop = 1;
                 break;
             /* display megabytes */
             case 'm':
@@ -273,10 +280,8 @@ int main(int argc, char **argv) {
     if (prefix == NONE)
         prefix = HUMAN;
 
-    /* first parse all of the input filehandles into a list 
-     * this gives us the longest path so we can lay out the output */
-    dummy.next = NULL;
-    tail = &dummy;
+    current = &fh_dummy;
+    filehandles = current;
 
     /* check if we don't have any command line targets */
     if (optind == argc) {
@@ -286,27 +291,28 @@ int main(int argc, char **argv) {
         input_fh = argv[optind];
     }
     
+    /* first parse all of the input filehandles into a list 
+     * this gives us the longest path so we can lay out the output */
     while (input_fh) {
 
-        tail->next = parse_fh(input_fh);
+        current->next = parse_fh(input_fh);
+        current = current->next;
 
         /* save the longest host/paths for display formatting */
-        if (tail->next) {
-            if (strlen(tail->next->path) > maxpath)
-                maxpath = strlen(tail->next->path);
+        if (current) {
+            if (strlen(current->path) > maxpath)
+                maxpath = strlen(current->path);
 
-            if (strlen(tail->next->host) > maxhost)
-                maxhost = strlen(tail->next->host);
-
-            tail = tail->next;
+            if (strlen(current->host) > maxhost)
+                maxhost = strlen(current->host);
         }
 
         /* parse next argument or line from stdin */
         if (optind == argc) {
             input_fh = fgets(input_fh, FHMAX, stdin);
         } else {
+            optind++;
             if (optind < argc) {
-                optind++;
                 input_fh = argv[optind];
             } else {
                 input_fh == NULL;
@@ -314,89 +320,100 @@ int main(int argc, char **argv) {
         }
     }
 
-    /* header */
-    /* Print the header before sending any RPCs, this means we have to guess about the size of the results
-       but it lets the user know that the program is running. Then we can print the results as they come in
-       which will also give a visual indication of which filesystems are slow to respond */
-    /* TODO check max line length < 80 or truncate path (or -w option for wide?) */
-    if (inodes) {
-        /* with 32 bit inodes you can have 2^32 per filesystem = 4294967296 = 10 digits */
-        /* ZFS can have 2^48 inodes which is 15 digits */
-        /* let's assume 32 bits is enough for now */
-        width = 10;
-    } else {
-        /* The longest output for each column (up to 9 petabytes in KB) is 13 digits plus two for label*/
-        /* TODO enum! */
-        switch (prefix) {
-            case KILO:
-                /* 9PB in KB = 9.8956e12 */
-                width = 13;
-                break;
-            case MEGA:
-                /* 9PB in MB = 9.664e+9 */
-                width = 10;
-                break;
-            case GIGA:
-                /* 9PB in GB = 9.437e+6 */
-                width = 7;
-                break;
-            case TERA:
-                /* 9PB in TB = 9216 */
-                width = 4;
-                break;
-            default:
-                /* if we're using human output the column will never be longer than 4 digits plus two for label */
-                width = 6;
-        }
-    }
-    /* extra space for gap between columns */
-    width++;
-
     if (format == human) {
+        /* header */
+        /* Print the header before sending any RPCs, this means we have to guess about the size of the results
+           but it lets the user know that the program is running. Then we can print the results as they come in
+           which will also give a visual indication of which filesystems are slow to respond */
+        /* TODO check max line length < 80 or truncate path (or -w option for wide?) */
+        if (inodes) {
+            /* with 32 bit inodes you can have 2^32 per filesystem = 4294967296 = 10 digits */
+            /* ZFS can have 2^48 inodes which is 15 digits */
+            /* let's assume 32 bits is enough for now */
+            width = 10;
+        } else {
+            /* The longest output for each column (up to 9 petabytes in KB) is 13 digits plus two for label*/
+            /* TODO array! */
+            switch (prefix) {
+                case KILO:
+                    /* 9PB in KB = 9.8956e12 */
+                    width = 13;
+                    break;
+                case MEGA:
+                    /* 9PB in MB = 9.664e+9 */
+                    width = 10;
+                    break;
+                case GIGA:
+                    /* 9PB in GB = 9.437e+6 */
+                    width = 7;
+                    break;
+                case TERA:
+                    /* 9PB in TB = 9216 */
+                    width = 4;
+                    break;
+                default:
+                    /* if we're using human output the column will never be longer than 4 digits plus two for label */
+                    width = 6;
+            }
+        }
+        /* extra space for gap between columns */
+        width++;
+
         /* FIXME print prefix in total column */
         printf("%-*s %*s %*s %*s capacity\n",
             maxhost + maxpath + 1, "Filesystem", width, "total", width, "used", width, "avail");
     }
-    
-    /* skip the first empty struct */
-    current = dummy.next;
-    while (current) {
-        current->client_sock->sin_family = AF_INET;
-        current->client_sock->sin_port = htons(NFS_PORT);
 
-        /* see if we can reuse the previous client connection */
-        if (client) {
-            clnt_control(client, CLGET_SERVER_ADDR, (char *)&clnt_info);
-            if (clnt_info.sin_addr.s_addr != current->client_sock->sin_addr.s_addr) {
-                client = destroy_rpc_client(client);
+    do {
+        /* reset to start of list */
+        /* skip the first empty struct */
+        current = filehandles->next;
+
+        while (current) {
+            /* see if we can reuse the previous client connection */
+            if (client) {
+                if (clnt_info.sin_addr.s_addr != current->client_sock->sin_addr.s_addr) {
+                    client = destroy_rpc_client(client);
+                }
             }
-        }
 
-        /* otherwise make a new connection */
-        if (client == NULL) {
-            client = create_rpc_client(current->client_sock, &hints, NFS_PROGRAM, version, timeout, src_ip);
-            client->cl_auth = authunix_create_default();
-        }
+            /* otherwise make a new connection */
+            if (client == NULL) {
+                current->client_sock->sin_family = AF_INET;
+                current->client_sock->sin_port = htons(NFS_PORT);
 
-        /* first time marker */
-        gettimeofday(&call_start, NULL);
-        /* the rpc call */
-        fsstatres = get_fsstat(client, current);
-        /* second time marker */
-        gettimeofday(&call_end, NULL);
+                client = create_rpc_client(current->client_sock, &hints, NFS_PROGRAM, version, timeout, src_ip);
+                client->cl_auth = authunix_create_default();
 
-        if (fsstatres && fsstatres->status == NFS3_OK) {
-            if (format) {
-                print_format(format, output_prefix, current->host, current->path, fsstatres, call_end);
-            } else {
-                if (inodes)
-                    print_inodes(maxpath, width, current->host, current->path, fsstatres);
-                else
-                    print_df(maxpath, width, current->host, current->path, fsstatres, prefix);
+                /* look up the address that was used to connect to the server */
+                clnt_control(client, CLGET_SERVER_ADDR, (char *)&clnt_info);
             }
+
+            /* first time marker */
+            gettimeofday(&call_start, NULL);
+            /* the rpc call */
+            fsstatres = get_fsstat(client, current);
+            /* second time marker */
+            gettimeofday(&call_end, NULL);
+
+            if (fsstatres && fsstatres->status == NFS3_OK) {
+                if (format) {
+                    print_format(format, output_prefix, current->host, current->path, fsstatres, call_end);
+                } else {
+                    if (inodes)
+                        print_inodes(maxpath, width, current->host, current->path, fsstatres);
+                    else
+                        print_df(maxpath, width, current->host, current->path, fsstatres, prefix);
+                }
+            }
+
+            if (loop) {
+                nanosleep(&sleep_time, NULL);
+            }
+
+            current = current->next;
         }
-        current = current->next;
-    }
+    } while (loop);
 
     return EXIT_SUCCESS;
 }
