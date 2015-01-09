@@ -191,6 +191,7 @@ int main(int argc, char **argv) {
     };
 
     /* The longest output for each column (up to 9 petabytes in KB) is 13 digits plus two for label*/
+    /* TODO struct so we can put in a label and a width */
     static const int prefix_width[] = {
         /* if we're using human output the column will never be longer than 4 digits plus two for label */
         [HUMAN] = 6,
@@ -254,10 +255,6 @@ int main(int argc, char **argv) {
                 } else {
                     if (strcmp(optarg, "G") == 0) {
                         format = graphite;
-                    } else if (strcmp(optarg, "S") == 0) {
-                        format = statsd;
-                    } else if (strcmp(optarg, "T") == 0) {
-                        format = opentsdb;
                     } else {
                         fatal("Unknown output format \"%s\"!\n", optarg);
                     }
