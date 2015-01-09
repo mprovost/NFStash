@@ -190,6 +190,21 @@ int main(int argc, char **argv) {
         .sin_addr = 0
     };
 
+    /* The longest output for each column (up to 9 petabytes in KB) is 13 digits plus two for label*/
+    static const int prefix_width[] = {
+        /* if we're using human output the column will never be longer than 4 digits plus two for label */
+        [HUMAN] = 6,
+        /* 9PB in KB = 9.8956e12 */
+        [KILO] = 13,
+        /* 9PB in MB = 9.664e+9 */
+        [MEGA] = 10,
+        /* 9PB in GB = 9.437e+6 */
+        [GIGA] = 7,
+        /* 9PB in TB = 9216 */
+        [TERA] = 4,
+    };
+
+
     while ((ch = getopt(argc, argv, "ghiklmo:S:tTv")) != -1) {
         switch(ch) {
             /* display gigabytes */
@@ -332,29 +347,7 @@ int main(int argc, char **argv) {
             /* let's assume 32 bits is enough for now */
             width = 10;
         } else {
-            /* The longest output for each column (up to 9 petabytes in KB) is 13 digits plus two for label*/
-            /* TODO array! */
-            switch (prefix) {
-                case KILO:
-                    /* 9PB in KB = 9.8956e12 */
-                    width = 13;
-                    break;
-                case MEGA:
-                    /* 9PB in MB = 9.664e+9 */
-                    width = 10;
-                    break;
-                case GIGA:
-                    /* 9PB in GB = 9.437e+6 */
-                    width = 7;
-                    break;
-                case TERA:
-                    /* 9PB in TB = 9216 */
-                    width = 4;
-                    break;
-                default:
-                    /* if we're using human output the column will never be longer than 4 digits plus two for label */
-                    width = 6;
-            }
+            width = prefix_width[prefix];
         }
         /* extra space for gap between columns */
         width++;
