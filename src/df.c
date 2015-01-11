@@ -143,8 +143,15 @@ void print_inodes(int offset, int width, char *host, char *path, FSSTAT3res *fss
 /* TODO escape dots and spaces (replace with underscores) in paths */
 void print_format(enum outputs format, char *prefix, char *host, char *path, FSSTAT3res *fsstatres, struct timeval now) {
     char *ndqf;
+    struct sockaddr_in sock;
 
-    ndqf = reverse_fqdn(host);
+    /* first try treating the hostname as an IP address */
+    if (inet_pton(AF_INET, host, &(sock.sin_addr))) {
+        /* don't reverse an IP address */
+        ndqf = host;
+    } else {
+        ndqf = reverse_fqdn(host);
+    }
 
     switch (format) {
         case graphite:
