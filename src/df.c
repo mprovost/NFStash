@@ -1,22 +1,24 @@
 #include "nfsping.h"
 #include "rpc.h"
 #include "util.h"
+#include "stddef.h"
 
 int verbose = 0;
 
 void usage() {
     printf("Usage: nfsdf [options] [filehandle...]\n\
-    -g       display sizes in gigabytes\n\
-    -h       display human readable sizes (default)\n\
-    -i       display inodes\n\
-    -k       display sizes in kilobytes\n\
-    -l       loop forever\n\
-    -m       display sizes in megabytes\n\
-    -o       output format ([G]raphite, [S]tatsd, Open[T]sdb, default human readable)\n\
-    -t       display sizes in terabytes\n\
-    -S addr  set source address\n\
-    -T       use TCP (default UDP)\n\
-    -v       verbose output\n\
+    -g         display sizes in gigabytes\n\
+    -h         display human readable sizes (default)\n\
+    -i         display inodes\n\
+    -k         display sizes in kilobytes\n\
+    -l         loop forever\n\
+    -m         display sizes in megabytes\n\
+    -o         output format ([G]raphite, [S]tatsd, Open[T]sdb, default human readable)\n\
+    -p string  prefix for graphite metric names\n\
+    -t         display sizes in terabytes\n\
+    -S addr    set source address\n\
+    -T         use TCP (default UDP)\n\
+    -v         verbose output\n\
     ");
 
     exit(3);
@@ -138,11 +140,57 @@ void print_inodes(int offset, int width, char *host, char *path, FSSTAT3res *fss
         capacity);
 }
 
+char *replace_char(const char *str, const char *old, const char *new)
+{
+    char *ret, *r;
+    const char *p, *q;
+    size_t oldlen = strlen(old);
+    size_t count, retlen, newlen = strlen(new);
+    int samesize = (oldlen == newlen);
+
+    if (!samesize) {
+            for (count = 0, p = str; (q = strstr(p, old)) != NULL; p = q + oldlen)
+                    count++;
+            /* This is undefined if p - str > PTRDIFF_MAX */
+            retlen = p - str + strlen(p) + count * (newlen - oldlen);
+    } else
+            retlen = strlen(str);
+
+    if ((ret = malloc(retlen + 1)) == NULL)
+            return NULL;
+
+    r = ret, p = str;
+    while (1) {
+            if (!samesize && !count--)
+                    break;
+            if ((q = strstr(p, old)) == NULL)
+                    break;
+            ptrdiff_t l = q - p;
+            memcpy(r, p, l);
+            r += l;
+            memcpy(r, new, newlen);
+            r += newlen;
+            p = q + oldlen;
+    }
+    strcpy(r, p);
+
+    return ret;
+}
 
 /* formatted output ie graphite */
 /* TODO escape dots and spaces (replace with underscores) in paths */
 void print_format(enum outputs format, char *prefix, char *host, char *path, FSSTAT3res *fsstatres, struct timeval now) {
     char *ndqf;
+    char *bad_characters[] = {
+        " ", ".", "-", "/"
+    };
+    int index = 0;
+    int number_of_chars = sizeof(bad_characters) / sizeof(bad_characters[0]);
+
+    for (index = 0; index < number_of_chars; index++) {
+        path = replace_char(path, bad_characters[index], "_");
+    }
+
     struct sockaddr_in sock;
 
     /* first try treating the hostname as an IP address */
@@ -213,7 +261,7 @@ int main(int argc, char **argv) {
     };
 
 
-    while ((ch = getopt(argc, argv, "ghiklmo:S:tTv")) != -1) {
+    while ((ch = getopt(argc, argv, "ghiklmo:p:S:tTv")) != -1) {
         switch(ch) {
             /* display gigabytes */
             case 'g':
@@ -254,6 +302,10 @@ int main(int argc, char **argv) {
                 } else {
                     prefix = MEGA;
                 }
+                break;
+            /* prefix to use for graphite metrics */
+            case 'p':
+                strncpy(output_prefix, optarg, sizeof(output_prefix));
                 break;
             /* output format */
             case 'o':
