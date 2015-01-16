@@ -140,6 +140,7 @@ void print_inodes(int offset, int width, char *host, char *path, FSSTAT3res *fss
         capacity);
 }
 
+
 char *replace_char(const char *str, const char *old, const char *new)
 {
     char *ret, *r;
@@ -149,28 +150,28 @@ char *replace_char(const char *str, const char *old, const char *new)
     int samesize = (oldlen == newlen);
 
     if (!samesize) {
-            for (count = 0, p = str; (q = strstr(p, old)) != NULL; p = q + oldlen)
-                    count++;
-            /* This is undefined if p - str > PTRDIFF_MAX */
-            retlen = p - str + strlen(p) + count * (newlen - oldlen);
+        for (count = 0, p = str; (q = strstr(p, old)) != NULL; p = q + oldlen)
+            count++;
+        /* This is undefined if p - str > PTRDIFF_MAX */
+        retlen = p - str + strlen(p) + count * (newlen - oldlen);
     } else
-            retlen = strlen(str);
+        retlen = strlen(str);
 
     if ((ret = malloc(retlen + 1)) == NULL)
-            return NULL;
+        return NULL;
 
     r = ret, p = str;
     while (1) {
-            if (!samesize && !count--)
-                    break;
-            if ((q = strstr(p, old)) == NULL)
-                    break;
-            ptrdiff_t l = q - p;
-            memcpy(r, p, l);
-            r += l;
-            memcpy(r, new, newlen);
-            r += newlen;
-            p = q + oldlen;
+        if (!samesize && !count--)
+            break;
+        if ((q = strstr(p, old)) == NULL)
+            break;
+        ptrdiff_t l = q - p;
+        memcpy(r, p, l);
+        r += l;
+        memcpy(r, new, newlen);
+        r += newlen;
+        p = q + oldlen;
     }
     strcpy(r, p);
 
