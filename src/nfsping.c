@@ -20,9 +20,7 @@ static const struct null_procs null_dispatch[][5] = {
     [MOUNTPROG - 100000]      [3] = { .proc = mountproc_null_3, .name = "mountproc_null_3", .protocol = "mountv3", .version = 3 },
     /* nfs v4 has mounting built in */
     /* only one version of portmap protocol */
-    [PMAPPROG - 100000]       [2] = { .proc = pmapproc_null_2, .name = "pmapproc_null_2", .protocol = "portmap", .version = 2 },
-    [PMAPPROG - 100000]       [3] = { .proc = pmapproc_null_2, .name = "pmapproc_null_2", .protocol = "portmap", .version = 2 },
-    [PMAPPROG - 100000]       [4] = { .proc = pmapproc_null_2, .name = "pmapproc_null_2", .protocol = "portmap", .version = 2 },
+    [PMAPPROG - 100000]       [2 ... 4] = { .proc = pmapproc_null_2, .name = "pmapproc_null_2", .protocol = "portmap", .version = 2 },
     /* nfs v2 didn't have locks, v4 has it integrated into the nfs protocol */
     /* NLM version 4 is used by NFS version 3 */
     [NLM_PROG - 100000]       [3] = { .proc = nlm4_null_4, .name = "nlm4_null_4", .protocol = "nlmv4", .version = 4 },
