@@ -1,0 +1,59 @@
+nfsdf(8) -- report NFS server disk space usage
+==============================================
+
+## SYNOPSIS
+
+`nfsdf` [`-ghiklmotTv`] [`-p` <prefix>] [`-S` <source>] <filehandle...>
+
+## DESCRIPTION
+
+`nfsdf` sends an NFS version 3 FSSTAT RPC request to an NFS server and reports the amount of disk space or inodes used on the filesystem specified in the filehandle argument(s).
+
+## OPTIONS
+
+* `-g`:
+  Report disk space in gigabytes.
+
+* `-h`:
+  Report disk space in human readable format (default). This is whichever format is the most compact to display.
+
+* `-i`:
+  Report inodes (files) instead of disk space.
+
+* `-k`:
+  Report disk space in kilobytes.
+
+* `-l`:
+  Loop forever. Exit loop with Ctrl-c.
+
+* `-m`:
+  Report disk space in megabytes.
+
+* `-o` <format>:
+  Specify output format for input to another program. Currently supported is [`G`]raphite. Default is human readable (`-h`).
+
+* `-p` <prefix>:
+  Specify string prefix for Graphite metric names. Default = "nfs".
+
+* `-S` <source>:
+  Use the specified source IP address for request packets.
+
+* `-T`:
+  Use TCP to connect to server. Default = UDP.
+
+* `-v`:
+  Display debug output on `stderr`.
+
+## RETURN VALUES
+
+`nfsdf` will return `0` if all requests to all targets received successful responses. Nonzero exit codes indicate a failure. `1` is an RPC error, `2` is a name resolution failure, `3` is an initialisation failure (typically bad arguments).
+
+## AUTHOR
+
+Matt Provost, mprovost@termcap.net
+
+## COPYRIGHT
+
+Copyright 2015 Matt Provost  
+RPC files Copyright Sun Microsystems  
+NFSv4 files Copyright IETF  

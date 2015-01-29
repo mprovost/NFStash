@@ -13,7 +13,7 @@ void usage() {
     -k         display sizes in kilobytes\n\
     -l         loop forever\n\
     -m         display sizes in megabytes\n\
-    -o         output format ([G]raphite, [S]tatsd, Open[T]sdb, default human readable)\n\
+    -o format  output format ([G]raphite, default human readable)\n\
     -p string  prefix for graphite metric names\n\
     -t         display sizes in terabytes\n\
     -S addr    set source address\n\

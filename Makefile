@@ -70,8 +70,9 @@ tests: tests/util_tests
 tests/util_tests: tests/util_tests.c tests/minunit.h util.o util.h
 	gcc ${CFLAGS} $^ -o $@
 
+# TODO move to mansrc, output goes in man
 # man pages
-man: $(addprefix man/man8/, nfsping.8 nfsping.8.html)
+man: $(addprefix man/man8/, nfsping.8 nfsping.8.html nfsdf.8 nfsdf.8.html)
 
 # quick install
 install: all
