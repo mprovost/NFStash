@@ -56,6 +56,14 @@ int prefix_print(size3 input, char *output, enum byte_prefix prefix) {
     int index;
     size3 shifted;
 
+    /* TODO PETA (and BYTE?) */
+    static const char label[] = {
+        [KILO] = 'K',
+        [MEGA] = 'M',
+        [GIGA] = 'G',
+        [TERA] = 'T',
+    };
+
     if (prefix == HUMAN) {
         /* try and find the best fit, starting with terabytes and working down */
         prefix = TERA;
@@ -71,23 +79,9 @@ int prefix_print(size3 input, char *output, enum byte_prefix prefix) {
     index = snprintf(output, 13, "%" PRIu64 "", input >> prefix);
 
     /* print the label */
-    /* TODO PETA (and BYTE?) */
     /* FIXME only print this for prefix=0 aka human mode otherwise stuff the prefix in the header */
-    /* TODO replace with enum? */
-    switch (prefix) {
-        case KILO:
-            output[index] = 'K';
-            break;
-        case MEGA:
-            output[index] = 'M';
-            break;
-        case GIGA:
-            output[index] = 'G';
-            break;
-        case TERA:
-            output[index] = 'T';
-            break;
-    }
+    output[index] = label[prefix];
+
     /* all of them end in B(ytes) */
     output[++index] = 'B';
     output[++index] = '\0';
