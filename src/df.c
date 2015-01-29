@@ -387,7 +387,7 @@ int main(int argc, char **argv) {
             if (optind < argc) {
                 input_fh = argv[optind];
             } else {
-                input_fh == NULL;
+                input_fh = NULL;
             }
         }
     }
