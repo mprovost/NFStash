@@ -170,6 +170,7 @@ int main(int argc, char **argv) {
                 hints.ai_socktype = SOCK_STREAM;
                 break;
             /* verbose */
+            case 'v':
                 verbose = 1;
                 break;
             case 'h':
