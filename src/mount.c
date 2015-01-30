@@ -19,37 +19,18 @@ void usage() {
 
 
 u_int mount_perror(mountstat3 fhs_status) {
-    switch (fhs_status) {
-        case MNT3_OK:
-            /* not an error */
-            break;
-        case MNT3ERR_NOENT:
-            fprintf(stderr, "MNT3ERR_NOENT");
-            break;
-        case MNT3ERR_ACCES:
-            fprintf(stderr, "MNT3ERR_ACCES");
-            break;
-        case MNT3ERR_NOTDIR:
-            fprintf(stderr, "MNT3ERR_NOTDIR");
-            break;
-        case MNT3ERR_INVAL:
-            fprintf(stderr, "MNT3ERR_INVAL");
-            break;
-        case MNT3ERR_NAMETOOLONG:
-            fprintf(stderr, "MNT3ERR_NAMETOOLONG");
-            break;
-        case MNT3ERR_NOTSUPP:
-            fprintf(stderr, "MNT3ERR_NOTSUPP");
-            break;
-        case MNT3ERR_SERVERFAULT:
-            fprintf(stderr, "MNT3ERR_SERVERFAULT");
-            break;
-        default:
-            fprintf(stderr, "UNKNOWN");
-            break;
-    }
-    if (fhs_status)
-        fprintf(stderr, "\n");
+    static const char *labels[] = {
+        [MNT3ERR_NOENT] = "MNT3ERR_NOENT",
+        [MNT3ERR_ACCES] = "MNT3ERR_ACCES",
+        [MNT3ERR_NOTDIR] = "MNT3ERR_NOTDIR",
+        [MNT3ERR_INVAL] = "MNT3ERR_INVAL",
+        [MNT3ERR_NAMETOOLONG] = "MNT3ERR_NAMETOOLONG",
+        [MNT3ERR_NOTSUPP] = "MNT3ERR_NOTSUPP",
+        [MNT3ERR_SERVERFAULT] = "MNT3ERR_SERVERFAULT",
+    };
+
+    if (fhs_status && fhs_status != MNT3_OK)
+        fprintf(stderr, "%s\n", labels[fhs_status]);
     return fhs_status;
 }
 
