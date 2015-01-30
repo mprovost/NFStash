@@ -202,7 +202,7 @@ int main(int argc, char **argv) {
                 client->cl_auth = authnone_create();
 
                 if (client_sock.sin_port) {
-                    if (path) {
+                    if (path && !showmount) {
                         mountres = get_root_filehandle(host, client, path);
                         exports_count++;
                         if (mountres && mountres->fhs_status == MNT3_OK) {
