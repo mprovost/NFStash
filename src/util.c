@@ -1,98 +1,97 @@
 #include "nfsping.h"
 
+/* print a string message for each NFS status code */
 u_int nfs_perror(nfsstat3 status) {
-    switch(status) {
-        case NFS3_OK:
-            /* not an error */
-            break;
-        case NFS3ERR_PERM:
-            fprintf(stderr, "NFS3ERR_PERM");
-            break;
-        case NFS3ERR_NOENT:
-            fprintf(stderr, "NFS3ERR_NOENT");
-            break;
-        case NFS3ERR_IO:
-            fprintf(stderr, "NFS3ERR_IO");
-            break;
-        case NFS3ERR_NXIO:
-            fprintf(stderr, "NFS3ERR_NXIO");
-            break;
-        case NFS3ERR_ACCES:
-            fprintf(stderr, "NFS3ERR_ACCES");
-            break;
-        case NFS3ERR_EXIST:
-            fprintf(stderr, "NFS3ERR_EXIST");
-            break;
-        case NFS3ERR_XDEV:
-            fprintf(stderr, "NFS3ERR_XDEV");
-            break;
-        case NFS3ERR_NODEV:
-            fprintf(stderr, "NFS3ERR_NODEV");
-            break;
-        case NFS3ERR_NOTDIR:
-            fprintf(stderr, "NFS3ERR_NOTDIR");
-            break;
-        case NFS3ERR_ISDIR:
-            fprintf(stderr, "NFS3ERR_ISDIR");
-            break;
-        case NFS3ERR_INVAL:
-            fprintf(stderr, "NFS3ERR_INVAL");
-            break;
-        case NFS3ERR_FBIG:
-            fprintf(stderr, "NFS3ERR_FBIG");
-            break;
-        case NFS3ERR_NOSPC:
-            fprintf(stderr, "NFS3ERR_NOSPC");
-            break;
-        case NFS3ERR_ROFS:
-            fprintf(stderr, "NFS3ERR_ROFS");
-            break;
-        case NFS3ERR_MLINK:
-            fprintf(stderr, "NFS3ERR_MLINK");
-            break;
-        case NFS3ERR_NAMETOOLONG:
-            fprintf(stderr, "NFS3ERR_NAMETOOLONG");
-            break;
-        case NFS3ERR_NOTEMPTY:
-            fprintf(stderr, "NFS3ERR_NOTEMPTY");
-            break;
-        case NFS3ERR_DQUOT:
-            fprintf(stderr, "NFS3ERR_DQUOT");
-            break;
-        case NFS3ERR_STALE:
-            fprintf(stderr, "NFS3ERR_STALE");
-            break;
-        case NFS3ERR_REMOTE:
-            fprintf(stderr, "NFS3ERR_REMOTE");
-            break;
-        case NFS3ERR_BADHANDLE:
-            fprintf(stderr, "NFS3ERR_BADHANDLE");
-            break;
-        case NFS3ERR_NOT_SYNC:
-            fprintf(stderr, "NFS3ERR_NOT_SYNC");
-            break;
-        case NFS3ERR_BAD_COOKIE:
-            fprintf(stderr, "NFS3ERR_BAD_COOKIE");
-            break;
-        case NFS3ERR_NOTSUPP:
-            fprintf(stderr, "NFS3ERR_NOTSUPP");
-            break;
-        case NFS3ERR_TOOSMALL:
-            fprintf(stderr, "NFS3ERR_TOOSMALL");
-            break;
-        case NFS3ERR_SERVERFAULT:
-            fprintf(stderr, "NFS3ERR_SERVERFAULT");
-            break;
-        case NFS3ERR_BADTYPE:
-            fprintf(stderr, "NFS3ERR_BADTYPE");
-            break;
-        case NFS3ERR_JUKEBOX:
-            fprintf(stderr, "NFS3ERR_JUKEBOX");
-            break;
+    /*
+     * split the nfs status codes into two arrays
+     * this is ugly but otherwise it wastes too much memory
+     */
+    static const char *labels_low[] = {
+        [NFS3ERR_PERM] =
+            "NFS3ERR_PERM",
+        [NFS3ERR_NOENT] =
+            "NFS3ERR_NOENT",
+        [NFS3ERR_IO] =
+            "NFS3ERR_IO",
+        [NFS3ERR_NXIO] =
+            "NFS3ERR_NXIO",
+        [NFS3ERR_ACCES] =
+            "NFS3ERR_ACCES",
+        [NFS3ERR_EXIST] =
+            "NFS3ERR_EXIST",
+        [NFS3ERR_XDEV] =
+            "NFS3ERR_XDEV",
+        [NFS3ERR_NODEV] =
+            "NFS3ERR_NODEV",
+        [NFS3ERR_NOTDIR] =
+            "NFS3ERR_NOTDIR",
+        [NFS3ERR_ISDIR] =
+            "NFS3ERR_ISDIR",
+        [NFS3ERR_INVAL] =
+            "NFS3ERR_INVAL",
+        [NFS3ERR_FBIG] =
+            "NFS3ERR_FBIG",
+        [NFS3ERR_NOSPC] =
+            "NFS3ERR_NOSPC",
+        [NFS3ERR_ROFS] =
+            "NFS3ERR_ROFS",
+        [NFS3ERR_MLINK] =
+            "NFS3ERR_MLINK",
+        [NFS3ERR_NAMETOOLONG] =
+            "NFS3ERR_NAMETOOLONG",
+        [NFS3ERR_NOTEMPTY] =
+            "NFS3ERR_NOTEMPTY",
+        [NFS3ERR_DQUOT] =
+            "NFS3ERR_DQUOT",
+        [NFS3ERR_STALE] =
+            "NFS3ERR_STALE",
+        [NFS3ERR_REMOTE] =
+            "NFS3ERR_REMOTE",
+    };
+
+    /* these start at 10001 */
+    static const char *labels_high[] = {
+        [NFS3ERR_BADHANDLE - 10000] =
+            "NFS3ERR_BADHANDLE",
+        [NFS3ERR_NOT_SYNC - 10000] =
+            "NFS3ERR_NOT_SYNC",
+        [NFS3ERR_BAD_COOKIE - 10000] =
+            "NFS3ERR_BAD_COOKIE",
+        [NFS3ERR_NOTSUPP - 10000] =
+            "NFS3ERR_NOTSUPP",
+        [NFS3ERR_TOOSMALL - 10000] =
+            "NFS3ERR_TOOSMALL",
+        [NFS3ERR_SERVERFAULT - 10000] =
+            "NFS3ERR_SERVERFAULT",
+        [NFS3ERR_BADTYPE - 10000] =
+            "NFS3ERR_BADTYPE",
+        [NFS3ERR_JUKEBOX - 10000] =
+            "NFS3ERR_JUKEBOX",
+    };
+
+
+    if (status) { /* NFS3_OK == 0 */
+        if (status > 10000) {
+            if (status > NFS3ERR_JUKEBOX) {
+                fprintf(stderr, "UNKNOWN\n");
+            } else {
+                fprintf(stderr, "%s\n", labels_high[status - 10000]);
+            }
+        } else {
+            if (status > NFS3ERR_REMOTE) {
+                fprintf(stderr, "UNKNOWN\n");
+            } else {
+                /* check for missing/empty values */
+                if (labels_low[status][0]) {
+                    fprintf(stderr, "%s\n", labels_low[status]);
+                } else {
+                    fprintf(stderr, "UNKNOWN\n");
+                }
+            }
+        }
     }
 
-    if (status)
-        fprintf(stderr, "\n");
+    /* TODO return an error for UNKNOWN? */
     return status;
 }
 
