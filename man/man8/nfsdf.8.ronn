@@ -7,7 +7,7 @@ nfsdf(8) -- report NFS server disk space usage
 
 ## DESCRIPTION
 
-`nfsdf` sends an NFS version 3 FSSTAT RPC request to an NFS server and reports the amount of disk space or inodes used on the filesystem specified in the filehandle argument(s).
+`nfsdf` sends an NFS version 3 FSSTAT RPC request to an NFS server and reports the amount of disk space or inodes used on the filesystem specified in the filehandle argument(s). Filehandles are specified in the format hostname:path:filehandle, where the filehandle is the hex representation of the NFS filehandle. The path is only used for display. Filehandles can be passed on stdin, in this case `nfsdf` waits until the end of input (EOF) before sending any requests so that the correct width header can be printed. If the NFS server requires "secure" ports (<1024), `nfsdf` will have to be run as root.
 
 ## OPTIONS
 
