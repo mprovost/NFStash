@@ -1,7 +1,8 @@
 #include "nfsping.h"
 
 /* print a string message for each NFS status code */
-u_int nfs_perror(nfsstat3 status) {
+/* returns that original status unless there was illegal input and then -1 */
+int nfs_perror(nfsstat3 status) {
     /*
      * split the nfs status codes into two arrays
      * this is ugly but otherwise it wastes too much memory
@@ -73,25 +74,27 @@ u_int nfs_perror(nfsstat3 status) {
     if (status) { /* NFS3_OK == 0 */
         if (status > 10000) {
             if (status > NFS3ERR_JUKEBOX) {
+                status = -1;
                 fprintf(stderr, "UNKNOWN\n");
             } else {
                 fprintf(stderr, "%s\n", labels_high[status - 10000]);
             }
         } else {
             if (status > NFS3ERR_REMOTE) {
+                status = -1;
                 fprintf(stderr, "UNKNOWN\n");
             } else {
                 /* check for missing/empty values */
                 if (labels_low[status][0]) {
                     fprintf(stderr, "%s\n", labels_low[status]);
                 } else {
+                    status = -1;
                     fprintf(stderr, "UNKNOWN\n");
                 }
             }
         }
     }
 
-    /* TODO return an error for UNKNOWN? */
     return status;
 }
 
