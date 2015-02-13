@@ -67,8 +67,9 @@ bin/nfslock: $(addprefix obj/, lock.o nlm_prot_clnt.o nlm_prot_xdr.o pmap_prot_c
 	gcc ${CFLAGS} $^ -o $@
 
 tests: tests/util_tests
-tests/util_tests: tests/util_tests.c tests/minunit.h util.o util.h
+tests/util_tests: tests/util_tests.c tests/minunit.h src/util.o src/util.h
 	gcc ${CFLAGS} $^ -o $@
+	tests/util_tests
 
 # TODO move to mansrc, output goes in man
 # man pages
