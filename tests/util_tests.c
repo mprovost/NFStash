@@ -17,8 +17,40 @@ static char *test_reverse_fqdn() {
     return 0;
 }
 
+static char *test_nfs_perror_nfs3ok() {
+    nfsstat3 status = NFS3_OK;
+
+    mu_assert("error, NFS3_OK!", nfs_perror(status) == 0);
+    return 0;
+}
+
+static char *test_nfs_perror_toobig() {
+    /* this is the highest status code */
+    nfsstat3 status = NFS3ERR_JUKEBOX;
+
+    /* make this too big */
+    status++;
+
+    mu_assert("error, input too large!", nfs_perror(status) == -1);
+    return 0;
+}
+
+static char *test_nfs_perror_toobig_low() {
+    /* this is the highest status code in the low range */
+    nfsstat3 status = NFS3ERR_REMOTE;
+
+    /* make this one too big */
+    status++;
+
+    mu_assert("error, input too large!", nfs_perror(status) == -1);
+    return 0;
+}
+
 static char *all_tests() {
     mu_run_test(test_reverse_fqdn);
+    mu_run_test(test_nfs_perror_nfs3ok);
+    mu_run_test(test_nfs_perror_toobig);
+    mu_run_test(test_nfs_perror_toobig_low);
     return 0;
 }
 
