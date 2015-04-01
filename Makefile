@@ -3,11 +3,11 @@
 all: nfsping nfsmount nfsdf nfsls nfscat nfslock
 
 clean:
-	rm -rf obj bin deps rpcsrc/*.c rpcsrc/*.h
+	rm -rf obj bin deps man rpcsrc/*.c rpcsrc/*.h
 
 #output directories
-bin obj deps:
-	mkdir $@
+bin obj deps man/man8:
+	mkdir -p $@
 
 CFLAGS = -Werror -g -I src -I.
 # generate header dependencies
@@ -24,8 +24,10 @@ rpcgen: $(addprefix rpcsrc/, nfs_prot.h mount.h pmap_prot.h nlm_prot.h nfsv4_pro
 	rpcgen -DWANT_NFS3 $<
 
 # pattern rule for makefiles using ronn
-% %.html: %.ronn
-	ronn -w $<
+# unfortunately every section of the manual has a different suffix so we can't make one general rule
+# create the output directory first
+man/man8/%.8: mansrc/%.8.ronn | man/man8
+	ronn -w -r $< --pipe > $@
 
 # list of all src files for dependencies
 SRC = $(wildcard src/*.c)
@@ -71,9 +73,8 @@ tests/util_tests: tests/util_tests.c tests/minunit.h src/util.o src/util.h
 	gcc ${CFLAGS} $^ -o $@
 	tests/util_tests
 
-# TODO move to mansrc, output goes in man
 # man pages
-man: $(addprefix man/man8/, nfsping.8 nfsping.8.html nfsdf.8 nfsdf.8.html)
+man: $(addprefix man/man8/, nfsping.8 nfsdf.8 nfsls.8 nfsmount.8)
 
 # quick install
 install: all
