@@ -79,6 +79,7 @@ man: $(addprefix man/man8/, nfsping.8 nfsdf.8 nfsls.8 nfsmount.8)
 # quick install
 install: all
 	install bin/* /usr/local/bin/
+	install -m644 man/man8/* /usr/local/share/man/man8/
 
 # include generated dependency files
 ifneq ($(MAKECMDGOALS),clean)
