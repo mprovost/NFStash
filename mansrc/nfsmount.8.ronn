@@ -1,0 +1,44 @@
+nfsmount(8) -- lookup NFS filesystem root filehandles
+=====================================================
+
+## SYNOPSIS
+
+`nfsmount` [`-ehmTv`] [`-S` <source>] <server[:path]...>
+
+## DESCRIPTION
+
+`nfsmount` sends a MOUNT protocol version 3 RPC request to an NFS server to look up exported filesystems and their root filehandles. Specific filesystems can be queried with an argument in the format `hostname:path`. If the path is absent then a separate request will be sent to list all available filesystems which will then be looked up individually. The root filehandle is returned in the format `hostname:path:filehandle`, where the filehandle is the hex representation of the filesystem's root NFS filehandle. If the NFS server requires "secure" ports (<1024), `nfsmount` will have to be run as root.
+
+## OPTIONS
+
+* `-e`:
+  Display available filesystems and their export policies in a human readable format, like `showmount -e`. This does not look up filehandles.
+
+* `-h`:
+  Display a help message and exit.
+
+* `-m`:
+  Use multiple target IP addresses if found. This can be useful for clustered file servers.
+
+* `-S` <source>:
+  Use the specified source IP address for request packets.
+
+* `-T`:
+  Use TCP to connect to server. Default = UDP.
+
+* `-v`:
+  Display debug output on `stderr`.
+
+## RETURN VALUES
+
+`nfsmount` will return `0` if all requests to all targets received successful responses. Nonzero exit codes indicate a failure. `1` is an RPC error, `2` is a name resolution failure, `3` is an initialisation failure (typically bad arguments).
+
+## AUTHOR
+
+Matt Provost, mprovost@termcap.net
+
+## COPYRIGHT
+
+Copyright 2015 Matt Provost  
+RPC files Copyright Sun Microsystems  
+NFSv4 files Copyright IETF  

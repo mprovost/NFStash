@@ -1,0 +1,45 @@
+nfsls(8) -- list directory contents on an NFS server
+====================================================
+
+## SYNOPSIS
+
+`nfsls` [`-ahTv`] [`-S` <source>] <filehandle...>
+
+## DESCRIPTION
+
+`nfsls` sends an NFS version 3 READDIRPLUS RPC request to an NFS server and lists the contents of each directory filehandle argument. If the filehandle does not represent a directory an error will be returned. Filehandles can either be specified as arguments or accepted on `stdin`. Recursive directory lookups can be performed by piping the output of `nfsping` to another `nfsping` command, possibly with filters (`grep` etc) in between.
+
+Filehandles are specified in the format hostname:path:filehandle, where the filehandle is the hex representation of the NFS filehandle.
+
+If the NFS server requires "secure" ports (<1024), `nfsls` will have to be run as root.
+
+## OPTIONS
+
+* `-a`:
+  Display hidden files and directories (names starting with `.`) These are not displayed by default.
+
+* `-h`:
+  Display a help message and exit.
+
+* `-S` <source>:
+  Use the specified source IP address for request packets.
+
+* `-T`:
+  Use TCP to connect to server. Default = UDP.
+
+* `-v`:
+  Display debug output on `stderr`.
+
+## RETURN VALUES
+
+`nfsls` will return `0` if all requests to all targets received successful responses. Nonzero exit codes indicate a failure. `1` is an RPC error, `2` is a name resolution failure, `3` is an initialisation failure (typically bad arguments).
+
+## AUTHOR
+
+Matt Provost, mprovost@termcap.net
+
+## COPYRIGHT
+
+Copyright 2015 Matt Provost  
+RPC files Copyright Sun Microsystems  
+NFSv4 files Copyright IETF  
