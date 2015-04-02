@@ -1,6 +1,10 @@
 .PHONY: all clean rpcgen nfsping nfsmount nfsdf nfscat man install
 
-all: nfsping nfsmount nfsdf nfsls nfscat nfslock
+all = nfsping nfsmount nfsdf nfsls nfscat nfslock
+all: $(all) man
+
+# installation directory
+prefix = /usr/local
 
 clean:
 	rm -rf obj bin deps man rpcsrc/*.c rpcsrc/*.h
@@ -28,6 +32,14 @@ rpcgen: $(addprefix rpcsrc/, nfs_prot.h mount.h pmap_prot.h nlm_prot.h nfsv4_pro
 # create the output directory first
 man/man8/%.8: mansrc/%.8.ronn | man/man8
 	ronn -w -r $< --pipe > $@
+
+# pattern rule for installing binaries
+$(prefix)/bin/%: bin/%
+	install $< $(@D)
+
+# pattern rule for installing manpages
+$(prefix)/share/man/man8/%: man/man8/%
+	install -m644 $< $(@D)
 
 # list of all src files for dependencies
 SRC = $(wildcard src/*.c)
@@ -77,9 +89,7 @@ tests/util_tests: tests/util_tests.c tests/minunit.h src/util.o src/util.h
 man: $(addprefix man/man8/, nfsping.8 nfsdf.8 nfsls.8 nfsmount.8 nfslock.8 nfscat.8)
 
 # quick install
-install: all
-	install bin/* /usr/local/bin/
-	install -m644 man/man8/* /usr/local/share/man/man8/
+install: $(addprefix $(prefix)/bin/, $(all)) $(addsuffix .8, $(addprefix $(prefix)/share/man/man8/, $(all)))
 
 # include generated dependency files
 ifneq ($(MAKECMDGOALS),clean)
