@@ -6,7 +6,7 @@ int verbose = 0;
 
 void usage() {
     printf("Usage: nfscat [options] [targets...]\n\
-    -b       blocksize (in bytes, default 8192)\n\
+    -b n     blocksize (in bytes, default 8192)\n\
     -c n     count of read requests to send to target\n\
     -h       display this help and exit\n\
     -S addr  set source address\n\
