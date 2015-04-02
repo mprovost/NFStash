@@ -104,7 +104,7 @@ $ nfsping -l -t1000 -oG filer1 filer2 | nc carbon1 2003
 
 This will send a result every second. Because nfsping is single threaded it's best to set a timeout to stop unresponsive NFS servers from affecting the results when specifying multiple targets. Lost requests will be reported under a separate path, $prefix.$target.$protocol.lost, with a metric of 1.
 
-nc will exit if the TCP connection is reset (such as if the Carbon server is restarted) which will also cause nfsping to exit with a broken pipe. To retry, start a persistent process under something like daemontools or runit which will restart the process if it exits for any reason.
+nc will exit if the TCP connection is reset (such as if the Carbon server is restarted) which will also cause nfsping to exit with a broken pipe. To retry, start a persistent process under a process supervisor like daemontools (http://cr.yp.to/daemontools.html) or runit (http://smarden.org/runit/) which will restart the process if it exits for any reason.
 
 Similarly, the StatsD output will produce plaintext output suitable for sending to StatsD with netcat:
 
@@ -150,3 +150,5 @@ Usage: nfsping [options] [targets...]
     -V n       specify NFS version (2/3/4, default 3)
 
 NFSping will handle multiple targets and iterate through them on each round. If there are multiple DNS responses for a target, only the first is used. All of them can be checked by using the -m option. The sleep interval between targets can be controlled with the -i option. If any of the targets fail to respond, the command will exit with a status code of 1.
+
+NFSping only performs DNS lookups once during initialisation. If your NFS server's IP addresses change (for example if it's a clustered server and you are using the -m option to resolve multiple addresses), consider using the -c option to exit after sending a certain number of requests and running nfsping under a supervisor to restart it after it exits, where it will do the DNS lookups again.
