@@ -1,0 +1,53 @@
+nfslock(8) -- test getting an NFS lock on a filehandle
+======================================================
+
+## SYNOPSIS
+
+`nfslock` [`-hlTv`] <filehandle...>
+
+## DESCRIPTION
+
+`nfslock` sends an NLM version 4 NLM_TEST RPC request to an NFS server for each filehandle argument. Filehandles can either be specified as arguments or accepted on `stdin`. It outputs whether the request was "granted" or "failed" to `stderr` and prints the response time in Graphite format to `stdout`.
+
+Note that this `nfslock` does not actually take out a lock on the server, it only tests whether a lock call would succeed.
+
+Filehandles are specified in the format hostname:path:filehandle, where the filehandle is the hex representation of the NFS filehandle.
+
+If the NLM server requires "secure" ports (<1024), `nfslock` will have to be run as root. (On Linux this is controlled by the `insecure_locks` option in exports(5)).
+
+## OPTIONS
+
+* `-h`:
+  Display a help message and exit.
+
+* `-l`:
+  Loop forever. Send requests every second.
+
+* `-T`:
+  Use TCP to connect to server. Default = UDP.
+
+* `-v`:
+  Display debug output on `stderr`.
+
+## RETURN VALUES
+
+`nfslock` will return `0` if all requests to all targets received successful responses. Nonzero exit codes indicate a failure and correspond to the NLM error in nlm4_stats. `10` is a name resolution or RPC failure, `3` is an initialisation failure (typically bad arguments).
+
+## REFERENCES
+
+http://pubs.opengroup.org/onlinepubs/9629799/NLM_TEST.htm  
+http://pubs.opengroup.org/onlinepubs/9629799/chap14.htm  
+
+## AUTHOR
+
+Matt Provost, mprovost@termcap.net
+
+## COPYRIGHT
+
+Copyright 2015 Matt Provost  
+RPC files Copyright Sun Microsystems  
+NFSv4 files Copyright IETF  
+
+## SEE ALSO
+
+nfsmount(8), nfsls(8)
