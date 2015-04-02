@@ -188,7 +188,7 @@ int main(int argc, char **argv) {
                     offset += res->READ3res_u.resok.count;
                 }
                 /* check count argument */
-                if (count && sent > count) {
+                if (count && sent >= count) {
                     break;
                 }
             /* check for errors or end of file */
