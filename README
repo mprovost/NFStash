@@ -16,19 +16,20 @@ filer2 : xmt/rcv/%loss = 5/5/0%, min/avg/max = 0.98/1.27/1.67
 
 NFSping is an open source (BSD licensed) command line utility for Linux and other POSIX operating systems which measures the availability and response times of an NFS server by sending probe packets. It's based on the fping (https://github.com/schweikert/fping) program's interface but doesn't share any code with that project. It's written in C and doesn't require any libraries other than libc.
 
-On modern NFS servers, the network stack and filesystem are often being run on separate cores or even hardware components. This means in practise that a fast ICMP ping response isn't indicative of how quickly the NFS services are responding. This tool directly tests the responsiveness of the server's NFS component. It can check six of the RPC protocols that are used by NFS: NFS, mount, portmap (rpcbind), the network lock manager (NLM), Sun's ACL sideband protocol, and the network status monitor (NSM) protocol.
+On modern NFS servers, the network stack and filesystem are often being run on separate cores or even hardware components. This means in practise that a fast ICMP ping response isn't indicative of how quickly the NFS services are responding. This tool directly tests the responsiveness of the server's NFS component. It can check all six of the RPC protocols that are used by NFS: NFS, mount, portmap (rpcbind), the network lock manager (NLM), Sun's ACL sideband protocol, and the network status monitor (NSM) protocol.
 
-NFSping checks if each target server is responding by sending it a NULL RPC and waiting for a response. Multiple targets specified on the command line will be pinged in round-robin order. The NULL procedure of each protocol is a noop that is designed for testing. NFSping supports versions 2, 3 and 4 of NFS, and the corresponding versions of the other protocols. By default it doesn't use the RPC portmapper for NFS pings and sends NULL packets to port 2049 using the UDP transport. Use the -T option to use TCP, -M to query the portmapper, or -P to specify a port number.
+NFSping checks if each target server is responding by sending it a NULL RPC and waiting for a response. Multiple targets specified on the command line will be pinged in round-robin order. The NULL procedure of each protocol is a noop that is implemented for testing. NFSping supports versions 2, 3 and 4 of NFS, and the corresponding versions of the other protocols. By default it doesn't use the RPC portmapper for NFS pings and sends NULL packets to port 2049 using the UDP transport. Use the -T option to use TCP, -M to query the portmapper, or -P to specify a port number.
 
-NFSping can also check the mount protocol response using the -n option. It uses the portmapper by default to discover the port that the mount protocol is bound to on the target. A port can be specified using the -P option.
+NFSping can also check the mount protocol response using the -n option. By default it uses the portmapper to discover the port that the mount protocol is bound to on the target. A port can be specified using the -P option.
 
 The -L option will check the network lock manager (NLM) protocol, using the portmapper to discover the port.
 
-The -N option will check the portmap protocol itself (listening on port 111).
+The -N option will check the portmap protocol itself (always listening on port 111).
 
 The -a option will check the NFS ACL protocol which usually listens on port 2049 alongside NFS but is a separate RPC protocol.
 
-The -s option will check the network status monitor (NSM) protocol which is used to notify NFS peers of host reboots.
+The -s option will check the network status monitor (NSM) protocol which is used to notify NFS peers of host reboots. The portmapper is used to discover the port.
+
 
 To build the nfsping executable:
 
@@ -36,6 +37,7 @@ $ git clone git://github.com/mprovost/NFSping.git
 $ cd NFSping && make
 
 `make install` will copy the resulting binary to /usr/local/bin/ (you may need to use `sudo make install`).
+
 
 In its most basic form it simply reports whether the server is responding to NFS:
 
@@ -82,6 +84,38 @@ Missed responses are indicated with a dash (-) in the summary output. This form 
 
 To only show the summary line, use the -q (quiet) option.
 
+
+This is a list of the available command-line options:
+
+Usage: nfsping [options] [targets...]
+    -a         check the NFS ACL protocol (default NFS)
+    -A         show IP addresses
+    -c n       count of pings to send to target
+    -C n       same as -c, output parseable format
+    -d         reverse DNS lookups for targets
+    -D         print timestamp (unix time) before each line
+    -g string  prefix for graphite metric names (default "nfsping")
+    -h         display this help and exit
+    -i n       interval between targets (in ms, default 25)
+    -l         loop forever
+    -L         check the network lock manager (NLM) protocol (default NFS)
+    -m         use multiple target IP addresses if found
+    -M         use the portmapper (default: NFS no, mount/NLM/NSM yes)
+    -n         check the mount protocol (default NFS)
+    -N         check the portmap protocol (default NFS)
+    -o F       output format ([G]raphite, [S]tatsd, default human readable)
+    -p n       pause between pings to target (in ms, default 1000)
+    -P n       specify port (default: NFS 2049)
+    -q         quiet, only print summary
+    -r n       reconnect to server every n pings
+    -s         check the network status monitor (NSM) protocol (default NFS)
+    -S addr    set source address
+    -t n       timeout (in ms, default 2500)
+    -T         use TCP (default UDP)
+    -v         verbose output
+    -V n       specify NFS version (2/3/4, default 3)
+
+
 NFSping can also output stats in a variety of formats for putting into time series databases. Currently only Graphite and StatsD are supported:
 
 $ nfsping -c 5 -oG filer1
@@ -118,36 +152,6 @@ nfsping.filer1.ping:78.07|ms
 Note that this output uses floating point values, as the StatsD protocol only supports milliseconds. While floating point values are supported by the protocol, some implementations may not handle them. This output has been tested as working with statsite (https://github.com/armon/statsite).
 
 Some NFS servers can exhibit varied response times for different TCP connections. This can be due to resource exhaustion on the server, or different network paths taken across a trunked connection. To measure these different responses, use the -r option to force nfsping to close the TCP connection and reconnect to the server after every specified number of pings. Otherwise, new clients connecting to the server may be seeing different behaviour than nfsping's established TCP connection.
-
-This is a list of the available command-line options:
-
-Usage: nfsping [options] [targets...]
-    -a         check the NFS ACL protocol (default NFS)
-    -A         show IP addresses
-    -c n       count of pings to send to target
-    -C n       same as -c, output parseable format
-    -d         reverse DNS lookups for targets
-    -D         print timestamp (unix time) before each line
-    -g string  prefix for graphite metric names (default "nfsping")
-    -h         display this help and exit
-    -i n       interval between targets (in ms, default 25)
-    -l         loop forever
-    -L         check the network lock manager (NLM) protocol (default NFS)
-    -m         use multiple target IP addresses if found
-    -M         use the portmapper (default: NFS no, mount/NLM/NSM yes)
-    -n         check the mount protocol (default NFS)
-    -N         check the portmap protocol (default NFS)
-    -o F       output format ([G]raphite, [S]tatsd, default human readable)
-    -p n       pause between pings to target (in ms, default 1000)
-    -P n       specify port (default: NFS 2049)
-    -q         quiet, only print summary
-    -r n       reconnect to server every n pings
-    -s         check the network status monitor (NSM) protocol (default NFS)
-    -S addr    set source address
-    -t n       timeout (in ms, default 2500)
-    -T         use TCP (default UDP)
-    -v         verbose output
-    -V n       specify NFS version (2/3/4, default 3)
 
 NFSping will handle multiple targets and iterate through them on each round. If there are multiple DNS responses for a target, only the first is used. All of them can be checked by using the -m option. The sleep interval between targets can be controlled with the -i option. If any of the targets fail to respond, the command will exit with a status code of 1.
 
