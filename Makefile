@@ -17,6 +17,9 @@ CFLAGS = -Werror -g -I src -I.
 # generate header dependencies
 CPPFLAGS += -MMD -MP
 
+# http://blog.jgc.org/2015/04/the-one-line-you-should-add-to-every.html
+print-%: ; @echo $*=$($*)
+
 # phony target to generate rpc files
 # we're only really interested in the generated headers so gcc can figure out the rest of the dependencies
 rpcgen: $(addprefix rpcsrc/, nfs_prot.h mount.h pmap_prot.h nlm_prot.h nfsv4_prot.h nfs_acl.h sm_inter.h)
