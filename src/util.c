@@ -193,7 +193,7 @@ nfs_fh_list *parse_fh(char *input) {
 }
 
 
-/* print an NFS filehandle as a series of hex bytes */
+/* print an NFS filehandle as a series of hex bytes wrapped in a JSON object */
 /* this format has to be parsed again so take structs instead of strings to keep random data from being used as inputs */
 /* TODO accept path as struct? */
 /* print the IP address of the host in case there are multiple DNS results for a hostname */
@@ -204,14 +204,15 @@ int print_fh(struct sockaddr *host, char *path, fhandle3 fhandle) {
     /* get the IP address as a string */
     inet_ntop(AF_INET, &((struct sockaddr_in *)host)->sin_addr, ip, INET_ADDRSTRLEN);
 
-    printf("%s:%s:", ip, path);
+    printf("{ \"ip\": \"%s\", \"path\": \"%s\", \"filehandle\": \"", ip, path);
     for (i = 0; i < fhandle.fhandle3_len; i++) {
         printf("%02hhx", fhandle.fhandle3_val[i]);
     }
-    printf("\n");
+    printf("\" }\n");
 
     return i;
 }
+
 
 /* reverse a FQDN */
 char* reverse_fqdn(char *fqdn) {
