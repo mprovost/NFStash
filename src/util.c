@@ -1,4 +1,5 @@
 #include "nfsping.h"
+#include "parson/parson.h"
 
 /* print a string message for each NFS status code */
 /* returns that original status unless there was illegal input and then -1 */
@@ -99,17 +100,19 @@ int nfs_perror(nfsstat3 status) {
 }
 
 
-/* break up a string filehandle into parts */
-/* this uses strtok so it will eat the input */
+/* break up a JSON filehandle into parts */
+/* this uses parson */
 nfs_fh_list *parse_fh(char *input) {
     int i;
-    char *tmp;
+    const char *tmp;
     char *copy;
     u_int fh_len;
     struct addrinfo *addr;
     struct addrinfo hints = {
         .ai_family = AF_INET,
     };
+    JSON_Value  *root_value;
+    JSON_Object *filehandle;
     nfs_fh_list *next;
 
     /* sanity check */
@@ -123,15 +126,15 @@ nfs_fh_list *parse_fh(char *input) {
     next->next = NULL;
 
     /* keep a copy of the original input around for error messages */
+    /* TODO do we need this with parson? Might not eat input */
     copy = strdup(input);
 
-    /* chomp the newline */
-    if (input[strlen(input) - 1] == '\n')
-        input[strlen(input) - 1] = '\0';
+    root_value = json_parse_string(input);
+    /* TODO if root isn't object, bail */
+    filehandle = json_value_get_object(root_value);
 
-    /* split the input string into a hostname (or IP address), path and hex filehandle */
-    /* host first */
-    tmp = strtok(input, ":");
+    /* first find the IP */
+    tmp = json_object_get_string(filehandle, "ip");
 
     if (tmp) {
         /* DNS lookup */
@@ -142,12 +145,17 @@ nfs_fh_list *parse_fh(char *input) {
             next->client_sock->sin_port = 0; /* use portmapper */
 
             next->host = strdup(tmp);
+
             /* path is just used for display */
-            tmp = strtok(NULL, ":");
+            tmp = json_object_get_string(filehandle, "path");
+
             if (tmp) {
                 next->path = strdup(tmp);
+
                 /* the root filehandle in hex */
-                if (tmp = strtok(NULL, ":")) {
+                tmp = json_object_get_string(filehandle, "filehandle");
+
+                if (tmp) {
                     /* hex takes two characters for each byte */
                     fh_len = strlen(tmp) / 2;
 
