@@ -201,11 +201,11 @@ nfs_fh_list *parse_fh(char *input) {
 }
 
 
-/* print an NFS filehandle as a series of hex bytes wrapped in a JSON object */
+/* print a MOUNT filehandle as a series of hex bytes wrapped in a JSON object */
 /* this format has to be parsed again so take structs instead of strings to keep random data from being used as inputs */
 /* TODO accept path as struct? */
 /* print the IP address of the host in case there are multiple DNS results for a hostname */
-int print_fh(struct sockaddr *host, char *path, fhandle3 fhandle) {
+int print_fhandle3(struct sockaddr *host, char *path, fhandle3 fhandle) {
     int i;
     char ip[INET_ADDRSTRLEN];
 
@@ -215,6 +215,25 @@ int print_fh(struct sockaddr *host, char *path, fhandle3 fhandle) {
     printf("{ \"ip\": \"%s\", \"path\": \"%s\", \"filehandle\": \"", ip, path);
     for (i = 0; i < fhandle.fhandle3_len; i++) {
         printf("%02hhx", fhandle.fhandle3_val[i]);
+    }
+    printf("\" }\n");
+
+    return i;
+}
+
+
+/* same function as above, but for NFS filehandles */
+/* maybe make a generic struct like sockaddr? */
+int print_nfs_fh3(struct sockaddr *host, char *path, nfs_fh3 fhandle) {
+    int i;
+    char ip[INET_ADDRSTRLEN];
+
+    /* get the IP address as a string */
+    inet_ntop(AF_INET, &((struct sockaddr_in *)host)->sin_addr, ip, INET_ADDRSTRLEN);
+
+    printf("{ \"ip\": \"%s\", \"path\": \"%s\", \"filehandle\": \"", ip, path);
+    for (i = 0; i < fhandle.data.data_len; i++) {
+        printf("%02hhx", fhandle.data.data_val[i]);
     }
     printf("\" }\n");
 
