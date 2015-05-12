@@ -77,7 +77,8 @@ entryplus3 *do_readdirplus(CLIENT *client, nfs_fh_list *dir) {
 int main(int argc, char **argv) {
     int ch;
     int all = 0;
-    char *input_fh;
+    char   *input_fh  = NULL;
+    size_t  input_len = 0;
     char *filename;
     char *path;
     nfs_fh_list *current;
@@ -126,9 +127,9 @@ int main(int argc, char **argv) {
 
     /* no arguments, use stdin */
     if (optind == argc) {
-        /* make it the max size not the length of the current string because we'll reuse it for all filehandles */
-        input_fh = malloc(sizeof(char) * FHMAX);
-        fgets(input_fh, FHMAX, stdin);
+        if (getline(&input_fh, &input_len, stdin) == -1) {
+            input_fh = NULL;
+        }
     /* first argument */
     } else {
         input_fh = argv[optind];
@@ -214,7 +215,9 @@ int main(int argc, char **argv) {
 
         /* get the next filehandle*/
         if (optind == argc) {
-            input_fh = fgets(input_fh, FHMAX, stdin);
+            if (getline(&input_fh, &input_len, stdin) == -1) {
+                input_fh = NULL;
+            }
         } else {
             optind++;
             if (optind < argc) {
