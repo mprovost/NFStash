@@ -9,7 +9,7 @@ nfsls(8) -- list directory contents on an NFS server
 
 `nfsls` sends an NFS version 3 READDIRPLUS RPC request to an NFS server and lists the contents of each directory filehandle argument. If the filehandle does not represent a directory an error will be returned. Filehandles can either be specified as arguments or accepted on `stdin`. Recursive directory lookups can be performed by piping the output of `nfsls` to another `nfsls` command, possibly with filters (`grep` etc) in between.
 
-Filehandles are specified in the format hostname:path:filehandle, where the filehandle is the hex representation of the NFS filehandle.
+Input and output filehandles are a series of JSON objects (one per line) with the keys "ip", "path", and "filehandle", where the value of the "filehandle" key is the hex representation of the filesystem's root NFS filehandle.
 
 If the NFS server requires "secure" ports (<1024), `nfsls` will have to be run as root.
 
