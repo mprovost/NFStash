@@ -80,7 +80,6 @@ int main(int argc, char **argv) {
     char   *input_fh  = NULL;
     size_t  input_len = 0;
     char *filename;
-    char *path;
     nfs_fh_list *current;
     struct addrinfo hints = {
         .ai_family = AF_INET,
@@ -171,44 +170,27 @@ int main(int argc, char **argv) {
                     /* if there is no filehandle (/dev, /proc, etc) don't print */
                     /* none of the other utilities can do anything without a filehandle */
                     /* TODO unless -a ? */
-                    /* 
-                     * TODO move the path printing logic into print_nfs_fh3 and have it accept a path and filename?
-                     * can't check for directories but we could append that to the filename in this case
-                     */
                     if (entry->name_handle.post_op_fh3_u.handle.data.data_len) {
-                        /* length is always at least path + filename + NULL */
-                        path = malloc(sizeof(char) * strlen(current->path) + strlen(entry->name) + 1);
-
-                        /* first make a copy of the path */
-                        path = strncpy(path, current->path, strlen(current->path));
-
-                        /* if the path doesn't already end in /, print one now */
-                        if (current->path[strlen(current->path) - 1] != '/') {
-                            /* plus NULL */
-                            path = realloc(path, strlen(path) + 2); 
-                            path[strlen(path)] = '/';
-                        }
-
-                        /* the filename */
-                        /* already allocated space above */
-                        strncpy(&path[strlen(path)], entry->name, strlen(entry->name));
-
                         /* if it's a directory print a trailing slash */
                         /* TODO this seems to be 0 sometimes */
                         if (entry->name_attributes.post_op_attr_u.attributes.type == NF3DIR) {
-                            /* plus NULL */
-                            path = realloc(path, strlen(path) + 2); 
-                            path[strlen(path)] = '/';
+                            /* NUL + / */
+                            filename = malloc(strlen(entry->name) + 2);
+                            strncpy(filename, entry->name, strlen(entry->name));
+                            filename[strlen(filename)] = '/';
+                        } else {
+                            filename = entry->name;
                         }
 
-                        print_nfs_fh3((struct sockaddr *)current->client_sock, path, entry->name_handle.post_op_fh3_u.handle);
+                        print_nfs_fh3((struct sockaddr *)current->client_sock, current->path, filename, entry->name_handle.post_op_fh3_u.handle);
+
+                        /* TODO free(filename) */
                     }
 
                     entry = entry->nextentry;
                 }
             }
             /* cleanup */
-            free(path);
             free(current->client_sock);
             free(current);
         }

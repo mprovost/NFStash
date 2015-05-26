@@ -190,7 +190,6 @@ nfs_fh_list *parse_fh(char *input) {
 
     /* TODO check for junk at end of input string */
 
-
     if (next->host && next->path && fh_len) {
         return next;
     } else {
@@ -224,14 +223,21 @@ int print_fhandle3(struct sockaddr *host, char *path, fhandle3 fhandle) {
 
 /* same function as above, but for NFS filehandles */
 /* maybe make a generic struct like sockaddr? */
-int print_nfs_fh3(struct sockaddr *host, char *path, nfs_fh3 fhandle) {
+int print_nfs_fh3(struct sockaddr *host, char *path, char *filename, nfs_fh3 fhandle) {
     int i;
     char ip[INET_ADDRSTRLEN];
 
     /* get the IP address as a string */
     inet_ntop(AF_INET, &((struct sockaddr_in *)host)->sin_addr, ip, INET_ADDRSTRLEN);
 
-    printf("{ \"ip\": \"%s\", \"path\": \"%s\", \"filehandle\": \"", ip, path);
+    printf("{ \"ip\": \"%s\", \"path\": \"%s", ip, path);
+    /* if the path doesn't already end in /, print one now */
+    if (path[strlen(path) - 1] != '/') {
+        printf("/");
+    }
+    /* filename */
+    printf("%s\", \"filehandle\": \"", filename);
+    /* filehandle */
     for (i = 0; i < fhandle.data.data_len; i++) {
         printf("%02hhx", fhandle.data.data_val[i]);
     }
