@@ -41,8 +41,12 @@ $(prefix)/bin/%: bin/%
 	install $< $(@D)
 
 # pattern rule for installing manpages
-$(prefix)/share/man/man8/%: man/man8/%
+$(prefix)/share/man/man8/%: man/man8/% $(prefix)/share/man/man8/
 	install -m644 $< $(@D)
+
+# create man8 if it is missing.
+$(prefix)/share/man/man8/:
+	install -m655 -d $(prefix)/share/man/man8
 
 # list of all src files for dependencies
 SRC = $(wildcard src/*.c)
