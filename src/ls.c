@@ -77,7 +77,8 @@ entryplus3 *do_readdirplus(CLIENT *client, nfs_fh_list *dir) {
 int main(int argc, char **argv) {
     int ch;
     int all = 0;
-    char *input_fh;
+    char   *input_fh  = NULL;
+    size_t  input_len = 0;
     char *filename;
     nfs_fh_list *current;
     struct addrinfo hints = {
@@ -125,9 +126,9 @@ int main(int argc, char **argv) {
 
     /* no arguments, use stdin */
     if (optind == argc) {
-        /* make it the max size not the length of the current string because we'll reuse it for all filehandles */
-        input_fh = malloc(sizeof(char) * FHMAX);
-        fgets(input_fh, FHMAX, stdin);
+        if (getline(&input_fh, &input_len, stdin) == -1) {
+            input_fh = NULL;
+        }
     /* first argument */
     } else {
         input_fh = argv[optind];
@@ -170,23 +171,20 @@ int main(int argc, char **argv) {
                     /* none of the other utilities can do anything without a filehandle */
                     /* TODO unless -a ? */
                     if (entry->name_handle.post_op_fh3_u.handle.data.data_len) {
-                        printf("%s:%s", current->host, current->path);
-                        /* if the path doesn't already end in /, print one now */
-                        if (current->path[strlen(current->path) - 1] != '/')
-                            printf("/");
-                        /* the filename */
-                        printf("%s", entry->name);
                         /* if it's a directory print a trailing slash */
                         /* TODO this seems to be 0 sometimes */
-                        if (entry->name_attributes.post_op_attr_u.attributes.type == NF3DIR)
-                            printf("/");
-                        printf(":");
-
-                        /* print the filehandle in hex */
-                        for (i = 0; i < entry->name_handle.post_op_fh3_u.handle.data.data_len; i++) {
-                            printf("%02hhx", entry->name_handle.post_op_fh3_u.handle.data.data_val[i]);
+                        if (entry->name_attributes.post_op_attr_u.attributes.type == NF3DIR) {
+                            /* NUL + / */
+                            filename = malloc(strlen(entry->name) + 2);
+                            strncpy(filename, entry->name, strlen(entry->name));
+                            filename[strlen(filename)] = '/';
+                        } else {
+                            filename = entry->name;
                         }
-                        printf("\n");
+
+                        print_nfs_fh3((struct sockaddr *)current->client_sock, current->path, filename, entry->name_handle.post_op_fh3_u.handle);
+
+                        /* TODO free(filename) */
                     }
 
                     entry = entry->nextentry;
@@ -199,7 +197,9 @@ int main(int argc, char **argv) {
 
         /* get the next filehandle*/
         if (optind == argc) {
-            input_fh = fgets(input_fh, FHMAX, stdin);
+            if (getline(&input_fh, &input_len, stdin) == -1) {
+                input_fh = NULL;
+            }
         } else {
             optind++;
             if (optind < argc) {

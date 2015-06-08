@@ -208,7 +208,7 @@ int main(int argc, char **argv) {
                         if (mountres && mountres->fhs_status == MNT3_OK) {
                             exports_ok++;
                             /* print the filehandle in hex */
-                            print_fh(addr->ai_addr, path, mountres->mountres3_u.mountinfo.fhandle);
+                            print_fhandle3(addr->ai_addr, path, mountres->mountres3_u.mountinfo.fhandle);
                         }
                     } else {
                         /* get the list of all exported filesystems from the server */
@@ -226,7 +226,7 @@ int main(int argc, char **argv) {
                                     if (mountres && mountres->fhs_status == MNT3_OK) {
                                         exports_ok++;
                                         /* print the filehandle in hex */
-                                        print_fh(addr->ai_addr, ex->ex_dir, mountres->mountres3_u.mountinfo.fhandle);
+                                        print_fhandle3(addr->ai_addr, ex->ex_dir, mountres->mountres3_u.mountinfo.fhandle);
                                     }
                                     ex = ex->ex_next;
                                 }

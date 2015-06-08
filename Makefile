@@ -61,30 +61,35 @@ obj/%.o: src/%.c | obj deps rpcgen
 obj/%.o: rpcsrc/%.c | obj
 	gcc ${CFLAGS} -c -o $@ $<
 
-# make the bin directory first if it's not already there
+# rule for compiling parson
+obj/parson.o: parson/parson.c | obj
+	gcc ${CFLAGS} -c -o $@ $<
 
+# make the bin directory first if it's not already there
+# TODO addsuffix .o
+# TODO make common files into variable
 nfsping: bin/nfsping
-bin/nfsping: $(addprefix obj/, nfsping.o nfs_prot_clnt.o nfs_prot_xdr.o nfsv4_prot_clnt.o nfsv4_prot_xdr.o mount_clnt.o mount_xdr.o pmap_prot_clnt.o pmap_prot_xdr.o nlm_prot_clnt.o nlm_prot_xdr.o nfs_acl_clnt.o sm_inter_clnt.o sm_inter_xdr.o util.o rpc.o) | bin
+bin/nfsping: $(addprefix obj/, nfsping.o nfs_prot_clnt.o nfs_prot_xdr.o nfsv4_prot_clnt.o nfsv4_prot_xdr.o mount_clnt.o mount_xdr.o pmap_prot_clnt.o pmap_prot_xdr.o nlm_prot_clnt.o nlm_prot_xdr.o nfs_acl_clnt.o sm_inter_clnt.o sm_inter_xdr.o util.o rpc.o parson.o) | bin
 	gcc ${CFLAGS} $^ -o $@
 
 nfsmount: bin/nfsmount
-bin/nfsmount: $(addprefix obj/, mount.o mount_clnt.o mount_xdr.o pmap_prot_clnt.o pmap_prot_xdr.o rpc.o util.o) | bin
+bin/nfsmount: $(addprefix obj/, mount.o mount_clnt.o mount_xdr.o pmap_prot_clnt.o pmap_prot_xdr.o util.o rpc.o parson.o) | bin
 	gcc ${CFLAGS} $^ -o $@
 
 nfsdf: bin/nfsdf
-bin/nfsdf: $(addprefix obj/, df.o nfs_prot_clnt.o nfs_prot_xdr.o pmap_prot_clnt.o pmap_prot_xdr.o util.o rpc.o) | bin
+bin/nfsdf: $(addprefix obj/, df.o nfs_prot_clnt.o nfs_prot_xdr.o pmap_prot_clnt.o pmap_prot_xdr.o util.o rpc.o parson.o) | bin
 	gcc ${CFLAGS} $^ -o $@
 
 nfsls: bin/nfsls
-bin/nfsls: $(addprefix obj/, ls.o nfs_prot_clnt.o nfs_prot_xdr.o pmap_prot_clnt.o pmap_prot_xdr.o util.o rpc.o) | bin
+bin/nfsls: $(addprefix obj/, ls.o nfs_prot_clnt.o nfs_prot_xdr.o pmap_prot_clnt.o pmap_prot_xdr.o util.o rpc.o parson.o) | bin
 	gcc ${CFLAGS} $^ -o $@
 
 nfscat: bin/nfscat
-bin/nfscat: $(addprefix obj/, cat.o nfs_prot_clnt.o nfs_prot_xdr.o pmap_prot_clnt.o pmap_prot_xdr.o util.o rpc.o) | bin
+bin/nfscat: $(addprefix obj/, cat.o nfs_prot_clnt.o nfs_prot_xdr.o pmap_prot_clnt.o pmap_prot_xdr.o util.o rpc.o parson.o) | bin
 	gcc ${CFLAGS} $^ -o $@
 
 nfslock: bin/nfslock
-bin/nfslock: $(addprefix obj/, lock.o nlm_prot_clnt.o nlm_prot_xdr.o pmap_prot_clnt.o pmap_prot_xdr.o util.o rpc.o) | bin
+bin/nfslock: $(addprefix obj/, lock.o nlm_prot_clnt.o nlm_prot_xdr.o pmap_prot_clnt.o pmap_prot_xdr.o util.o rpc.o parson.o) | bin
 	gcc ${CFLAGS} $^ -o $@
 
 tests: tests/util_tests

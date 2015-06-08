@@ -7,7 +7,7 @@ nfsmount(8) -- lookup NFS filesystem root filehandles
 
 ## DESCRIPTION
 
-`nfsmount` sends a MOUNT protocol version 3 RPC request to an NFS server to look up exported filesystems and their root filehandles. Specific filesystems can be queried with an argument in the format `hostname:path`. If the path is absent then a separate request will be sent to list all available filesystems which will then be looked up individually. The root filehandle is returned in the format `hostname:path:filehandle`, where the filehandle is the hex representation of the filesystem's root NFS filehandle. If the NFS server requires "secure" ports (<1024), `nfsmount` will have to be run as root.
+`nfsmount` sends a MOUNT protocol version 3 RPC request to an NFS server to look up exported filesystems and their root filehandles. Specific filesystems can be queried with an argument in the format `hostname:path`. If the path is absent then a separate request will be sent to list all available filesystems which will then be looked up individually. The result(s) are returned as a series of JSON objects (one per line) with the keys "ip", "path", and "filehandle", where the value of the "filehandle" key is the hex representation of the filesystem's root NFS filehandle. If the NFS server requires "secure" ports (<1024), `nfsmount` will have to be run as root.
 
 ## OPTIONS
 
