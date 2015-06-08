@@ -132,27 +132,13 @@ CLIENT *create_rpc_client(struct sockaddr_in *client_sock, struct addrinfo *hint
 
     /* always try and bind to a low port first */
     /* could check for root here but there are other mechanisms for allowing processes to bind to low ports */
-
-    /* try a reserved port first and see what happens */
-    /* start in the middle of the range so we're away from really low ports like 22 and 80 */
-    src_ip.sin_port = htons(666);
-
-    while (bind(sock, (struct sockaddr *) &src_ip, sizeof(struct sockaddr)) == -1) {
+    if (bindresvport(sock, &src_ip) == -1) {
         /* permission denied, ie we aren't root */
         if (errno == EACCES) {
             /* try an ephemeral port */
             src_ip.sin_port = htons(0);
-        /* blocked, try the next port */
-        } else if (errno == EADDRINUSE) {
-            /* TODO should we keep track of how many times we're looping through low ports and complain or give up? */
-            if (ntohs(src_ip.sin_port) < 1023) {
-                src_ip.sin_port = htons(ntohs(src_ip.sin_port) + 1);
-            /* start over */
-            } else {
-                src_ip.sin_port = htons(1);
-            }
         } else {
-            perror("create_rpc_client(bind)");
+            perror("create_rpc_client(bindresvport)");
             return NULL;
         }
     }
