@@ -59,6 +59,7 @@ READ3res *do_read(CLIENT *client, nfs_fh_list *dir, offset3 offset, const unsign
 int main(int argc, char **argv) {
     int ch;
     char *input_fh;
+    size_t n = 0; /* for getline() */
     CLIENT *client = NULL;
     nfs_fh_list *current;
     READ3res *res;
@@ -119,10 +120,10 @@ int main(int argc, char **argv) {
 
     /* no arguments, use stdin */
     if (optind == argc) {
-        /* make it the max size not the length of the current string because we'll reuse it for all filehandles */
-        input_fh = malloc(sizeof(char) * FHMAX);
-        fgets(input_fh, FHMAX, stdin);
-        /* first argument */
+        if (getline(&input_fh, &n, stdin) == -1) {
+            input_fh = NULL;
+        }
+    /* first argument */
     } else {
         input_fh = argv[optind];
     }
@@ -201,7 +202,9 @@ int main(int argc, char **argv) {
 
         /* get the next filehandle */
         if (optind == argc) {
-            input_fh = fgets(input_fh, FHMAX, stdin);
+            if (getline(&input_fh, &n, stdin) == -1) {
+                input_fh = NULL;
+            }
         } else {
             optind++;
             if (optind < argc) {

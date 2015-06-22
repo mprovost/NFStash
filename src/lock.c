@@ -82,6 +82,7 @@ int do_nlm_test(CLIENT *client, char *nodename, pid_t mypid, nfs_fh_list *curren
 int main(int argc, char **argv) {
     int ch;
     char *input_fh;
+    size_t n = 0; /* for getline() */
     nfs_fh_list *filehandles, *current, fh_dummy;
     struct addrinfo hints = {
         .ai_family = AF_INET,
@@ -126,9 +127,9 @@ int main(int argc, char **argv) {
 
     /* no arguments, use stdin */
     if (optind == argc) {
-        /* make it the max size not the length of the current string because we'll reuse it for all filehandles */
-        input_fh = malloc(sizeof(char) * FHMAX);
-        fgets(input_fh, FHMAX, stdin);
+        if (getline(&input_fh, &n, stdin) == -1) {
+            input_fh = NULL;
+        }
     /* first argument */
     } else {
         input_fh = argv[optind];
@@ -189,7 +190,9 @@ int main(int argc, char **argv) {
 
         /* get the next filehandle*/
         if (optind == argc) {
-            input_fh = fgets(input_fh, FHMAX, stdin);
+            if (getline(&input_fh, &n, stdin) == -1) {
+                input_fh = NULL;
+            }
         } else {
             optind++;
             if (optind < argc) {

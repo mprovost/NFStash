@@ -217,7 +217,8 @@ int main(int argc, char **argv) {
     enum outputs format = human;
     char output_prefix[255] = "nfs";
     int width  = 0;
-    char *input_fh;
+    char *input_fh = NULL;
+    size_t n = 0; /* for getline() */
     nfs_fh_list *filehandles, *current, fh_dummy;
     int loop = 0;
     int maxpath = 0;
@@ -351,8 +352,9 @@ int main(int argc, char **argv) {
 
     /* check if we don't have any command line targets */
     if (optind == argc) {
-        input_fh = malloc(sizeof(char) * FHMAX);
-        input_fh = fgets(input_fh, FHMAX, stdin);
+        if (getline(&input_fh, &n, stdin) == -1) {
+            input_fh = NULL;
+        }
     } else {
         input_fh = argv[optind];
     }
@@ -375,7 +377,9 @@ int main(int argc, char **argv) {
 
         /* parse next argument or line from stdin */
         if (optind == argc) {
-            input_fh = fgets(input_fh, FHMAX, stdin);
+            if (getline(&input_fh, &n, stdin) == -1) {
+                input_fh = NULL;
+            }
         } else {
             optind++;
             if (optind < argc) {
