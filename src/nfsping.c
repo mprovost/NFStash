@@ -562,7 +562,7 @@ int main(int argc, char **argv) {
     /* the main loop */
     while (target) {
         /* reset */
-        status == NULL;
+        status = NULL;
 
         /* check if we were disconnected (TCP) or if this is the first iteration */
         if (target->client == NULL) {
