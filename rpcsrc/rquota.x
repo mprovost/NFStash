@@ -51,6 +51,9 @@ case Q_EPERM:
 
 program RQUOTAPROG {
 	version RQUOTAVERS {
+		void
+		RQUOTAPROC_NULL(void) = 0;
+
 		/*
 		 * Get all quotas
 		 */
