@@ -586,8 +586,10 @@ int main(int argc, char **argv) {
 
             /* second time marker */
             gettimeofday(&call_end, NULL);
-            target->sent++;
         } /* else not connected */
+
+        /* count this no matter what to stop from looping in case server isn't listening */
+        target->sent++;
 
         /* check for success */
         if (status) {
