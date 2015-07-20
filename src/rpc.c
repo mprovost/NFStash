@@ -118,6 +118,11 @@ CLIENT *create_rpc_client(struct sockaddr_in *client_sock, struct addrinfo *hint
 
         /* by this point we should know which port we're talking to */
         debug("portmapper = %u\n", ntohs(client_sock->sin_port));
+        /* if not warn the user */
+        if (client_sock->sin_port == 0) {
+            /* TODO print the server's IP address in case of multiple targets */
+            fprintf(stderr, "get_rpc_port(%u): program not registered!\n", prognum);
+        }
     }
 
     /* now make the client connection */
