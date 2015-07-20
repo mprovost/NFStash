@@ -16,7 +16,7 @@ filer2 : xmt/rcv/%loss = 5/5/0%, min/avg/max = 0.98/1.27/1.67
 
 NFSping is an open source (BSD licensed) command line utility for Linux and other POSIX operating systems which measures the availability and response times of an NFS server by sending probe packets. It's based on the fping (https://github.com/schweikert/fping) program's interface but doesn't share any code with that project. It's written in C and doesn't require any libraries other than libc.
 
-On modern NFS servers, the network stack and filesystem are often being run on separate cores or even hardware components. This means in practise that a fast ICMP ping response isn't indicative of how quickly the NFS services are responding. This tool directly tests the responsiveness of the server's NFS component. It can check all six of the RPC protocols that are used by NFS: NFS, mount, portmap (rpcbind), the network lock manager (NLM), Sun's ACL sideband protocol, and the network status monitor (NSM) protocol.
+On modern NFS servers, the network stack and filesystem are often being run on separate cores or even hardware components. This means in practise that a fast ICMP ping response isn't indicative of how quickly the NFS services are responding. This tool directly tests the responsiveness of the server's NFS component. It can check all seven of the RPC protocols that are used by NFS: NFS, mount, portmap (rpcbind), the network lock manager (NLM), Sun's ACL sideband protocol, the network status monitor (NSM) and the rquota protocol.
 
 NFSping checks if each target server is responding by sending it a NULL RPC and waiting for a response. Multiple targets specified on the command line will be pinged in round-robin order. The NULL procedure of each protocol is a noop that is implemented for testing. NFSping supports versions 2, 3 and 4 of NFS, and the corresponding versions of the other protocols. By default it doesn't use the RPC portmapper for NFS pings and sends NULL packets to port 2049 using the UDP transport. Use the -T option to use TCP, -M to query the portmapper, or -P to specify a port number.
 
@@ -30,6 +30,8 @@ The -a option will check the NFS ACL protocol which usually listens on port 2049
 
 The -s option will check the network status monitor (NSM) protocol which is used to notify NFS peers of host reboots. The portmapper is used to discover the port.
 
+The -Q option will check the rquota protocol which is used by clients to check and set remote quotas on the server, using the portmapper to discover the port.
+
 
 To build the nfsping executable:
 
@@ -39,7 +41,7 @@ $ cd NFSping && make
 `make install` will copy the resulting binary to /usr/local/bin/ (you may need to use `sudo make install`).
 
 
-In its most basic form it simply reports whether the server is responding to NFS:
+In its most basic form it simply reports whether the server is responding to NFS requests:
 
 $ nfsping filer1
 filer1 is alive
@@ -107,6 +109,7 @@ Usage: nfsping [options] [targets...]
     -p n       pause between pings to target (in ms, default 1000)
     -P n       specify port (default: NFS 2049)
     -q         quiet, only print summary
+    -Q         check the rquota protocol (default NFS)
     -r n       reconnect to server every n pings
     -s         check the network status monitor (NSM) protocol (default NFS)
     -S addr    set source address

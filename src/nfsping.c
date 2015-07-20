@@ -34,8 +34,10 @@ static const struct null_procs null_dispatch[][5] = {
     /* nfs v4 has ACLs built in */
     /* NSM network status monitor, only has one version */
     /* call it "status" to match rpcinfo */
-    [SM_PROG - 100000][2] = { .proc = sm_null_1, .name = "sm_null_1", .protocol = "status", .version = 1 },
-    [SM_PROG - 100000][3] = { .proc = sm_null_1, .name = "sm_null_1", .protocol = "status", .version = 1 },
+    [SM_PROG - 100000]        [2] = { .proc = sm_null_1, .name = "sm_null_1", .protocol = "status", .version = 1 },
+    [SM_PROG - 100000]        [3] = { .proc = sm_null_1, .name = "sm_null_1", .protocol = "status", .version = 1 },
+    /* Only one version of RQUOTA protocol. Even for NFSv4! */
+    [RQUOTAPROG - 100000]     [2 ... 4] = { .proc = rquotaproc_null_1, .name = "rquotaproc_null_1", .protocol = "rquotaproc_null_1", .version = 1},
 };
 
 
@@ -69,6 +71,7 @@ void usage() {
     -p n       pause between pings to target (in ms, default %lu)\n\
     -P n       specify port (default: NFS %i, portmap %i)\n\
     -q         quiet, only print summary\n\
+    -Q         check the rquota protocol (default NFS)\n\
     -r n       reconnect to server every n pings\n\
     -s         check the network status monitor (NSM) protocol (default NFS)\n\
     -S addr    set source address\n\
@@ -242,7 +245,7 @@ int main(int argc, char **argv) {
     if (argc == 1)
         usage();
 
-    while ((ch = getopt(argc, argv, "aAc:C:dDg:hi:lLmMnNo:p:P:qr:sS:t:TvV:")) != -1) {
+    while ((ch = getopt(argc, argv, "aAc:C:dDg:hi:lLmMnNo:p:P:qQr:sS:t:TvV:")) != -1) {
         switch(ch) {
             /* NFS ACL protocol */
             case 'a':
@@ -376,6 +379,15 @@ int main(int argc, char **argv) {
             /* TODO error if output also specified? */
             case 'q':
                 quiet = 1;
+                break;
+            case 'Q':
+                if (prognum == NFS_PROGRAM) {
+                    prognum = RQUOTAPROG;
+                    /* default to using the portmapper */
+                    port = 0;
+                } else {
+                    fatal("Only one protocol!\n");
+                }
                 break;
             case 'r':
                 reconnect = strtoul(optarg, NULL, 10);
