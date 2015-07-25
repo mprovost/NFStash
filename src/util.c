@@ -306,9 +306,21 @@ void ms2ts(struct timespec *ts, unsigned long ms) {
 }
 
 
+/* convert a timespec to microseconds */
+unsigned long ts2us(const struct timespec ts) {
+    return ts.tv_sec * 1000000 + ts.tv_nsec / 1000;
+}
+
+
 /*convert a timespec to milliseconds */
 unsigned long ts2ms(struct timespec ts) {
     unsigned long ms = ts.tv_sec * 1000;
     ms += ts.tv_nsec / 1000000;
     return ms;
+}
+
+
+/* convert a timespec to nanoseconds */
+unsigned long long ts2ns(const struct timespec ts) {
+    return ts.tv_sec * 1000000000 + ts.tv_nsec;
 }

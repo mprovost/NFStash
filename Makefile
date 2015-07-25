@@ -13,7 +13,8 @@ clean:
 bin obj deps man/man8:
 	mkdir -p $@
 
-CFLAGS = -Werror -g -I src -I.
+# FIXME -lrt is only needed for clock_gettime() and only in glibc < 2.17
+CFLAGS = -Werror -g -I src -I. -lrt
 # generate header dependencies
 CPPFLAGS += -MMD -MP
 

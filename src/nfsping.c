@@ -133,12 +133,12 @@ void print_fping_summary(targets_t targets) {
 
 
 /* print formatted output after each ping */
-void print_output(enum outputs format, char *prefix, targets_t *target, unsigned long prognum_offset, u_long version, struct timeval now, unsigned long us) {
+void print_output(enum outputs format, char *prefix, targets_t *target, unsigned long prognum_offset, u_long version, const struct timespec now, unsigned long us) {
     double loss;
 
     if (format == unixtime) {
         /* FIXME these casts to long aren't great */
-        printf("[%ld.%06ld] ", (long)now.tv_sec, (long)now.tv_usec);
+        printf("[%ld.%06ld] ", (long)now.tv_sec, (long)now.tv_nsec / 1000);
     }
 
     if (format == human || format == fping || format == unixtime) {
@@ -159,7 +159,7 @@ void print_output(enum outputs format, char *prefix, targets_t *target, unsigned
 
 
 /* print missing packets for formatted output */
-void print_lost(enum outputs format, char *prefix, targets_t *target, unsigned long prognum_offset, u_long version, struct timeval now) {
+void print_lost(enum outputs format, char *prefix, targets_t *target, unsigned long prognum_offset, u_long version, const struct timespec now) {
     /* send to stdout even though it could be considered an error, presumably these are being piped somewhere */
     /* stderr prints the errors themselves which can be discarded */
     if (format == graphite || format == statsd) {
@@ -201,7 +201,7 @@ int main(int argc, char **argv) {
     void *status;
     char *error;
     struct timeval timeout = NFS_TIMEOUT;
-    struct timeval call_start, call_end;
+    struct timespec call_start, call_end;
     struct timespec sleep_time = NFS_SLEEP;
     struct timespec wait_time = NFS_WAIT;
     uint16_t port = htons(NFS_PORT);
@@ -573,7 +573,7 @@ int main(int argc, char **argv) {
         /* now see if we're connected */
         if (target->client) {
             /* first time marker */
-            gettimeofday(&call_start, NULL);
+            clock_gettime(CLOCK_MONOTONIC, &call_start);
 
             /* the actual ping */
             /* use a dispatch table instead of switch */
@@ -585,7 +585,7 @@ int main(int argc, char **argv) {
             }
 
             /* second time marker */
-            gettimeofday(&call_end, NULL);
+            clock_gettime(CLOCK_MONOTONIC, &call_end);
         } /* else not connected */
 
         /* count this no matter what to stop from looping in case server isn't listening */
@@ -597,7 +597,7 @@ int main(int argc, char **argv) {
 
             /* check if we're looping */
             if (count || loop) {
-                us = tv2us(call_end) - tv2us(call_start);
+                us = ts2us(call_end) - ts2us(call_start);
 
                 /* TODO discard first ping in case of ARP delay? Only for TCP for handshake? */
                 if (us < target->min) target->min = us;

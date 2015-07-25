@@ -11,6 +11,8 @@ unsigned long tv2us(struct timeval);
 unsigned long tv2ms(struct timeval);
 void ms2tv(struct timeval *, unsigned long);
 void ms2ts(struct timespec *, unsigned long);
+unsigned long ts2us(const struct timespec);
 unsigned long ts2ms(struct timespec);
+unsigned long long ts2ns(const struct timespec);
 
 #endif /* UTIL_H */
