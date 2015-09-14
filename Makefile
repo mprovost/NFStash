@@ -7,14 +7,13 @@ all: $(all) man
 prefix = /usr/local
 
 clean:
-	rm -rf obj bin deps man rpcsrc/*.c rpcsrc/*.h
+	rm -rf obj bin deps man rpcsrc/*.c rpcsrc/*.h config/*.opt
 
 #output directories
 bin obj deps man/man8:
 	mkdir -p $@
 
-# FIXME -lrt is only needed for clock_gettime() and only in glibc < 2.17
-CFLAGS = -Werror -g -I src -I. -lrt
+CFLAGS = -Werror -g -I src -I.
 # generate header dependencies
 CPPFLAGS += -MMD -MP
 
@@ -66,13 +65,19 @@ obj/%.o: rpcsrc/%.c | obj
 obj/parson.o: parson/parson.c | obj
 	gcc ${CFLAGS} -c -o $@ $<
 
+# config - check for clock_gettime in libc or librt
+# this opt file gets included as a gcc option
+config/clock_gettime.opt:
+	cd config && ./clock_gettime.sh
+
 # make the bin directory first if it's not already there
-# TODO addsuffix .o
 # TODO make common files into variable
 nfsping: bin/nfsping
-bin/nfsping: $(addprefix obj/, nfsping.o nfs_prot_clnt.o nfs_prot_xdr.o nfsv4_prot_clnt.o nfsv4_prot_xdr.o mount_clnt.o mount_xdr.o pmap_prot_clnt.o pmap_prot_xdr.o nlm_prot_clnt.o nlm_prot_xdr.o nfs_acl_clnt.o sm_inter_clnt.o sm_inter_xdr.o rquota_clnt.o rquota_xdr.o util.o rpc.o parson.o) | bin
-	gcc ${CFLAGS} $^ -o $@
+nfsping_objs = $(addsuffix .o, $(addprefix obj/, nfsping nfs_prot_clnt nfs_prot_xdr nfsv4_prot_clnt nfsv4_prot_xdr mount_clnt mount_xdr pmap_prot_clnt pmap_prot_xdr nlm_prot_clnt nlm_prot_xdr nfs_acl_clnt sm_inter_clnt sm_inter_xdr rquota_clnt rquota_xdr util rpc parson))
+bin/nfsping: config/clock_gettime.opt $(nfsping_objs) | bin
+	gcc ${CFLAGS} @config/clock_gettime.opt $(nfsping_objs) -o $@
 
+# TODO addsuffix .o
 nfsmount: bin/nfsmount
 bin/nfsmount: $(addprefix obj/, mount.o mount_clnt.o mount_xdr.o pmap_prot_clnt.o pmap_prot_xdr.o util.o rpc.o parson.o) | bin
 	gcc ${CFLAGS} $^ -o $@
