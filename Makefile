@@ -70,32 +70,34 @@ obj/parson.o: parson/parson.c | obj
 config/clock_gettime.opt:
 	cd config && ./clock_gettime.sh
 
+# common object files
+common_objs = $(addsuffix .o, pmap_prot_clnt pmap_prot_xdr util rpc parson)
+
 # make the bin directory first if it's not already there
-# TODO make common files into variable
 nfsping: bin/nfsping
-nfsping_objs = $(addsuffix .o, $(addprefix obj/, nfsping nfs_prot_clnt nfs_prot_xdr nfsv4_prot_clnt nfsv4_prot_xdr mount_clnt mount_xdr pmap_prot_clnt pmap_prot_xdr nlm_prot_clnt nlm_prot_xdr nfs_acl_clnt sm_inter_clnt sm_inter_xdr rquota_clnt rquota_xdr util rpc parson))
+nfsping_objs = $(addprefix obj/, $(addsuffix .o, nfsping nfs_prot_clnt nfs_prot_xdr nfsv4_prot_clnt nfsv4_prot_xdr mount_clnt mount_xdr nlm_prot_clnt nlm_prot_xdr nfs_acl_clnt sm_inter_clnt sm_inter_xdr rquota_clnt rquota_xdr) $(common_objs))
 bin/nfsping: config/clock_gettime.opt $(nfsping_objs) | bin
 	gcc ${CFLAGS} @config/clock_gettime.opt $(nfsping_objs) -o $@
 
 # TODO addsuffix .o
 nfsmount: bin/nfsmount
-bin/nfsmount: $(addprefix obj/, mount.o mount_clnt.o mount_xdr.o pmap_prot_clnt.o pmap_prot_xdr.o util.o rpc.o parson.o) | bin
+bin/nfsmount: $(addprefix obj/, mount.o mount_clnt.o mount_xdr.o pmap_prot_clnt.o $(common_objs)) | bin
 	gcc ${CFLAGS} $^ -o $@
 
 nfsdf: bin/nfsdf
-bin/nfsdf: $(addprefix obj/, df.o nfs_prot_clnt.o nfs_prot_xdr.o pmap_prot_clnt.o pmap_prot_xdr.o util.o rpc.o parson.o) | bin
+bin/nfsdf: $(addprefix obj/, df.o nfs_prot_clnt.o nfs_prot_xdr.o $(common_objs)) | bin
 	gcc ${CFLAGS} $^ -o $@
 
 nfsls: bin/nfsls
-bin/nfsls: $(addprefix obj/, ls.o nfs_prot_clnt.o nfs_prot_xdr.o pmap_prot_clnt.o pmap_prot_xdr.o util.o rpc.o parson.o) | bin
+bin/nfsls: $(addprefix obj/, ls.o nfs_prot_clnt.o nfs_prot_xdr.o $(common_objs)) | bin
 	gcc ${CFLAGS} $^ -o $@
 
 nfscat: bin/nfscat
-bin/nfscat: $(addprefix obj/, cat.o nfs_prot_clnt.o nfs_prot_xdr.o pmap_prot_clnt.o pmap_prot_xdr.o util.o rpc.o parson.o) | bin
+bin/nfscat: $(addprefix obj/, cat.o nfs_prot_clnt.o nfs_prot_xdr.o $(common_objs)) | bin
 	gcc ${CFLAGS} $^ -o $@
 
 nfslock: bin/nfslock
-bin/nfslock: $(addprefix obj/, lock.o nlm_prot_clnt.o nlm_prot_xdr.o pmap_prot_clnt.o pmap_prot_xdr.o util.o rpc.o parson.o) | bin
+bin/nfslock: $(addprefix obj/, lock.o nlm_prot_clnt.o nlm_prot_xdr.o $(common_objs)) | bin
 	gcc ${CFLAGS} $^ -o $@
 
 tests: tests/util_tests
