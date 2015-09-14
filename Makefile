@@ -99,7 +99,7 @@ bin/nfslock: $(addprefix obj/, lock.o nlm_prot_clnt.o nlm_prot_xdr.o pmap_prot_c
 	gcc ${CFLAGS} $^ -o $@
 
 tests: tests/util_tests
-tests/util_tests: tests/util_tests.c tests/minunit.h src/util.o src/util.h
+tests/util_tests: tests/util_tests.c tests/minunit.h src/util.o obj/parson.o src/util.h | rpcgen
 	gcc ${CFLAGS} $^ -o $@
 	tests/util_tests
 
