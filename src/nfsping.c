@@ -573,7 +573,11 @@ int main(int argc, char **argv) {
         /* now see if we're connected */
         if (target->client) {
             /* first time marker */
+#ifdef CLOCK_MONOTONIC_RAW
+            clock_gettime(CLOCK_MONOTONIC_RAW, &call_start);
+#else
             clock_gettime(CLOCK_MONOTONIC, &call_start);
+#endif
 
             /* the actual ping */
             /* use a dispatch table instead of switch */
@@ -585,7 +589,11 @@ int main(int argc, char **argv) {
             }
 
             /* second time marker */
+#ifdef CLOCK_MONOTONIC_RAW
+            clock_gettime(CLOCK_MONOTONIC_RAW, &call_end);
+#else
             clock_gettime(CLOCK_MONOTONIC, &call_end);
+#endif
         } /* else not connected */
 
         /* count this no matter what to stop from looping in case server isn't listening */
