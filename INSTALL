@@ -6,4 +6,4 @@ NFSping requires gmake. It uses some gcc-isms that may mean it won't compile wit
 Manpages are built with ronn (http://rtomayko.github.io/ronn/).
 RPC code is generated with rpcgen.
 At the moment it doesn't compile on FreeBSD because of conflicts with the portmap header files that it generates and the builtin ones shipped with FreeBSD.
-The Makefile links the realtime library (-lrt) to pull in clock_gettime(). This is included in libc in glibc > 2.17 but there's no code to check yet and I'm trying to avoid autotools.
+The Makefile uses a test in the /config directory to check whether it needs to link the realtime library (-lrt) to pull in clock_gettime(). This is included in libc itself in glibc > 2.17.
