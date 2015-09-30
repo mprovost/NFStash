@@ -14,23 +14,25 @@ filer1 : xmt/rcv/%loss = 5/5/0%, min/avg/max = 0.33/0.55/1.18
 filer2 : xmt/rcv/%loss = 5/5/0%, min/avg/max = 0.98/1.27/1.67
 
 
-NFSping is an open source (BSD licensed) command line utility for Linux and other POSIX operating systems which measures the availability and response times of an NFS server by sending probe packets. It's based on the fping (https://github.com/schweikert/fping) program's interface but doesn't share any code with that project. It's written in C and doesn't require any libraries other than libc (and librt for clock_gettime()).
+NFSping is an open source (BSD licensed) command line utility for Linux and other POSIX operating systems which measures the availability and response times of an NFS server by sending probe packets. It's based on the fping (https://github.com/schweikert/fping) program's interface but doesn't share any code with that project. It's written in C and doesn't require any libraries other than libc (and librt for clock_gettime() if using an older version of GNU libc).
 
-On modern NFS servers, the network stack and filesystem are often being run on separate cores or even hardware components. This means in practise that a fast ICMP ping response isn't indicative of how quickly the NFS services are responding. This tool directly tests the responsiveness of the server's NFS component. It can check all seven of the RPC protocols that are used by NFS: NFS, mount, portmap (rpcbind), the network lock manager (NLM), Sun's ACL sideband protocol, the network status monitor (NSM) and the rquota protocol.
+On modern NFS servers, the network stack and filesystem are often being run on separate cores or even hardware components. In practise this means that a fast ICMP ping response isn't indicative of how quickly the NFS services are responding. This tool directly tests the responsiveness of the server's NFS component. It can check all seven of the RPC protocols that are used by NFS: NFS, mount, portmap (rpcbind), the network lock manager (NLM), Sun's ACL sideband protocol, the network status monitor (NSM) and the rquota protocol.
 
-NFSping checks if each target server is responding by sending it a NULL RPC and waiting for a response. Multiple targets specified on the command line will be pinged in round-robin order. The NULL procedure of each protocol is a noop that is implemented for testing. NFSping supports versions 2, 3 and 4 of NFS, and the corresponding versions of the other protocols. By default it doesn't use the RPC portmapper for NFS pings and sends NULL packets to port 2049 using the UDP transport. Use the -T option to use TCP, -M to query the portmapper, or -P to specify a port number.
+NFSping checks if each target server is responding by sending it a NULL RPC and waiting for a response. Multiple targets specified on the command line will be pinged in round-robin order, one after the other. The NULL procedure of each protocol is a noop that is implemented for testing. NFSping supports versions 2, 3 and 4 of NFS, and the corresponding versions of the other RPC protocols. By default it doesn't use the RPC portmapper for NFS pings and sends NULL packets to port 2049 using the UDP transport. Use the -T option to use TCP, -M to query the portmapper, or -P to specify a port number.
 
-NFSping can also check the mount protocol response using the -n option. By default it uses the portmapper to discover the port that the mount protocol is bound to on the target. A port can be specified using the -P option.
+Minor versions of NFS version 4 (4.1, 4.2 etc) aren't able to be checked individually because they are all implemented under the same RPC protocol number. The version 4 protocol only has two procedures - NULL and COMPOUND. The COMPOUND procedure requires that each call specify a minor version, but the NULL procedure doesn't have an argument for minor versions.
 
-The -L option will check the network lock manager (NLM) protocol, using the portmapper to discover the port.
+NFSping can also check the mount protocol response using the -n option. This protocol is used by NFS version 2 and 3 clients to look up the root filehandle for a specific mount point on the server. In version 4 this functionality has been built into the NFS protocol itself. By default NFSping uses the portmapper to discover the port that the mount protocol is listening to on the target. Use the -P option to specify a port.
 
-The -N option will check the portmap protocol itself (always listening on port 111).
+The -L option will check the network lock manager (NLM) protocol, using the portmapper to discover the port. The lock manager is a stateful protocol for managing file locks that was added to NFS version 3 servers - version 2 doesn't have locking and in version 4 it has been built into the NFS protocol itself. By default NFSping uses the portmapper to discover the port that the NLM protocol is listening to on the target. Use the -P option to specify a port.
 
-The -a option will check the NFS ACL protocol which usually listens on port 2049 alongside NFS but is a separate RPC protocol.
+The -N option will check the portmap protocol itself (always listening on port 111). This is also called the portmapper or rpcbind service. The portmap protocol is used by clients to look up which port a particular RPC service and version is bound to on a server.
 
-The -s option will check the network status monitor (NSM) protocol which is used to notify NFS peers of host reboots. The portmapper is used to discover the port.
+The -a option will check the NFS ACL protocol which usually listens on port 2049 alongside NFS but is a separate RPC protocol. This is a "sideband" protocol that Sun created for manipulating POSIX ACLs to that was never standardised in an RFC. However several servers such as Solaris and Linux implement it. By default NFSping checks for it on port 2049, specify a port with -P.
 
-The -Q option will check the rquota protocol which is used by clients to check and set remote quotas on the server, using the portmapper to discover the port.
+The -s option will check the network status monitor (NSM) protocol which is used to notify NFS peers of host reboots. It shows up as the "status" protocol in rpcinfo output. It forms part of the stateful locking protocol so that stale locks can be cleared when clients reboot and is only used by version 3 clients. By default NFSping uses the portmapper to discover the port that the NSM protocol is listening to on the target. Use the -P option to specify a port.
+
+The -Q option will check the rquota protocol which is used by clients to check and set remote quotas on the server. By default NFSping uses the portmapper to discover the port that the rquota protocol is listening to on the target. Use the -P option to specify a port.
 
 
 To build the nfsping executable:
