@@ -33,6 +33,7 @@ static const struct null_procs null_dispatch[][5] = {
     [NFS_ACL_PROGRAM - 100000][3] = { .proc = aclproc3_null_3, .name = "aclproc3_null_3", .protocol = "nfs_aclv3", .version = 3 },
     /* nfs v4 has ACLs built in */
     /* NSM network status monitor, only has one version */
+    /* FIXME is this used at all in NFSv2? */
     /* call it "status" to match rpcinfo */
     [SM_PROG - 100000]        [2] = { .proc = sm_null_1, .name = "sm_null_1", .protocol = "status", .version = 1 },
     [SM_PROG - 100000]        [3] = { .proc = sm_null_1, .name = "sm_null_1", .protocol = "status", .version = 1 },
