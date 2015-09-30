@@ -21,8 +21,10 @@ static const struct null_procs null_dispatch[][5] = {
     /* nfs v4 has mounting built in */
     /* only one version of portmap protocol */
     [PMAPPROG - 100000]       [2 ... 4] = { .proc = pmapproc_null_2, .name = "pmapproc_null_2", .protocol = "portmap", .version = 2 },
-    /* nfs v2 didn't have locks, v4 has it integrated into the nfs protocol */
+    /* NLM version 3 is used by NFS version 2 */
     /* NLM version 4 is used by NFS version 3 */
+    /* v4 has locks integrated into the nfs protocol */
+    [NLM_PROG - 100000]       [2] = { .proc = nlm_null_3, .name = "nlm_null_3", .protocol = "nlmv3", .version = 3 },
     [NLM_PROG - 100000]       [3] = { .proc = nlm4_null_4, .name = "nlm4_null_4", .protocol = "nlmv4", .version = 4 },
     /* nfs */
     [NFS_PROGRAM - 100000]    [2] = { .proc = nfsproc_null_2, .name = "nfsproc_null_2" , .protocol = "nfsv2", .version = 2 },
@@ -33,7 +35,6 @@ static const struct null_procs null_dispatch[][5] = {
     [NFS_ACL_PROGRAM - 100000][3] = { .proc = aclproc3_null_3, .name = "aclproc3_null_3", .protocol = "nfs_aclv3", .version = 3 },
     /* nfs v4 has ACLs built in */
     /* NSM network status monitor, only has one version */
-    /* FIXME is this used at all in NFSv2? */
     /* call it "status" to match rpcinfo */
     [SM_PROG - 100000]        [2] = { .proc = sm_null_1, .name = "sm_null_1", .protocol = "status", .version = 1 },
     [SM_PROG - 100000]        [3] = { .proc = sm_null_1, .name = "sm_null_1", .protocol = "status", .version = 1 },
@@ -65,7 +66,7 @@ void usage() {
     -l         loop forever\n\
     -L         check the network lock manager (NLM) protocol (default NFS)\n\
     -m         use multiple target IP addresses if found\n\
-    -M         use the portmapper (default: NFS no, mount/NLM/NSM yes)\n\
+    -M         use the portmapper (default: NFS/ACL no, mount/NLM/NSM/rquota yes)\n\
     -n         check the mount protocol (default NFS)\n\
     -N         check the portmap protocol (default NFS)\n\
     -o F       output format ([G]raphite, [S]tatsd, default human readable)\n\
