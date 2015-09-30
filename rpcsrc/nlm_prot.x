@@ -298,6 +298,7 @@ program NLM_PROG {
 	} = 1;
 
 	version NLM_VERSX {
+        void        NLM_NULL(void) = 0;
 		nlm_shareres	NLM_SHARE(nlm_shareargs) = 20;
 		nlm_shareres	NLM_UNSHARE(nlm_shareargs) = 21;
 		nlm_res		NLM_NM_LOCK(nlm_lockargs) = 22;
