@@ -203,7 +203,7 @@ int main(int argc, char **argv) {
     void *status;
     char *error;
     struct timeval timeout = NFS_TIMEOUT;
-    struct timespec call_start, call_end;
+    struct timespec call_start, call_end, loop_start, loop_end, loop_elapsed, sleepy;
     struct timespec sleep_time = NFS_SLEEP;
     struct timespec wait_time = NFS_WAIT;
     uint16_t port = htons(NFS_PORT);
@@ -566,6 +566,12 @@ int main(int argc, char **argv) {
         /* reset */
         status = NULL;
 
+#ifdef CLOCK_MONOTONIC_RAW
+        clock_gettime(CLOCK_MONOTONIC_RAW, &loop_start);
+#else
+        clock_gettime(CLOCK_MONOTONIC, &loop_start);
+#endif
+
         /* check if we were disconnected (TCP) or if this is the first iteration */
         if (target->client == NULL) {
             /* try and (re)connect */
@@ -658,6 +664,11 @@ int main(int argc, char **argv) {
             nanosleep(&wait_time, NULL);
         /* at the end of the targets list, see if we need to loop */
         } else {
+#ifdef CLOCK_MONOTONIC_RAW
+            clock_gettime(CLOCK_MONOTONIC_RAW, &loop_end);
+#else
+            clock_gettime(CLOCK_MONOTONIC, &loop_end);
+#endif
             /* check the first target */
             if ((count && targets->sent < count) || loop) {
                 /* reset back to start of list */
@@ -666,7 +677,11 @@ int main(int argc, char **argv) {
                 if (!quitting) {
                     target = targets;
                     /* sleep between rounds */
-                    nanosleep(&sleep_time, NULL);
+                    tsdiff(&loop_end, &loop_start, &loop_elapsed);
+                    printf("loop = %lld.%.9ld\n", (long long)loop_elapsed.tv_sec, loop_elapsed.tv_nsec);
+                    tsdiff(&sleep_time, &loop_elapsed, &sleepy);
+                    printf("sleep = %lld.%.9ld\n", (long long)sleepy.tv_sec, sleepy.tv_nsec);
+                    nanosleep(&sleepy, NULL);
                 }
             }
         }
