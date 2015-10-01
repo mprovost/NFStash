@@ -324,3 +324,16 @@ unsigned long ts2ms(struct timespec ts) {
 unsigned long long ts2ns(const struct timespec ts) {
     return ts.tv_sec * 1000000000 + ts.tv_nsec;
 }
+
+
+/* compute the difference between two timespecs */
+/* based on timespecsub from OpenBSD's time.h */
+void tsdiff(const struct timespec *tsp, const struct timespec *usp, struct timespec *vsp) {
+    vsp->tv_sec = tsp->tv_sec - usp->tv_sec;
+    vsp->tv_nsec = tsp->tv_nsec - usp->tv_nsec;
+    if (vsp->tv_nsec < 0) {
+        vsp->tv_sec--;
+        vsp->tv_nsec += 1000000000L;
+    }
+
+}
