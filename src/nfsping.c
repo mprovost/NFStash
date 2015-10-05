@@ -62,7 +62,7 @@ void usage() {
     -D         print timestamp (unix time) before each line\n\
     -g string  prefix for graphite metric names (default \"nfsping\")\n\
     -h         display this help and exit\n\
-    -i n       interval between targets (in ms, default %lu)\n\
+    -i n       interval between sending packets (in ms, default %lu)\n\
     -l         loop forever\n\
     -L         check the network lock manager (NLM) protocol (default NFS)\n\
     -m         use multiple target IP addresses if found\n\
@@ -70,7 +70,7 @@ void usage() {
     -n         check the mount protocol (default NFS)\n\
     -N         check the portmap protocol (default NFS)\n\
     -o F       output format ([G]raphite, [S]tatsd, default human readable)\n\
-    -p n       pause between pings to target (in ms, default %lu)\n\
+    -p n       polling interval, check targets every n ms (default %lu)\n\
     -P n       specify port (default: NFS %i, portmap %i)\n\
     -q         quiet, only print summary\n\
     -Q         check the rquota protocol (default NFS)\n\
@@ -560,150 +560,146 @@ int main(int argc, char **argv) {
         }
     }
 
-    target = targets;
-
-    /* grab the starting time of the first loop */
-#ifdef CLOCK_MONOTONIC_RAW
-    clock_gettime(CLOCK_MONOTONIC_RAW, &loop_start);
-#else
-    clock_gettime(CLOCK_MONOTONIC, &loop_start);
-#endif
 
     /* the main loop */
-    while (target) {
-        /* reset */
-        status = NULL;
+    while(1) {
+        target = targets;
 
-        /* check if we were disconnected (TCP) or if this is the first iteration */
-        if (target->client == NULL) {
-            /* try and (re)connect */
-            target->client = create_rpc_client(target->client_sock, &hints, prognum, null_dispatch[prognum_offset][version].version, timeout, src_ip);
-        }
-
-        /* now see if we're connected */
-        if (target->client) {
-            /* first time marker */
+        /* grab the starting time of each loop */
 #ifdef CLOCK_MONOTONIC_RAW
-            clock_gettime(CLOCK_MONOTONIC_RAW, &call_start);
+        clock_gettime(CLOCK_MONOTONIC_RAW, &loop_start);
 #else
-            clock_gettime(CLOCK_MONOTONIC, &call_start);
+        clock_gettime(CLOCK_MONOTONIC, &loop_start);
 #endif
 
-            /* the actual ping */
-            /* use a dispatch table instead of switch */
-            /* doublecheck that the procedure exists, should have been checked above */
-            if (null_dispatch[prognum_offset][version].proc) {
-                status = null_dispatch[prognum_offset][version].proc(NULL, target->client);
-            } else {
-                fatal("Illegal version: %lu\n", version);
+        while (target) {
+            /* reset */
+            status = NULL;
+
+            /* check if we were disconnected (TCP) or if this is the first iteration */
+            if (target->client == NULL) {
+                /* try and (re)connect */
+                target->client = create_rpc_client(target->client_sock, &hints, prognum, null_dispatch[prognum_offset][version].version, timeout, src_ip);
             }
 
-            /* second time marker */
-#ifdef CLOCK_MONOTONIC_RAW
-            clock_gettime(CLOCK_MONOTONIC_RAW, &call_end);
-#else
-            clock_gettime(CLOCK_MONOTONIC, &call_end);
-#endif
-        } /* else not connected */
-
-        /* count this no matter what to stop from looping in case server isn't listening */
-        target->sent++;
-
-        /* check for success */
-        if (status) {
-            target->received++;
-
-            /* check if we're looping */
-            if (count || loop) {
-                us = ts2us(call_end) - ts2us(call_start);
-
-                /* TODO discard first ping in case of ARP delay? Only for TCP for handshake? */
-                if (us < target->min) target->min = us;
-                if (us > target->max) target->max = us;
-                /* calculate the average time */
-                target->avg = (target->avg * (target->received - 1) + us) / target->received;
-
-                if (format == fping)
-                    target->results[target->sent - 1] = us;
-
-                if (!quiet) {
-                    /* TODO estimate the time by getting the midpoint of call_start and call_end? */
-                    print_output(format, prefix, target, prognum_offset, version, call_end, us);
-                }
-            } else {
-                printf("%s is alive\n", target->name);
-            }
-        /* something went wrong */
-        } else {
-            print_lost(format, prefix, target, prognum_offset, version, call_end);
-
+            /* now see if we're connected */
             if (target->client) {
-                fprintf(stderr, "%s : ", target->name);
-                clnt_geterr(target->client, &clnt_err);
-                clnt_perror(target->client, null_dispatch[prognum_offset][version].name);
-                fprintf(stderr, "\n");
-                fflush(stderr);
+                /* first time marker */
+    #ifdef CLOCK_MONOTONIC_RAW
+                clock_gettime(CLOCK_MONOTONIC_RAW, &call_start);
+    #else
+                clock_gettime(CLOCK_MONOTONIC, &call_start);
+    #endif
 
-                /* check for broken pipes or reset connections and try and reconnect next time */
-                if (clnt_err.re_errno == EPIPE || ECONNRESET) {
-                    target->client = destroy_rpc_client(target->client);
+                /* the actual ping */
+                /* use a dispatch table instead of switch */
+                /* doublecheck that the procedure exists, should have been checked above */
+                if (null_dispatch[prognum_offset][version].proc) {
+                    status = null_dispatch[prognum_offset][version].proc(NULL, target->client);
+                } else {
+                    fatal("Illegal version: %lu\n", version);
                 }
-            } /* TODO else? */
 
-            if (!count && !loop) {
-                printf("%s is dead\n", target->name);
-            }
-        }
+                /* second time marker */
+    #ifdef CLOCK_MONOTONIC_RAW
+                clock_gettime(CLOCK_MONOTONIC_RAW, &call_end);
+    #else
+                clock_gettime(CLOCK_MONOTONIC, &call_end);
+    #endif
+            } /* else not connected */
 
-        /* see if we should disconnect and reconnect */
-        if (reconnect && targets->sent % reconnect == 0) {
-            target->client = destroy_rpc_client(target->client);
-        }
+            /* count this no matter what to stop from looping in case server isn't listening */
+            target->sent++;
 
-        target = target->next;
+            /* check for success */
+            if (status) {
+                target->received++;
 
-        if (target) {
-            nanosleep(&wait_time, NULL);
-        /* at the end of the targets list, see if we need to loop */
-        } else {
-            /* check the first target */
-            if ((count && targets->sent < count) || loop) {
-                /* see if we've been signalled */
-                if (!quitting) {
-                    /* sleep between rounds */
-                    /* measure how long the current round took, and subtract that from the sleep time */
-                    /* this tries to ensure that each polling round takes the same time */
-#ifdef CLOCK_MONOTONIC_RAW
-                    clock_gettime(CLOCK_MONOTONIC_RAW, &loop_end);
-#else
-                    clock_gettime(CLOCK_MONOTONIC, &loop_end);
-#endif
-                    timespecsub(&loop_end, &loop_start, &loop_elapsed);
-                    debug("Polling took %lld.%.9lds\n", (long long)loop_elapsed.tv_sec, loop_elapsed.tv_nsec);
-                    /* don't sleep if we went over the sleep_time */
-                    if (timespeccmp(&loop_elapsed, &sleep_time, >)) {
-                        debug("Slow poll, not sleeping\n");
-                    } else {
-                        timespecsub(&sleep_time, &loop_elapsed, &sleepy);
-                        debug("Sleeping for %lld.%.9lds\n", (long long)sleepy.tv_sec, sleepy.tv_nsec);
-                        nanosleep(&sleepy, NULL);
+                /* check if we're looping */
+                if (count || loop) {
+                    us = ts2us(call_end) - ts2us(call_start);
+
+                    /* TODO discard first ping in case of ARP delay? Only for TCP for handshake? */
+                    if (us < target->min) target->min = us;
+                    if (us > target->max) target->max = us;
+                    /* calculate the average time */
+                    target->avg = (target->avg * (target->received - 1) + us) / target->received;
+
+                    if (format == fping)
+                        target->results[target->sent - 1] = us;
+
+                    if (!quiet) {
+                        /* TODO estimate the time by getting the midpoint of call_start and call_end? */
+                        print_output(format, prefix, target, prognum_offset, version, call_end, us);
                     }
+                } else {
+                    printf("%s is alive\n", target->name);
+                }
+            /* something went wrong */
+            } else {
+                print_lost(format, prefix, target, prognum_offset, version, call_end);
 
-                    /* reset back to start of list */
-                    /* do this at the end of the loop not the start so we can check if we're done or need to sleep */
-                    target = targets;
-                    /* reset the starting time for the next loop */
-                    /* TODO: I'd rather do this at the start of the loop so no code ends up being added to the end of the loop and messing with the timing */
-                    /* probably need another outer loop for the entire polling round */
-                    #ifdef CLOCK_MONOTONIC_RAW
-                            clock_gettime(CLOCK_MONOTONIC_RAW, &loop_start);
-                    #else
-                            clock_gettime(CLOCK_MONOTONIC, &loop_start);
-                    #endif
+                if (target->client) {
+                    fprintf(stderr, "%s : ", target->name);
+                    clnt_geterr(target->client, &clnt_err);
+                    clnt_perror(target->client, null_dispatch[prognum_offset][version].name);
+                    fprintf(stderr, "\n");
+                    fflush(stderr);
+
+                    /* check for broken pipes or reset connections and try and reconnect next time */
+                    if (clnt_err.re_errno == EPIPE || ECONNRESET) {
+                        target->client = destroy_rpc_client(target->client);
+                    }
+                } /* TODO else? */
+
+                if (!count && !loop) {
+                    printf("%s is dead\n", target->name);
                 }
             }
+
+            /* see if we should disconnect and reconnect */
+            if (reconnect && targets->sent % reconnect == 0) {
+                target->client = destroy_rpc_client(target->client);
+            }
+
+            target = target->next;
+
+            if (target) {
+                nanosleep(&wait_time, NULL);
+            }
+        } /* while(target) */
+
+        /* see if we've been signalled */
+        if (quitting) {
+            break;
         }
-    } /* while(target) */
+
+        /* at the end of the targets list, see if we need to loop */
+        /* check the first target */
+        if ((count && targets->sent < count) || loop) {
+            /* sleep between rounds */
+            /* measure how long the current round took, and subtract that from the sleep time */
+            /* this tries to ensure that each polling round takes the same time */
+#ifdef CLOCK_MONOTONIC_RAW
+            clock_gettime(CLOCK_MONOTONIC_RAW, &loop_end);
+#else
+            clock_gettime(CLOCK_MONOTONIC, &loop_end);
+#endif
+            timespecsub(&loop_end, &loop_start, &loop_elapsed);
+            debug("Polling took %lld.%.9lds\n", (long long)loop_elapsed.tv_sec, loop_elapsed.tv_nsec);
+            /* don't sleep if we went over the sleep_time */
+            if (timespeccmp(&loop_elapsed, &sleep_time, >)) {
+                debug("Slow poll, not sleeping\n");
+            } else {
+                timespecsub(&sleep_time, &loop_elapsed, &sleepy);
+                debug("Sleeping for %lld.%.9lds\n", (long long)sleepy.tv_sec, sleepy.tv_nsec);
+                nanosleep(&sleepy, NULL);
+            }
+        } else {
+            break;
+        }
+
+    } /* while(1) */
 
     fflush(stdout);
 
