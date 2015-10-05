@@ -77,7 +77,9 @@ $ nfsping -l filer1
 
 To exit early in any mode, use control-c.
 
-It also has a form that produces more easily parsed output when using the -C option:
+NFSping will handle multiple targets and iterate through them on each round. If there are multiple DNS responses for a target, only the first is used. All of them can be checked by using the -m option. The interval (delay) between targets can be controlled with the -i option, usually this can be quite short and defaults to 25ms. If any of the targets fail to respond, the command will exit with a status code of 1.
+
+It also has an fping compatible form that produces more easily parsed output with the -C option:
 
 $ nfsping -C 5 filer1
 filer1 : [0], 1.96 ms (1.96 avg, 0% loss)
@@ -116,7 +118,7 @@ Usage: nfsping [options] [targets...]
     -P n       specify port (default: NFS 2049, portmap 111)
     -q         quiet, only print summary
     -Q         check the rquota protocol (default NFS)
-    -r n       reconnect to server every n pings
+    -R         don't reconnect to server every ping
     -s         check the network status monitor (NSM) protocol (default NFS)
     -S addr    set source address
     -t n       timeout (in ms, default 1000)
@@ -125,7 +127,7 @@ Usage: nfsping [options] [targets...]
     -V n       specify NFS version (2/3/4, default 3)
 
 
-NFSping can also output stats in a variety of formats for putting into time series databases. Currently only Graphite and StatsD are supported:
+NFSping can also output stats in a variety of formats for inserting into time series databases. Currently only Graphite and StatsD are supported:
 
 $ nfsping -c 5 -oG filer1
 nfsping.filer1.ping.usec 401 1370501562
@@ -143,11 +145,13 @@ filers.domain.my.filer1.ping.usec 292 1409332974
 
 This output can be easily redirected to a Carbon server using nc (netcat):
 
-$ nfsping -l -t1000 -oG filer1 filer2 | nc carbon1 2003
+$ nfsping -l -oG filer1 filer2 | nc carbon1 2003
 
-This will send a result every second. Because nfsping is single threaded it's best to set a timeout to stop unresponsive NFS servers from affecting the results when specifying multiple targets. Lost requests will be reported under a separate path, $prefix.$target.$protocol.lost, with a metric of 1.
+This will send a result every second. Because nfsping is single threaded, unresponsive NFS servers will timeout and may cause the polling round to overrun when specifying multiple targets. It's recommended to run one command per NFS server or cluster to avoid this affecting all monitored hosts. Lost requests (or timeouts) will be reported under a separate path, $prefix.$target.$protocol.lost, with a metric of 1.
 
 nc will exit if the TCP connection is reset (such as if the Carbon server is restarted) which will also cause nfsping to exit with a broken pipe. To retry, start a persistent process under a process supervisor like daemontools (http://cr.yp.to/daemontools.html) or runit (http://smarden.org/runit/) which will restart the process if it exits for any reason.
+
+NFSping only performs DNS lookups once during initialisation. If the NFS server's IP addresses change (for example if it's a clustered server and you are using the -m option to resolve multiple addresses), consider using the -c option to exit after sending a certain number of pings and running NFSping under a supervisor to restart it after it exits, when it will do the DNS lookups again.
 
 Similarly, the StatsD output will produce plaintext output suitable for sending to StatsD with netcat:
 
@@ -160,8 +164,4 @@ nfsping.filer1.ping:78.07|ms
 
 Note that this output uses floating point values, as the StatsD protocol only supports milliseconds. While floating point values are supported by the protocol, some implementations may not handle them. This output has been tested as working with statsite (https://github.com/armon/statsite).
 
-Some NFS servers can exhibit varied response times for different TCP connections. Some connections will exhibit consistenly low response times while others will have much higher ones. This winner-loser pattern has been named Hash-Cast by Chen et al in "Newer Is Sometimes Better: An Evaluation of NFSv4.1" (https://www.fsl.cs.sunysb.edu/docs/nfs4perf/nfs4perf-sigm15.pdf). They identified the cause of this pattern being the operating system hashing TCP flows onto different transmit queues on the NIC. Flows that end up on a busy queue will show consistently higher latency. To measure these different responses, use the -r option to force nfsping to close the TCP connection and reconnect to the server after every specified number of pings. Otherwise, new clients connecting to the server may be seeing different latencies than nfsping's established TCP connection if they are hashed to a different queue.
-
-NFSping will handle multiple targets and iterate through them on each round. If there are multiple DNS responses for a target, only the first is used. All of them can be checked by using the -m option. The sleep interval between targets can be controlled with the -i option. If any of the targets fail to respond, the command will exit with a status code of 1.
-
-NFSping only performs DNS lookups once during initialisation. If your NFS server's IP addresses change (for example if it's a clustered server and you are using the -m option to resolve multiple addresses), consider using the -c option to exit after sending a certain number of requests and running nfsping under a supervisor to restart it after it exits, where it will do the DNS lookups again.
+NFS servers can exhibit varied response times for different TCP connections. Some connections will exhibit consistently low response times while others will have much higher ones. This winner-loser pattern has been named Hash-Cast by Chen et al in "Newer Is Sometimes Better: An Evaluation of NFSv4.1" (https://www.fsl.cs.sunysb.edu/docs/nfs4perf/nfs4perf-sigm15.pdf). They identified this pattern as being caused by the operating system unevenly hashing TCP flows onto different transmit queues on a NIC. Flows that are hashed onto a busy queue will show consistently higher latency. The symptom of a server suffering from hash cast is that NFSping will report a bimodal distribution with two clusters of results, one consistently higher than the other. To avoid being hashed to a single queue on the server, NFSping reconnects to the server after every ping, using a different local port each time. This doesn't guarantee that the new connection will be assigned to a new queue (if there are 4 queues on the NIC, there is still a 25% chance of hitting the same queue again) but over multiple pings the probability that all queues will be hit approaches certainty. To disable this behaviour and keep reusing the same connection to each server, use the -R option.
