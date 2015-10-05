@@ -677,10 +677,12 @@ int main(int argc, char **argv) {
                 if (!quitting) {
                     target = targets;
                     /* sleep between rounds */
+                    /* measure how long the current poll(s) took, and subtract that from the wait time */
+                    /* this tries to ensure that each polling round takes the same time */
                     tsdiff(&loop_end, &loop_start, &loop_elapsed);
-                    printf("loop = %lld.%.9ld\n", (long long)loop_elapsed.tv_sec, loop_elapsed.tv_nsec);
+                    debug("polling took %lld.%.9lds\n", (long long)loop_elapsed.tv_sec, loop_elapsed.tv_nsec);
                     tsdiff(&sleep_time, &loop_elapsed, &sleepy);
-                    printf("sleep = %lld.%.9ld\n", (long long)sleepy.tv_sec, sleepy.tv_nsec);
+                    debug("sleeping for %lld.%.9lds\n", (long long)sleepy.tv_sec, sleepy.tv_nsec);
                     nanosleep(&sleepy, NULL);
                 }
             }
