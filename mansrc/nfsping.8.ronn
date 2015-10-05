@@ -36,7 +36,7 @@ nfsping(8) -- send RPC NULL requests to NFS servers
   Display a help message and exit.
 
 * `-i` <interval>:
-  The interval (delay) between targets, in milliseconds. Default = 25.
+  The interval (delay) between sending packets, in milliseconds. Default = 25.
 
 * `-l`:
   Loop forever. Like traditional ICMP `ping(8)`. Exit loop with Ctrl-c.
@@ -60,7 +60,7 @@ nfsping(8) -- send RPC NULL requests to NFS servers
   Specify output format for input to another program. Currently supported are [`G`]raphite and [`S`]tatsd.
 
 * `-p` <pause>:
-  Number of milliseconds to pause between requests to target. Default = 1000 (one second).
+  The polling interval. `nfsping` will pause up to this amount of milliseconds between requests to each target. Default = 1000 (one second).
 
 * `-P` <port>:
   The port on the server. Default = 2049 for NFS and NFS ACL, 111 for portmap. The portmapper on the server is queried for other protocols.
@@ -81,7 +81,7 @@ nfsping(8) -- send RPC NULL requests to NFS servers
   Use the specified source IP address for request packets.
 
 * `-t` <timeout>:
-  Timeout in milliseconds to wait for a response from the server. Default = 2500.
+  Timeout in milliseconds to wait for a RPC response from the server. Default = 1000.
 
 * `-T`:
   Use TCP to connect to server. Default = UDP.
@@ -90,7 +90,7 @@ nfsping(8) -- send RPC NULL requests to NFS servers
   Display debug output on `stderr`.
 
 * `-V` <version>:
-  Use protocol `version`. Default = 3 for NFS, can use versions 2/3/4. Other protocols use the corresponding NFS version (except the portmapper which always uses version 2 of the portmap protocol). An error is returned for illegal or unsupported versions of the specified protocol.
+  Use NFS protocol `version`. Default = 3 for NFS, supports versions 2/3/4. Other protocols use the version corresponding to the specified NFS version (except the portmapper which always uses version 2 of the portmap protocol). An error is returned for illegal or unsupported versions of the specified protocol.
 
 ## RETURN VALUES
 

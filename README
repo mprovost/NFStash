@@ -100,7 +100,7 @@ Usage: nfsping [options] [targets...]
     -D         print timestamp (unix time) before each line
     -g string  prefix for graphite metric names (default "nfsping")
     -h         display this help and exit
-    -i n       interval between targets (in ms, default 25)
+    -i n       interval between sending packets (in ms, default 25)
     -l         loop forever
     -L         check the network lock manager (NLM) protocol (default NFS)
     -m         use multiple target IP addresses if found
@@ -108,14 +108,14 @@ Usage: nfsping [options] [targets...]
     -n         check the mount protocol (default NFS)
     -N         check the portmap protocol (default NFS)
     -o F       output format ([G]raphite, [S]tatsd, default human readable)
-    -p n       pause between pings to target (in ms, default 1000)
-    -P n       specify port (default: NFS 2049)
+    -p n       polling interval, check targets every n ms (default 1000)
+    -P n       specify port (default: NFS 2049, portmap 111)
     -q         quiet, only print summary
     -Q         check the rquota protocol (default NFS)
     -r n       reconnect to server every n pings
     -s         check the network status monitor (NSM) protocol (default NFS)
     -S addr    set source address
-    -t n       timeout (in ms, default 2500)
+    -t n       timeout (in ms, default 1000)
     -T         use TCP (default UDP)
     -v         verbose output
     -V n       specify NFS version (2/3/4, default 3)
