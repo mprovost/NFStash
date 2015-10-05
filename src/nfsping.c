@@ -74,7 +74,7 @@ void usage() {
     -P n       specify port (default: NFS %i, portmap %i)\n\
     -q         quiet, only print summary\n\
     -Q         check the rquota protocol (default NFS)\n\
-    -r n       reconnect to server every n pings\n\
+    -R         don't reconnect to server every ping\n\
     -s         check the network status monitor (NSM) protocol (default NFS)\n\
     -S addr    set source address\n\
     -t n       timeout (in ms, default %lu)\n\
@@ -220,7 +220,8 @@ int main(int argc, char **argv) {
     targets_t target_dummy;
     int ch;
     unsigned long count = 0;
-    unsigned long reconnect = 0;
+    /* default to reconnecting to server each round */
+    unsigned long reconnect = 1;
     /* command-line options */
     int dns = 0, loop = 0, ip = 0, quiet = 0, multiple = 0;
     /* default to NFS v3 */
@@ -247,7 +248,7 @@ int main(int argc, char **argv) {
     if (argc == 1)
         usage();
 
-    while ((ch = getopt(argc, argv, "aAc:C:dDg:hi:lLmMnNo:p:P:qQr:sS:t:TvV:")) != -1) {
+    while ((ch = getopt(argc, argv, "aAc:C:dDg:hi:lLmMnNo:p:P:qQRsS:t:TvV:")) != -1) {
         switch(ch) {
             /* NFS ACL protocol */
             case 'a':
@@ -392,11 +393,9 @@ int main(int argc, char **argv) {
                     fatal("Only one protocol!\n");
                 }
                 break;
-            case 'r':
-                reconnect = strtoul(optarg, NULL, 10);
-                if (reconnect == 0 || reconnect == ULONG_MAX) {
-                    fatal("Invalid reconnect count!\n");
-                }
+            case 'R':
+                /* don't reconnect to server each round */
+                reconnect = 0;
                 break;
             /* check NSM */
             case 's':
@@ -454,11 +453,6 @@ int main(int argc, char **argv) {
     /* output formatting doesn't make sense for the simple check */
     if (count == 0 && loop == 0 && format != human) {
         fatal("Can't specify output format without ping count!\n");
-    }
-
-    /* check that the reconnect argument makes sense */
-    if (count && (reconnect >= count)) {
-        fatal("Ping count must be higher than reconnect!\n");
     }
 
     /* mark the first non-option argument */
@@ -658,7 +652,7 @@ int main(int argc, char **argv) {
             }
 
             /* see if we should disconnect and reconnect */
-            if (reconnect && targets->sent % reconnect == 0) {
+            if (reconnect) {
                 target->client = destroy_rpc_client(target->client);
             }
 
