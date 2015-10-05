@@ -3,7 +3,7 @@ nfsping(8) -- send RPC NULL requests to NFS servers
 
 ## SYNOPSIS
 
-`nfsping` [`-aAdDhlLmMnNqQsTv`] [`-c` <count>] [`-C` <count>] [`-g` <prefix>] [`-i` <interval>] [`-o` <format>] [`-p` <pause>] [`-P` <port>] [`-r` <reconnect>] [`-S` <source>] [`-t` <timeout>] [`-V` <version>] <servers...>
+`nfsping` [`-aAdDhlLmMnNqQRsTv`] [`-c` <count>] [`-C` <count>] [`-g` <prefix>] [`-i` <interval>] [`-o` <format>] [`-p` <pause>] [`-P` <port>] [`-S` <source>] [`-t` <timeout>] [`-V` <version>] <servers...>
 
 ## DESCRIPTION
 
@@ -71,8 +71,8 @@ nfsping(8) -- send RPC NULL requests to NFS servers
 * `-Q`:
   Send rquota protocol NULL requests. Implies `-M`.
 
-* `-r` <reconnect>:
-  Disconnect and reconnect to the server after the specified number of requests.
+* `-R`:
+  By default nfsping disconnects and reconnects to each server for each ping. Disable this behaviour and maintain the connection(s).
 
 * `-s`:
   Send network status monitor (NSM) protocol NULL requests. Imples `-M`.
