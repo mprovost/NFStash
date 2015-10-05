@@ -32,6 +32,9 @@
 #include "rpcsrc/sm_inter.h"
 #include "rpcsrc/rquota.h"
 
+/* BSD timespec functions */
+#include "src/timespec.h"
+
 #define fatal(x...) do { fprintf(stderr,x); usage(); } while (0)
 #define debug(x...) do { if (verbose) fprintf(stderr,x); } while (0)
 

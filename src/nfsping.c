@@ -366,6 +366,7 @@ int main(int argc, char **argv) {
                 break;
             /* time between pings to target */
             case 'p':
+                /* TODO check for reasonable values */
                 ms2ts(&sleep_time, strtoul(optarg, NULL, 10));
                 break;
             /* specify NFS port */
@@ -561,16 +562,17 @@ int main(int argc, char **argv) {
 
     target = targets;
 
+    /* grab the starting time of the first loop */
+#ifdef CLOCK_MONOTONIC_RAW
+    clock_gettime(CLOCK_MONOTONIC_RAW, &loop_start);
+#else
+    clock_gettime(CLOCK_MONOTONIC, &loop_start);
+#endif
+
     /* the main loop */
     while (target) {
         /* reset */
         status = NULL;
-
-#ifdef CLOCK_MONOTONIC_RAW
-        clock_gettime(CLOCK_MONOTONIC_RAW, &loop_start);
-#else
-        clock_gettime(CLOCK_MONOTONIC, &loop_start);
-#endif
 
         /* check if we were disconnected (TCP) or if this is the first iteration */
         if (target->client == NULL) {
@@ -664,26 +666,40 @@ int main(int argc, char **argv) {
             nanosleep(&wait_time, NULL);
         /* at the end of the targets list, see if we need to loop */
         } else {
-#ifdef CLOCK_MONOTONIC_RAW
-            clock_gettime(CLOCK_MONOTONIC_RAW, &loop_end);
-#else
-            clock_gettime(CLOCK_MONOTONIC, &loop_end);
-#endif
             /* check the first target */
             if ((count && targets->sent < count) || loop) {
-                /* reset back to start of list */
-                /* do this at the end of the loop not the start so we can check if we're done or need to sleep */
                 /* see if we've been signalled */
                 if (!quitting) {
-                    target = targets;
                     /* sleep between rounds */
-                    /* measure how long the current poll(s) took, and subtract that from the wait time */
+                    /* measure how long the current round took, and subtract that from the sleep time */
                     /* this tries to ensure that each polling round takes the same time */
-                    tsdiff(&loop_end, &loop_start, &loop_elapsed);
-                    debug("polling took %lld.%.9lds\n", (long long)loop_elapsed.tv_sec, loop_elapsed.tv_nsec);
-                    tsdiff(&sleep_time, &loop_elapsed, &sleepy);
-                    debug("sleeping for %lld.%.9lds\n", (long long)sleepy.tv_sec, sleepy.tv_nsec);
-                    nanosleep(&sleepy, NULL);
+#ifdef CLOCK_MONOTONIC_RAW
+                    clock_gettime(CLOCK_MONOTONIC_RAW, &loop_end);
+#else
+                    clock_gettime(CLOCK_MONOTONIC, &loop_end);
+#endif
+                    timespecsub(&loop_end, &loop_start, &loop_elapsed);
+                    debug("Polling took %lld.%.9lds\n", (long long)loop_elapsed.tv_sec, loop_elapsed.tv_nsec);
+                    /* don't sleep if we went over the sleep_time */
+                    if (timespeccmp(&loop_elapsed, &sleep_time, >)) {
+                        debug("Slow poll, not sleeping\n");
+                    } else {
+                        timespecsub(&sleep_time, &loop_elapsed, &sleepy);
+                        debug("Sleeping for %lld.%.9lds\n", (long long)sleepy.tv_sec, sleepy.tv_nsec);
+                        nanosleep(&sleepy, NULL);
+                    }
+
+                    /* reset back to start of list */
+                    /* do this at the end of the loop not the start so we can check if we're done or need to sleep */
+                    target = targets;
+                    /* reset the starting time for the next loop */
+                    /* TODO: I'd rather do this at the start of the loop so no code ends up being added to the end of the loop and messing with the timing */
+                    /* probably need another outer loop for the entire polling round */
+                    #ifdef CLOCK_MONOTONIC_RAW
+                            clock_gettime(CLOCK_MONOTONIC_RAW, &loop_start);
+                    #else
+                            clock_gettime(CLOCK_MONOTONIC, &loop_start);
+                    #endif
                 }
             }
         }
