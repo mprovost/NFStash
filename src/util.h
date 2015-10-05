@@ -14,6 +14,5 @@ void ms2ts(struct timespec *, unsigned long);
 unsigned long ts2us(const struct timespec);
 unsigned long ts2ms(struct timespec);
 unsigned long long ts2ns(const struct timespec);
-void tsdiff(const struct timespec *, const struct timespec *, struct timespec *);
 
 #endif /* UTIL_H */
