@@ -615,6 +615,8 @@ int main(int argc, char **argv) {
 
                 /* check if we're looping */
                 if (count || loop) {
+                    /* calculate elapsed microseconds */
+                    /* TODO make internal calcs in nanoseconds? */
                     us = ts2us(call_end) - ts2us(call_start);
 
                     /* TODO discard first ping in case of ARP delay? Only for TCP for handshake? */
