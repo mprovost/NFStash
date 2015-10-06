@@ -203,7 +203,7 @@ int main(int argc, char **argv) {
     void *status;
     char *error;
     struct timeval timeout = NFS_TIMEOUT;
-    struct timespec call_start, call_end, loop_start, loop_end, loop_elapsed, sleepy;
+    struct timespec wall_clock, call_start, call_end, loop_start, loop_end, loop_elapsed, sleepy;
     struct timespec sleep_time = NFS_SLEEP;
     struct timespec wait_time = NFS_WAIT;
     uint16_t port = htons(NFS_PORT);
@@ -579,11 +579,15 @@ int main(int argc, char **argv) {
             /* now see if we're connected */
             if (target->client) {
                 /* first time marker */
-    #ifdef CLOCK_MONOTONIC_RAW
+                /* the MONOTONIC clocks don't record the actual time but are good for measuring elapsed time accurately */
+#ifdef CLOCK_MONOTONIC_RAW
                 clock_gettime(CLOCK_MONOTONIC_RAW, &call_start);
-    #else
+#else
                 clock_gettime(CLOCK_MONOTONIC, &call_start);
-    #endif
+#endif
+                /* grab the wall clock time for output */
+                /* use the start time of the request */
+                clock_gettime(CLOCK_REALTIME, &wall_clock);
 
                 /* the actual ping */
                 /* use a dispatch table instead of switch */
@@ -595,11 +599,11 @@ int main(int argc, char **argv) {
                 }
 
                 /* second time marker */
-    #ifdef CLOCK_MONOTONIC_RAW
+#ifdef CLOCK_MONOTONIC_RAW
                 clock_gettime(CLOCK_MONOTONIC_RAW, &call_end);
-    #else
+#else
                 clock_gettime(CLOCK_MONOTONIC, &call_end);
-    #endif
+#endif
             } /* else not connected */
 
             /* count this no matter what to stop from looping in case server isn't listening */
@@ -623,15 +627,17 @@ int main(int argc, char **argv) {
                         target->results[target->sent - 1] = us;
 
                     if (!quiet) {
-                        /* TODO estimate the time by getting the midpoint of call_start and call_end? */
-                        print_output(format, prefix, target, prognum_offset, version, call_end, us);
+                        /* use the start time for the call since some calls may not return */
+                        /* if there's an error we use print_lost() but stay consistent with timing */
+                        print_output(format, prefix, target, prognum_offset, version, wall_clock, us);
                     }
                 } else {
                     printf("%s is alive\n", target->name);
                 }
             /* something went wrong */
             } else {
-                print_lost(format, prefix, target, prognum_offset, version, call_end);
+                /* use the start time since the call may have timed out */
+                print_lost(format, prefix, target, prognum_offset, version, wall_clock);
 
                 if (target->client) {
                     fprintf(stderr, "%s : ", target->name);
