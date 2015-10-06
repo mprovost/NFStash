@@ -25,27 +25,25 @@ On modern NFS servers, the network stack and filesystem are often running on sep
 
 NFSping checks if each target server is responding by sending it a NULL RPC request and waiting for a response. The NULL procedure of each RPC protocol is a noop that is implemented for testing. It doesn't check any server functionality but provides confirmation that the RPC services are listening, and baseline performance information about how quickly they are responding. A fast response to a NULL request does not mean that more complex requests will also respond quickly, but a slow response to a NULL request typically indicates that more complex procedures would also take at least that much time to respond. Therefore high response times from NFSping are a reliable metric for determining when an NFS server is exhibiting performance problems.
 
-NFSping attempts to ping each target regularly - that is, the delay between pings should be constant, like a metronome. By default it will send a ping to each target every second. This can be changed with the -p option (in milliseconds). Instead of sleeping for one second in between pings, the program will pause for the poll time (one second by default) minus the time it took for all of the current responses to come in. This keeps each poll on a regular schedule, which helps when sending data to monitoring systems that expect updates on a regular basis. If the responses take longer than the poll time, it will not pause at all and will continue with the next round of pings.
+NFSping attempts to ping each target regularly - that is, the delay between pings should be constant, like a metronome. By default it will send a ping to each target every second. This can be changed with the `-p` option (in milliseconds). Instead of sleeping for one second in between pings, the program will pause for the poll time (one second by default) minus the time it took for all of the current responses to come in. This keeps each poll on a regular schedule, which helps when sending data to monitoring systems that expect updates on a regular basis. If the responses take longer than the poll time, it will not pause at all and will continue with the next round of pings.
 
-NFSping supports versions 2, 3 and 4 of NFS, and the corresponding versions of the other RPC protocols. With no arguments it will send NFS version 3 NULL requests using UDP. By default it doesn't use the RPC portmapper for NFS pings and connects to port 2049, which is the standard port for NFS. Specify the -T option to use TCP, -M to query the portmapper for the server's NFS port, or -P to specify a port number. The -V option can be used to select another version of the protocol (2 or 4).
+NFSping supports versions 2, 3 and 4 of NFS, and the corresponding versions of the other RPC protocols. With no arguments it will send NFS version 3 NULL requests using UDP. By default it doesn't use the RPC portmapper for NFS pings and connects to port 2049, which is the standard port for NFS. Specify the `-T` option to use TCP, `-M` to query the portmapper for the server's NFS port, or `-P` to specify a port number. The `-V` option can be used to select another version of the protocol (2 or 4).
 
 Minor versions of NFS version 4 (4.1, 4.2 etc) aren't able to be checked individually because they are all implemented under the same RPC protocol number. The version 4 protocol only has two procedures - NULL and COMPOUND. The COMPOUND procedure requires that each call specify a minor version, but the NULL procedure doesn't have an argument for minor versions.
 
-NFSping can also check the mount protocol response using the -n option. This protocol is used in NFS version 2 and 3 to look up the root filehandle for a specific mount point on the server, which is then used by the NFS client. In version 4 this functionality has been built into the NFS protocol itself. By default NFSping uses the portmapper to discover the port that the mount protocol is listening to on the target. Use the -P option to specify a port.
+NFSping can also check the mount protocol response using the `-n` option. This protocol is used in NFS version 2 and 3 to look up the root filehandle for a specific mount point on the server, which is then used by the NFS client. In version 4 this functionality has been built into the NFS protocol itself. By default NFSping uses the portmapper to discover the port that the mount protocol is listening to on the target. Use the `-P` option to specify a port.
 
-The -L option will check the network lock manager (NLM) protocol. The lock manager is a stateful protocol for managing file locks that was added to NFS version 2 and 3 servers - in version 4 locking has been built into the NFS protocol itself. By default NFSping uses the portmapper to discover the port that the NLM protocol is listening to on the target. Use the -P option to specify a port.
+The `-L` option will check the network lock manager (NLM) protocol. The lock manager is a stateful protocol for managing file locks that was added to NFS version 2 and 3 servers - in version 4 locking has been built into the NFS protocol itself. By default NFSping uses the portmapper to discover the port that the NLM protocol is listening to on the target. Use the `-P` option to specify a port.
 
-The -N option will check the portmap protocol itself (always listening on port 111). This is also called the portmapper or rpcbind service. The portmap protocol is used by clients to look up which port a particular RPC service and version is bound to on a server.
+The `-N` option will check the portmap protocol itself (always listening on port 111). This is also called the portmapper or rpcbind service. The portmap protocol is used by clients to look up which port a particular RPC service and version is bound to on a server.
 
-The -a option will check the NFS ACL protocol which usually listens on port 2049 alongside NFS but is a separate RPC protocol. This is a "sideband" protocol that Sun created for manipulating POSIX ACLs to that was never standardised in an RFC. However several servers such as Solaris and Linux implement it. By default NFSping checks for it on port 2049, specify a port with -P.
+The `-a` option will check the NFS ACL protocol which usually listens on port 2049 alongside NFS but is a separate RPC protocol. This is a "sideband" protocol that Sun created for manipulating POSIX ACLs to that was never standardised in an RFC. However several servers such as Solaris and Linux implement it. By default NFSping checks for it on port 2049, specify a port with `-P`.
 
-The -s option will check the network status monitor (NSM) protocol which is used to notify NFS peers of host reboots. It shows up as the "status" protocol in rpcinfo output. It forms part of the stateful locking protocol so that stale locks can be cleared when a server reboots. NFS version 4 has locking built in. By default NFSping uses the portmapper to discover the port that the NSM protocol is listening to on the target. Use the -P option to specify a port.
+The `-s` option will check the network status monitor (NSM) protocol which is used to notify NFS peers of host reboots. It shows up as the "status" protocol in rpcinfo output. It forms part of the stateful locking protocol so that stale locks can be cleared when a server reboots. NFS version 4 has locking built in. By default NFSping uses the portmapper to discover the port that the NSM protocol is listening to on the target. Use the `-P` option to specify a port.
 
-The -Q option will check the rquota protocol which is used by clients to check and set remote quotas on the server. By default NFSping uses the portmapper to discover the port that the rquota protocol is listening to on the target. Use the -P option to specify a port.
+The `-Q` option will check the rquota protocol which is used by clients to check and set remote quotas on the server. By default NFSping uses the portmapper to discover the port that the rquota protocol is listening to on the target. Use the `-P` option to specify a port.
 
 ## Usage
-
-This is a list of the available command-line options:
 
 ```console
 Usage: nfsping [options] [targets...]
@@ -108,7 +106,7 @@ filer1 is dead
 
 and exiting with a status of 1. This simple form of the command can be built into scripts which just check if the server is up or not without being concerned about a particular response time.
 
-To measure round trip response time (in milliseconds), pass the number of requests to send as an argument to the -c (count) option:
+To measure round trip response time (in milliseconds), pass the number of requests to send as an argument to the `-c` (count) option:
 
 ```console
 $ nfsping -c 5 filer1
@@ -121,21 +119,21 @@ filer1 : [4], 0.12 ms (0.14 avg, 0% loss)
 filer1 : xmt/rcv/%loss = 5/5/0%, min/avg/max = 0.09/0.14/0.16
 ```
 
-Or to send a continuous sequence of packets (like the traditional ICMP ping command) use the -l (loop) option:
+Or to send a continuous sequence of packets (like the traditional ICMP ping command) use the `-l` (loop) option:
 
 ```console
 $ nfsping -l filer1
 ```
 
-To exit early in any mode, use control-c.
+To exit early in any mode, use `control-c`.
 
-NFSping will handle multiple targets and iterate through them on each round. If there are multiple DNS responses for a target, only the first is used. All of them can be checked by using the -m option. The interval (delay) between targets can be controlled with the -i option, usually this can be quite short and defaults to 25ms. If any of the targets fail to respond, the command will exit with a status code of 1.
+NFSping will handle multiple targets and iterate through them on each round. If there are multiple DNS responses for a target, only the first is used. All of them can be checked by using the `-m` option. The interval (delay) between targets can be controlled with the `-i` option, usually this can be quite short and defaults to 25ms. If any of the targets fail to respond, the command will exit with a status code of 1.
 
-NFS servers can exhibit varied response times for different TCP connections. Some connections will exhibit consistently low response times while others will have much higher ones. This winner-loser pattern has been named Hash-Cast by Chen et al in "Newer Is Sometimes Better: An Evaluation of NFSv4.1" (https://www.fsl.cs.sunysb.edu/docs/nfs4perf/nfs4perf-sigm15.pdf). They identified this pattern as being caused by the operating system unevenly hashing TCP flows onto different transmit queues on a NIC. Flows that are hashed onto a busy queue will show consistently higher latency. The symptom of a server suffering from hash cast is that NFSping will report a bimodal distribution with two clusters of results, one consistently higher than the other. To avoid being hashed to a single queue on the server, NFSping reconnects to the server after every ping, using a different local port each time. This doesn't guarantee that the new connection will be assigned to a new queue (if there are 4 queues on the NIC, there is still a 25% chance of hitting the same queue again) but over multiple pings the probability that all queues will be hit approaches certainty. To disable this behaviour and keep reusing the same connection to each server, use the -R option.
+NFS servers can exhibit varied response times for different TCP connections. Some connections will exhibit consistently low response times while others will have much higher ones. This winner-loser pattern has been named Hash-Cast by Chen et al in "Newer Is Sometimes Better: An Evaluation of NFSv4.1" (https://www.fsl.cs.sunysb.edu/docs/nfs4perf/nfs4perf-sigm15.pdf). They identified this pattern as being caused by the operating system unevenly hashing TCP flows onto different transmit queues on a NIC. Flows that are hashed onto a busy queue will show consistently higher latency. The symptom of a server suffering from hash cast is that NFSping will report a bimodal distribution with two clusters of results, one consistently higher than the other. To avoid being hashed to a single queue on the server, NFSping reconnects to the server after every ping, using a different local port each time. This doesn't guarantee that the new connection will be assigned to a new queue (if there are 4 queues on the NIC, there is still a 25% chance of hitting the same queue again) but over multiple pings the probability that all queues will be hit approaches certainty. To disable this behaviour and keep reusing the same connection to each server, use the `-R` option.
 
-NFSping only performs DNS lookups once during initialisation. If the NFS server's IP addresses change (for example if it's a clustered server and you are using the -m option to resolve multiple addresses), consider using the -c option to exit after sending a certain number of pings and running NFSping under a process supervisor like daemontools (http://cr.yp.to/daemontools.html) or runit (http://smarden.org/runit/) which will restart the process if it exits for any reason, when it will do the DNS lookups again.
+NFSping only performs DNS lookups once during initialisation. If the NFS server's IP addresses change (for example if it's a clustered server and you are using the `-m` option to resolve multiple addresses), consider using the `-c` option to exit after sending a certain number of pings and running NFSping under a process supervisor like daemontools (http://cr.yp.to/daemontools.html) or runit (http://smarden.org/runit/) which will restart the process if it exits for any reason, when it will do the DNS lookups again.
 
-NFSping also has an fping compatible form that produces more easily parsed output with the -C option:
+NFSping also has an fping compatible form that produces more easily parsed output with the `-C` option:
 
 ```console
 $ nfsping -C 5 filer1
@@ -148,9 +146,9 @@ filer1 : [4], 0.18 ms (0.51 avg, 0% loss)
 filer1 : 1.96 0.11 0.12 0.16 0.18
 ```
 
-Missed responses are indicated with a dash (-) in the summary output. This form uses more memory since it stores all of the results. In all forms memory is allocated during startup so there should be no increase in memory consumption once running. The -C format is compatible with fping's output so it can be easily used with Tobi Oetiker's Smokeping (http://oss.oetiker.ch/smokeping/) to produce graphs of response times. There is a module for NFSPing in the standard Smokeping distribution or in the Smokeping subdirectory of the NFSping source.
+Missed responses are indicated with a dash (-) in the summary output. This form uses more memory since it stores all of the results. In all forms memory is allocated during startup so there should be no increase in memory consumption once running. The `-C` format is compatible with fping's output so it can be easily used with Tobi Oetiker's Smokeping (http://oss.oetiker.ch/smokeping/) to produce graphs of response times. There is a module for NFSPing in the standard Smokeping distribution or in the Smokeping subdirectory of the NFSping source.
 
-To only show the summary line, use the -q (quiet) option.
+To only show the summary line, use the `-q` (quiet) option.
 
 NFSping can also output stats in a variety of formats for inserting into time series databases. Currently only Graphite and StatsD are supported:
 
@@ -165,7 +163,7 @@ nfsping.filer1.ping.usec 399 1370501566
 
 This is the Graphite plaintext protocol which is <path> <metric> <timestamp>. To avoid floating point numbers, nfsping reports the response time in microseconds (usec).
 
-The default prefix for the Graphite path is "nfsping". This can be changed by specifying a new string as an argument to the -g option. Fully qualified domain names (but not IP addresses) for targets will be reversed:
+The default prefix for the Graphite path is "nfsping". This can be changed by specifying a new string as an argument to the `-g` option. Fully qualified domain names (but not IP addresses) for targets will be reversed:
 
 ```console
 $ nfsping -c 1 -oG -g filers filer1.my.domain
