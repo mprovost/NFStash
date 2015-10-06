@@ -78,14 +78,13 @@ Usage: nfsping [options] [targets...]
 
 ## Installation
 
-To build the nfsping executable:
-
 ```console
 $ git clone git://github.com/mprovost/NFSping.git
 $ cd NFSping && make
+$ sudo make install
 ```
 
-`make install` will copy the resulting binary to /usr/local/bin/ (you may need to use `sudo make install`).
+`make install` will copy the binaries to `/usr/local/bin/` and manpages to `/usr/local/share/man/`.
 
 ## Examples
 
