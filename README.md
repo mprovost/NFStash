@@ -1,3 +1,6 @@
+# NFSping
+
+```console
 $ nfsping -c 5 filer1 filer2
 filer1 : [0], 0.52 ms (0.52 avg, 0% loss)
 filer2 : [0], 1.12 ms (1.12 avg, 0% loss)
@@ -12,7 +15,9 @@ filer2 : [0], 1.36 ms (1.27 avg, 0% loss)
 
 filer1 : xmt/rcv/%loss = 5/5/0%, min/avg/max = 0.33/0.55/1.18
 filer2 : xmt/rcv/%loss = 5/5/0%, min/avg/max = 0.98/1.27/1.67
+```
 
+## Description and Features
 
 NFSping is an open source (BSD licensed) command line utility for Linux and other POSIX operating systems which measures the availability and response times of an NFS server by sending probe packets. It's based on the fping (https://github.com/schweikert/fping) program's interface but doesn't share any code with that project. It's written in C and doesn't require any libraries other than libc (and librt for clock_gettime() if using an older version of GNU libc).
 
@@ -38,8 +43,11 @@ The -s option will check the network status monitor (NSM) protocol which is used
 
 The -Q option will check the rquota protocol which is used by clients to check and set remote quotas on the server. By default NFSping uses the portmapper to discover the port that the rquota protocol is listening to on the target. Use the -P option to specify a port.
 
+## Usage
+
 This is a list of the available command-line options:
 
+```console
 Usage: nfsping [options] [targets...]
     -a         check the NFS ACL protocol (default NFS)
     -A         show IP addresses
@@ -68,31 +76,41 @@ Usage: nfsping [options] [targets...]
     -T         use TCP (default UDP)
     -v         verbose output
     -V n       specify NFS version (2/3/4, default 3)
+```
 
+## Installation
 
 To build the nfsping executable:
 
+```console
 $ git clone git://github.com/mprovost/NFSping.git
 $ cd NFSping && make
+```
 
 `make install` will copy the resulting binary to /usr/local/bin/ (you may need to use `sudo make install`).
 
+## Examples
 
 In its most basic form it simply reports whether the server is responding to NFS requests:
 
+```console
 $ nfsping filer1
 filer1 is alive
+```
 
 and exits with a return status of 0, or:
 
+```console
 $ nfsping filer1
 filer1 : nfsproc3_null_3: RPC: Unable to receive; errno = Connection refused
 filer1 is dead
+```
 
 and exiting with a status of 1. This simple form of the command can be built into scripts which just check if the server is up or not without being concerned about a particular response time.
 
 To measure round trip response time (in milliseconds), pass the number of requests to send as an argument to the -c (count) option:
 
+```console
 $ nfsping -c 5 filer1
 filer1 : [0], 0.09 ms (0.09 avg, 0% loss)
 filer1 : [1], 0.16 ms (0.12 avg, 0% loss)
@@ -101,10 +119,13 @@ filer1 : [3], 0.16 ms (0.14 avg, 0% loss)
 filer1 : [4], 0.12 ms (0.14 avg, 0% loss)
 
 filer1 : xmt/rcv/%loss = 5/5/0%, min/avg/max = 0.09/0.14/0.16
+```
 
 Or to send a continuous sequence of packets (like the traditional ICMP ping command) use the -l (loop) option:
 
+```console
 $ nfsping -l filer1
+```
 
 To exit early in any mode, use control-c.
 
@@ -116,6 +137,7 @@ NFSping only performs DNS lookups once during initialisation. If the NFS server'
 
 NFSping also has an fping compatible form that produces more easily parsed output with the -C option:
 
+```console
 $ nfsping -C 5 filer1
 filer1 : [0], 1.96 ms (1.96 avg, 0% loss)
 filer1 : [1], 0.11 ms (1.04 avg, 0% loss)
@@ -124,6 +146,7 @@ filer1 : [3], 0.16 ms (0.59 avg, 0% loss)
 filer1 : [4], 0.18 ms (0.51 avg, 0% loss)
 
 filer1 : 1.96 0.11 0.12 0.16 0.18
+```
 
 Missed responses are indicated with a dash (-) in the summary output. This form uses more memory since it stores all of the results. In all forms memory is allocated during startup so there should be no increase in memory consumption once running. The -C format is compatible with fping's output so it can be easily used with Tobi Oetiker's Smokeping (http://oss.oetiker.ch/smokeping/) to produce graphs of response times. There is a module for NFSPing in the standard Smokeping distribution or in the Smokeping subdirectory of the NFSping source.
 
@@ -131,23 +154,29 @@ To only show the summary line, use the -q (quiet) option.
 
 NFSping can also output stats in a variety of formats for inserting into time series databases. Currently only Graphite and StatsD are supported:
 
+```console
 $ nfsping -c 5 -oG filer1
 nfsping.filer1.ping.usec 401 1370501562
 nfsping.filer1.ping.usec 416 1370501563
 nfsping.filer1.ping.usec 403 1370501564
 nfsping.filer1.ping.usec 410 1370501565
 nfsping.filer1.ping.usec 399 1370501566
+```
 
 This is the Graphite plaintext protocol which is <path> <metric> <timestamp>. To avoid floating point numbers, nfsping reports the response time in microseconds (usec).
 
 The default prefix for the Graphite path is "nfsping". This can be changed by specifying a new string as an argument to the -g option. Fully qualified domain names (but not IP addresses) for targets will be reversed:
 
+```console
 $ nfsping -c 1 -oG -g filers filer1.my.domain
 filers.domain.my.filer1.ping.usec 292 1409332974
+```
 
 This output can be easily redirected to a Carbon server using nc (netcat):
 
+```console
 $ nfsping -l -oG filer1 filer2 | nc carbon1 2003
+```
 
 This will send a result every second. Because nfsping is single threaded, unresponsive NFS servers will timeout and may cause the polling round to overrun when specifying multiple targets. It's recommended to run one command per NFS server or cluster to avoid this affecting all monitored hosts. Lost requests (or timeouts) will be reported under a separate path, $prefix.$target.$protocol.lost, with a metric of 1.
 
@@ -155,11 +184,13 @@ nc will exit if the TCP connection is reset (such as if the Carbon server is res
 
 Similarly, the StatsD output will produce plaintext output suitable for sending to StatsD with netcat:
 
+```console
 $ nfsping -c 5 -oS filer1
 nfsping.filer1.ping:0.15|ms
 nfsping.filer1.ping:0.18|ms
 nfsping.filer1.ping:3.27|ms
 nfsping.filer1.ping:11.61|ms
 nfsping.filer1.ping:78.07|ms
+```
 
 Note that this output uses floating point values, as the StatsD protocol only supports milliseconds. While floating point values are supported by the protocol, some implementations may not handle them. This output has been tested as working with statsite (https://github.com/armon/statsite).
