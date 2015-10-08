@@ -115,7 +115,8 @@ $ sudo make install
 ```
 
 - `make install` will copy the binaries to `/usr/local/bin/` and manpages to `/usr/local/share/man/`. To change this edit the `prefix` in the Makefile.
-- NFSping requires `gmake`. It uses some gcc-isms that may mean it won't compile with other C compilers but that hasn't been tested.
+- Requires `gmake`.
+- Uses some `gcc`-isms that may mean it won't compile with other C compilers but that hasn't been tested.
 - Manpages are built with [`ronn`](http://rtomayko.github.io/ronn/).
 - RPC code is generated with `rpcgen`.
 - At the moment it doesn't compile on FreeBSD because of conflicts with the portmap header files that it generates and the builtin RPC headers shipped with FreeBSD.
