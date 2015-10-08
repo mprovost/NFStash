@@ -220,3 +220,10 @@ nfsping.filer1.ping:78.07|ms
 ```
 
 Note that this output uses floating point values, as the StatsD protocol only supports milliseconds. While floating point values are supported by the protocol, some implementations may not handle them. This output has been tested as working with [statsite](https://github.com/armon/statsite).
+
+## TODO
+- convert internal time calculations to nanoseconds
+- [HDRHistogram](https://github.com/HdrHistogram/HdrHistogram_c) support
+- Fix compilation issues on *BSD
+- OSX support (clock_gettime())
+- Multithreaded so slow responses don't block other requests?
