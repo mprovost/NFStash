@@ -17,13 +17,33 @@ filer1 : xmt/rcv/%loss = 5/5/0%, min/avg/max = 0.33/0.55/1.18
 filer2 : xmt/rcv/%loss = 5/5/0%, min/avg/max = 0.98/1.27/1.67
 ```
 
-## Description and Features
+## Description
 
-NFSping is an open source (BSD licensed) command line utility for Linux and other POSIX operating systems which measures the availability and response times of an NFS server by sending probe packets. It's based on the [fping](https://github.com/schweikert/fping) program's interface but doesn't share any code with that project. It's written in C and doesn't require any libraries other than libc (and librt for clock_gettime() if using an older version of GNU libc).
+NFSping is an open source command line utility for Linux and other POSIX operating systems which measures the availability and response times of an NFS server by sending probe packets. It's based on the [fping](https://github.com/schweikert/fping) program's interface but doesn't share any code with that project.
 
-On modern NFS servers, the network stack and filesystem are often running on separate cores or even hardware components. In practise this means that a fast ICMP ping response isn't indicative of how quickly the NFS services are responding. This tool directly tests the responsiveness of the server's NFS components. It can check all seven of the RPC protocols that are used by NFS: NFS, mount, portmap (rpcbind), the network lock manager (NLM), Sun's ACL sideband protocol, the network status monitor (NSM) and the rquota protocol.
+On modern NFS servers, the network stack and filesystem are often running on separate cores or even hardware components. In practise this means that a fast ICMP ping response isn't indicative of how quickly the NFS services are responding. This tool directly tests the responsiveness of the server's NFS components. 
 
 NFSping checks if each target server is responding by sending it a NULL RPC request and waiting for a response. The NULL procedure of each RPC protocol is a noop that is implemented for testing. It doesn't check any server functionality but provides confirmation that the RPC services are listening, and baseline performance information about how quickly they are responding. A fast response to a NULL request does not mean that more complex requests will also respond quickly, but a slow response to a NULL request typically indicates that more complex procedures would also take at least that much time to respond. Therefore high response times from NFSping are a reliable metric for determining when an NFS server is exhibiting performance problems.
+
+## Features
+- BSD licensed
+- Written in C for portability and speed
+  - Doesn't require any libraries other than libc (and librt for clock_gettime() if using an older version of GNU libc).
+- Supports all seven of the RPC protocols that are used by NFS
+  - NFS - versions 2/3/4
+  - mount
+  - portmap (rpcbind)
+  - network lock manager (NLM)
+  - Sun's ACL sideband protocol
+  - network status monitor (NSM)
+  - rquota
+- TCP and UDP probes
+- Various output formats
+    - traditional `ping`
+    - timestamped `ping`
+    - `fping`
+    - [Graphite (Carbon)](https://github.com/graphite-project/carbon) compatible
+    - [StatsD](https://github.com/etsy/statsd) compatible
 
 NFSping attempts to ping each target regularly - that is, the delay between pings should be constant, like a metronome. By default it will send a ping to each target every second. This can be changed with the `-p` option (in milliseconds). Instead of sleeping for one second in between pings, the program will pause for the poll time (one second by default) minus the time it took for all of the current responses to come in. This keeps each poll on a regular schedule, which helps when sending data to monitoring systems that expect updates on a regular basis. If the responses take longer than the poll time, it will not pause at all and will continue with the next round of pings.
 
