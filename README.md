@@ -26,7 +26,7 @@ NFSping checks if each target server is responding by sending it a NULL RPC requ
 NFSping supports several different output formats which makes it ideal for sending the response time data to be recorded and graphed by programs such as [Smokeping](https://oss.oetiker.ch/smokeping/) or [Graphite](https://github.com/graphite-project/graphite-web).
 
 ## Features
-- BSD licensed
+- [BSD licensed](http://opensource.org/licenses/bsd-license.php)
 - Written in C for portability and speed
   - Doesn't require any libraries other than libc (and librt for clock_gettime() if using an older version of GNU libc).
   - No dependencies on the operating system's NFS client
@@ -45,7 +45,7 @@ NFSping supports several different output formats which makes it ideal for sendi
     - `fping` ([Smokeping](https://oss.oetiker.ch/smokeping/) compatible)
     - [Graphite (Carbon)](https://github.com/graphite-project/carbon) compatible
     - [StatsD](https://github.com/etsy/statsd) compatible
-- Hash-Cast avoidance
+- [Hash-Cast](#hash-cast) avoidance
 
 NFSping attempts to ping each target regularly - that is, the delay between pings should be constant, like a metronome. By default it will send a ping to each target every second. This can be changed with the `-p` option (in milliseconds). Instead of sleeping for one second in between pings, the program will pause for the poll time (one second by default) minus the time it took for all of the current responses to come in. This keeps each poll on a regular schedule, which helps when sending data to monitoring systems that expect updates on a regular basis. If the responses take longer than the poll time, it will not pause at all and will continue with the next round of pings.
 
@@ -67,9 +67,10 @@ The `-Q` option will check the rquota protocol which is used by clients to check
 
 NFSping will handle multiple targets and iterate through them on each round. If there are multiple DNS responses for a target, only the first is used. All of them can be checked by using the `-m` option. The interval (delay) between targets can be controlled with the `-i` option, usually this can be quite short and defaults to 25ms. If any of the targets fail to respond, the command will exit with a status code of 1.
 
-NFS servers can exhibit varied response times for different TCP connections. Some connections will exhibit consistently low response times while others will have much higher ones. This winner-loser pattern has been named Hash-Cast by Chen et al in ["Newer Is Sometimes Better: An Evaluation of NFSv4.1"](https://www.fsl.cs.sunysb.edu/docs/nfs4perf/nfs4perf-sigm15.pdf). They identified this pattern as being caused by the operating system unevenly hashing TCP flows onto different transmit queues on a NIC. Flows that are hashed onto a busy queue will show consistently higher latency. The symptom of a server suffering from hash cast is that NFSping will report a bimodal distribution with two clusters of results, one consistently higher than the other. To avoid being hashed to a single queue on the server, NFSping reconnects to the server after every ping, using a different local port each time. This doesn't guarantee that the new connection will be assigned to a new queue (if there are 4 queues on the NIC, there is still a 25% chance of hitting the same queue again) but over multiple pings the probability that all queues will be hit approaches certainty. To disable this behaviour and keep reusing the same connection to each server, use the `-R` option.
-
 NFSping only performs DNS lookups once during initialisation. If the NFS server's IP addresses change (for example if it's a clustered server and you are using the `-m` option to resolve multiple addresses), consider using the `-c` option to exit after sending a certain number of pings and running NFSping under a process supervisor like [daemontools](http://cr.yp.to/daemontools.html) or [runit](http://smarden.org/runit/) which will restart the process if it exits for any reason, when it will do the DNS lookups again.
+
+## Hash-Cast
+NFS servers can exhibit varied response times for different TCP connections. Some connections will exhibit consistently low response times while others will have much higher ones. This winner-loser pattern has been named Hash-Cast by Chen et al in ["Newer Is Sometimes Better: An Evaluation of NFSv4.1"](https://www.fsl.cs.sunysb.edu/docs/nfs4perf/nfs4perf-sigm15.pdf). They identified this pattern as being caused by the operating system unevenly hashing TCP flows onto different transmit queues on a NIC. Flows that are hashed onto a busy queue will show consistently higher latency. The symptom of a server suffering from hash cast is that NFSping will report a bimodal distribution with two clusters of results, one consistently higher than the other. To avoid being hashed to a single queue on the server, NFSping reconnects to the server after every ping, using a different local port each time. This doesn't guarantee that the new connection will be assigned to a new queue (if there are 4 queues on the NIC, there is still a 25% chance of hitting the same queue again) but over multiple pings the probability that all queues will be hit approaches certainty. To disable this behaviour and keep reusing the same connection to each server, use the `-R` option.
 
 ## Usage
 
