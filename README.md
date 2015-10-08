@@ -17,13 +17,13 @@ filer1 : xmt/rcv/%loss = 5/5/0%, min/avg/max = 0.33/0.55/1.18
 filer2 : xmt/rcv/%loss = 5/5/0%, min/avg/max = 0.98/1.27/1.67
 ```
 
-NFSping is an open source command line utility for Linux and other POSIX operating systems which measures the availability and response times of an NFS server by sending probe packets. It's based on the [fping](https://github.com/schweikert/fping) program's interface but doesn't share any code with that project.
+NFSping is an open source command line utility for Linux and other POSIX operating systems which measures the availability and response times of an NFS server by sending probe packets. It's based on the [fping](https://github.com/schweikert/fping) program's interface (but doesn't share any code with that project).
 
 On modern NFS servers, the network stack and filesystem are often running on separate cores or even hardware components. In practise this means that a fast ICMP ping response isn't indicative of how quickly the NFS services are responding. This tool directly tests the responsiveness of the server's NFS components. 
 
-NFSping checks if each target server is responding by sending it a NULL RPC request and waiting for a response. The NULL procedure of each RPC protocol is a noop that is implemented for testing. It doesn't check any server functionality but provides confirmation that the RPC services are listening, and baseline performance information about how quickly they are responding. A fast response to a NULL request does not mean that more complex requests will also respond quickly, but a slow response to a NULL request typically indicates that more complex procedures would also take at least that much time to respond. Therefore high response times from NFSping are a reliable metric for determining when an NFS server is exhibiting performance problems.
+NFSping checks if each target server is responding by sending it a NULL RPC request and waiting for a response. The NULL procedure of each RPC protocol is a noop that is implemented for testing. It doesn't check any server functionality but provides confirmation that the RPC service is listening and processing requests, and baseline performance information about how quickly it's responding. A fast response to a NULL request does not mean that more complex protocol requests will also respond quickly, but a slow response to a NULL request typically indicates that more complex procedures would also take at least that much time to respond. Therefore high response times from NFSping are a reliable metric for determining when an NFS server is exhibiting performance problems.
 
-NFSping supports several different output formats that makes it ideal for sending the response time data to be recorded and graphed by programs such as [Smokeping](https://oss.oetiker.ch/smokeping/) or [Graphite](https://github.com/graphite-project/graphite-web).
+NFSping supports several different output formats which makes it ideal for sending the response time data to be recorded and graphed by programs such as [Smokeping](https://oss.oetiker.ch/smokeping/) or [Graphite](https://github.com/graphite-project/graphite-web).
 
 ## Features
 - BSD licensed
@@ -227,3 +227,4 @@ Note that this output uses floating point values, as the StatsD protocol only su
 - Fix compilation issues on *BSD
 - OSX support (clock_gettime())
 - Multithreaded so slow responses don't block other requests?
+- A simplified version for Nagios-compatible monitoring checks
