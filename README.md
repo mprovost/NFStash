@@ -17,8 +17,6 @@ filer1 : xmt/rcv/%loss = 5/5/0%, min/avg/max = 0.33/0.55/1.18
 filer2 : xmt/rcv/%loss = 5/5/0%, min/avg/max = 0.98/1.27/1.67
 ```
 
-## Description
-
 NFSping is an open source command line utility for Linux and other POSIX operating systems which measures the availability and response times of an NFS server by sending probe packets. It's based on the [fping](https://github.com/schweikert/fping) program's interface but doesn't share any code with that project.
 
 On modern NFS servers, the network stack and filesystem are often running on separate cores or even hardware components. In practise this means that a fast ICMP ping response isn't indicative of how quickly the NFS services are responding. This tool directly tests the responsiveness of the server's NFS components. 
