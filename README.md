@@ -74,6 +74,9 @@ NFS servers can exhibit varied response times for different TCP connections. Som
 
 To avoid being hashed to a single queue on the server, NFSping reconnects to the server after every ping, using a different local port each time. This doesn't guarantee that the new connection will be assigned to a new queue (if there are 4 queues on the NIC, there is still a 25% chance of hitting the same queue again) but over multiple pings the probability that all queues will be hit approaches certainty. To disable this behaviour and keep reusing the same connection to each server, use the `-R` option.
 
+## Security
+NFSping uses the `AUTH_NONE` authentication flavour which doesn't send any user information. Some NFS servers can be configured to require client connections from privileged ports (< 1024), however according to [RFC 2623](https://tools.ietf.org/html/rfc2623#section-2.3.1) servers shouldn't require these "secure" ports for the NULL procedure. If a server is found that requires authentication or secure ports, please open an issue [here](https://github.com/mprovost/NFSping/issues/new).
+
 ## Usage
 
 ```console
