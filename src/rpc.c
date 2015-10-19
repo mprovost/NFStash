@@ -183,6 +183,7 @@ CLIENT *create_rpc_client(struct sockaddr_in *client_sock, struct addrinfo *hint
     }
 
     if (client) {
+        /* use AUTH_NONE authentication by default */
         client->cl_auth = authnone_create();
         clnt_control(client, CLSET_TIMEOUT, (char *)&timeout);
     }

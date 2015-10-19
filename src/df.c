@@ -431,6 +431,9 @@ int main(int argc, char **argv) {
                 current->client_sock->sin_port = htons(NFS_PORT);
 
                 client = create_rpc_client(current->client_sock, &hints, NFS_PROGRAM, version, timeout, src_ip);
+                /* don't use default AUTH_NONE */
+                auth_destroy(client->cl_auth);
+                /* set up AUTH_SYS */
                 client->cl_auth = authunix_create_default();
 
                 /* look up the address that was used to connect to the server */

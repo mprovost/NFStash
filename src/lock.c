@@ -164,8 +164,8 @@ int main(int argc, char **argv) {
                 /* connect to server */
                 client = create_rpc_client(current->client_sock, &hints, NLM_PROG, version, timeout, src_ip);
                 if (client) {
+                    auth_destroy(client->cl_auth);
                     client->cl_auth = authunix_create_default();
-                    //client->cl_auth = authunix_create(char *host, int uid, int gid, int len, int *aup_gids);
 
                     /* look up the address that was used to connect to the server */
                     clnt_control(client, CLGET_SERVER_ADDR, (char *)&clnt_info);
@@ -227,8 +227,8 @@ int main(int argc, char **argv) {
                 /* connect to server */
                 client = create_rpc_client(current->client_sock, &hints, NLM_PROG, version, timeout, src_ip);
                 if (client) {
+                    auth_destroy(client->cl_auth);
                     client->cl_auth = authunix_create_default();
-                    //client->cl_auth = authunix_create(char *host, int uid, int gid, int len, int *aup_gids);
 
                     /* look up the address that was used to connect to the server */
                     clnt_control(client, CLGET_SERVER_ADDR, (char *)&clnt_info);

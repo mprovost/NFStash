@@ -198,8 +198,7 @@ int main(int argc, char **argv) {
 
                 /* create an rpc connection */
                 client = create_rpc_client(&client_sock, &hints, MOUNTPROG, version, timeout, src_ip);
-                /* mounts don't need authentication because they return a list of authentication flavours supported */
-                client->cl_auth = authnone_create();
+                /* mounts don't need authentication because they return a list of authentication flavours supported so leave it as default (AUTH_NONE) */
 
                 if (client_sock.sin_port) {
                     if (path && !showmount) {
