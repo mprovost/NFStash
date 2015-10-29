@@ -578,6 +578,11 @@ int main(int argc, char **argv) {
 
             /* now see if we're connected */
             if (target->client) {
+                /* grab the wall clock time for output */
+                /* use the start time of the request */
+                /* the call_start timer is more important so do this first so we're not measuring the time this call takes */
+                clock_gettime(CLOCK_REALTIME, &wall_clock);
+
                 /* first time marker */
                 /* the MONOTONIC clocks don't record the actual time but are good for measuring elapsed time accurately */
 #ifdef CLOCK_MONOTONIC_RAW
@@ -585,10 +590,6 @@ int main(int argc, char **argv) {
 #else
                 clock_gettime(CLOCK_MONOTONIC, &call_start);
 #endif
-                /* grab the wall clock time for output */
-                /* use the start time of the request */
-                clock_gettime(CLOCK_REALTIME, &wall_clock);
-
                 /* the actual ping */
                 /* use a dispatch table instead of switch */
                 /* doublecheck that the procedure exists, should have been checked above */
