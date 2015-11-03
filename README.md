@@ -230,7 +230,9 @@ Note that this output uses floating point values, as the StatsD protocol only su
 ## TODO
 - convert internal time calculations to nanoseconds
 - [HDRHistogram](https://github.com/HdrHistogram/HdrHistogram_c) support
+- Workaround Coordinated Omission like [wrk2](https://github.com/giltene/wrk2)
 - Fix compilation issues on *BSD
-- OSX support (clock_gettime())
+- OSX support ([clock_gettime](http://www.sudo.ws/repos/sudo/file/adf7997a0a65/lib/util/clock_gettime.c))
 - Multithreaded so slow responses don't block other requests?
 - A simplified version for Nagios-compatible monitoring checks
+- Simplify output formats and move output conversion to a utility
