@@ -60,7 +60,9 @@ void usage() {
     -C n       same as -c, output parseable format\n\
     -d         reverse DNS lookups for targets\n\
     -D         print timestamp (unix time) before each line\n\
+    -E         StatsD format output (default human readable)\n\
     -g string  prefix for graphite metric names (default \"nfsping\")\n\
+    -G         Graphite format output (default human readable)\n\
     -h         display this help and exit\n\
     -i n       interval between sending packets (in ms, default %lu)\n\
     -l         loop forever\n\
@@ -69,7 +71,6 @@ void usage() {
     -M         use the portmapper (default: NFS/ACL no, mount/NLM/NSM/rquota yes)\n\
     -n         check the mount protocol (default NFS)\n\
     -N         check the portmap protocol (default NFS)\n\
-    -o F       output format ([G]raphite, [S]tatsd, default human readable)\n\
     -p n       polling interval, check targets every n ms (default %lu)\n\
     -P n       specify port (default: NFS %i, portmap %i)\n\
     -q         quiet, only print summary\n\
@@ -248,7 +249,7 @@ int main(int argc, char **argv) {
     if (argc == 1)
         usage();
 
-    while ((ch = getopt(argc, argv, "aAc:C:dDg:hi:lLmMnNo:p:P:qQRsS:t:TvV:")) != -1) {
+    while ((ch = getopt(argc, argv, "aAc:C:dDEg:Ghi:lLmMnNp:P:qQRsS:t:TvV:")) != -1) {
         switch(ch) {
             /* NFS ACL protocol */
             case 'a':
@@ -265,11 +266,15 @@ int main(int argc, char **argv) {
                 break;
             /* number of pings per target, parseable summary */
             case 'C':
-                if (format == human) {
-                    format = fping;
-                } else {
-                    fatal("Can't specify both -C and -o!\n");
+                if (format == unixtime) {
+                    fatal("Can't specify both -D and -C!\n");
+                } else if (format == statsd) {
+                    fatal("Can't specify both -E and -C!\n");
+                } else if (format == graphite) {
+                    fatal("Can't specify both -G and -C!\n");
                 }
+
+                format = fping;
                 /* fall through to regular count */
             /* number of pings per target */
             case 'c':
@@ -283,18 +288,44 @@ int main(int argc, char **argv) {
                 dns = 1;
                 break;
             case 'D':
-                if (format == human) {
-                    format = unixtime;
                 /* TODO this should probably work, maybe a format=fpingunix? */
-                } else if (format == fping) {
+                if (format == fping) {
                     fatal("Can't specify both -C and -D!\n");
-                } else {
-                    fatal("Can't specify both -D and -o!\n");
+                } else if (format == statsd) {
+                    fatal("Can't specify both -E and -D!\n");
+                } else if (format == graphite) {
+                    fatal("Can't specify both -G and -D!\n");
                 }
+
+                format = unixtime;
+                break;
+            /* [E]tsy's StatsD output */
+            case 'E':
+                if (format == fping) {
+                    fatal("Can't specify both -C and -E!\n");
+                } else if (format == unixtime) {
+                    fatal("Can't specify both -D and -E!\n");
+                } else if (format == graphite) {
+                    fatal("Can't specify both -G and -E!\n");
+                }
+
+                format = statsd;
                 break;
             /* prefix to use for graphite metrics */
             case 'g':
                 strncpy(prefix, optarg, sizeof(prefix));
+                break;
+            /* Graphite output */
+            case 'G':
+                if (format == fping) {
+                    fatal("Can't specify both -C and -G!\n");
+                } else if (format == unixtime) {
+                    fatal("Can't specify both -D and -G!\n");
+                } else if (format == statsd) {
+                    fatal("Can't specify both -E and -G!\n");
+                }
+
+                format = graphite;
                 break;
             /* interval between targets */
             case 'i':
@@ -345,24 +376,6 @@ int main(int argc, char **argv) {
                     port = htons(PMAPPORT); /* 111 */
                 } else {
                     fatal("Only one protocol!\n");
-                }
-                break;
-            /* output format */
-            case 'o':
-                if (format == fping) {
-                    fatal("Can't specify both -C and -o!\n");
-                } else if (format == unixtime) {
-                    fatal("Can't specify both -D and -o!\n");
-                }
-
-                if (strcmp(optarg, "G") == 0) {
-                    format = graphite;
-                } else if (strcmp(optarg, "S") == 0) {
-                    format = statsd;
-                } else if (strcmp(optarg, "T") == 0) {
-                    format = opentsdb;
-                } else {
-                    fatal("Unknown output format \"%s\"!\n", optarg);
                 }
                 break;
             /* time between pings to target */
