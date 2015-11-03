@@ -61,7 +61,7 @@ void usage() {
     -d         reverse DNS lookups for targets\n\
     -D         print timestamp (unix time) before each line\n\
     -E         StatsD format output (default human readable)\n\
-    -g string  prefix for graphite metric names (default \"nfsping\")\n\
+    -g string  prefix for Graphite/StatsD metric names (default \"nfsping\")\n\
     -G         Graphite format output (default human readable)\n\
     -h         display this help and exit\n\
     -i n       interval between sending packets (in ms, default %lu)\n\

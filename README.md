@@ -40,11 +40,11 @@ NFSping supports several different output formats which makes it ideal for sendi
   - rquota
 - TCP and UDP probes
 - Various output formats
-    - traditional `ping`
-    - timestamped `ping`
-    - `fping` ([Smokeping](https://oss.oetiker.ch/smokeping/) compatible)
-    - [Graphite (Carbon)](https://github.com/graphite-project/carbon) compatible
-    - [StatsD](https://github.com/etsy/statsd) compatible
+    - traditional `ping` (default)
+    - timestamped `ping` (`-D`)
+    - `fping` ([Smokeping](https://oss.oetiker.ch/smokeping/) compatible) (`-C`)
+    - [Graphite (Carbon)](https://github.com/graphite-project/carbon) compatible (`-G`)
+    - [Etsy's StatsD](https://github.com/etsy/statsd) compatible (`-E`)
 - [Hash-Cast](#hash-cast) avoidance
 
 NFSping attempts to ping each target regularly - that is, the delay between pings should be constant, like a metronome. By default it will send a ping to each target every second. This can be changed with the `-p` option (in milliseconds). Instead of sleeping for one second in between pings, the program will pause for the poll time (one second by default) minus the time it took for all of the current responses to come in. This keeps each poll on a regular schedule, which helps when sending data to monitoring systems that expect updates on a regular basis. If the responses take longer than the poll time, it will not pause at all and will continue with the next round of pings.
@@ -87,7 +87,9 @@ Usage: nfsping [options] [targets...]
     -C n       same as -c, output parseable format
     -d         reverse DNS lookups for targets
     -D         print timestamp (unix time) before each line
-    -g string  prefix for graphite metric names (default "nfsping")
+    -E         StatsD format output (default human readable)
+    -g string  prefix for Graphite/StatsD metric names (default "nfsping")
+    -G         Graphite format output (default human readable)
     -h         display this help and exit
     -i n       interval between sending packets (in ms, default 25)
     -l         loop forever
@@ -96,7 +98,6 @@ Usage: nfsping [options] [targets...]
     -M         use the portmapper (default: NFS/ACL no, mount/NLM/NSM/rquota yes)
     -n         check the mount protocol (default NFS)
     -N         check the portmap protocol (default NFS)
-    -o F       output format ([G]raphite, [S]tatsd, default human readable)
     -p n       polling interval, check targets every n ms (default 1000)
     -P n       specify port (default: NFS 2049, portmap 111)
     -q         quiet, only print summary
@@ -184,10 +185,10 @@ Missed responses are indicated with a dash (-) in the summary output. This form 
 
 To only show the summary line, use the `-q` (quiet) option.
 
-NFSping can also output stats in a variety of formats for inserting into time series databases. Currently only Graphite and StatsD are supported:
+NFSping can also output stats in Graphite and Etsy's StatsD formats for inserting into time series databases.
 
 ```console
-$ nfsping -c 5 -oG filer1
+$ nfsping -c 5 -G filer1
 nfsping.filer1.ping.usec 401 1370501562
 nfsping.filer1.ping.usec 416 1370501563
 nfsping.filer1.ping.usec 403 1370501564
@@ -200,14 +201,14 @@ This is the Graphite plaintext protocol which is <path> <metric> <timestamp>. To
 The default prefix for the Graphite path is "nfsping". This can be changed by specifying a new string as an argument to the `-g` option. Fully qualified domain names (but not IP addresses) for targets will be reversed:
 
 ```console
-$ nfsping -c 1 -oG -g filers filer1.my.domain
+$ nfsping -c 1 -G -g filers filer1.my.domain
 filers.domain.my.filer1.ping.usec 292 1409332974
 ```
 
 This output can be easily redirected to a Carbon server using nc (netcat):
 
 ```console
-$ nfsping -l -oG filer1 filer2 | nc carbon1 2003
+$ nfsping -l -G filer1 filer2 | nc carbon1 2003
 ```
 
 This will send a result every second. Because nfsping is single threaded, unresponsive NFS servers will timeout and may cause the polling round to overrun when specifying multiple targets. It's recommended to run one command per NFS server or cluster to avoid this affecting all monitored hosts. Lost requests (or timeouts) will be reported under a separate path, $prefix.$target.$protocol.lost, with a metric of 1.
@@ -217,7 +218,7 @@ nc will exit if the TCP connection is reset (such as if the Carbon server is res
 Similarly, the StatsD output will produce plaintext output suitable for sending to StatsD with netcat:
 
 ```console
-$ nfsping -c 5 -oS filer1
+$ nfsping -c 5 -E filer1
 nfsping.filer1.ping:0.15|ms
 nfsping.filer1.ping:0.18|ms
 nfsping.filer1.ping:3.27|ms
