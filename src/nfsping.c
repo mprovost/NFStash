@@ -692,6 +692,7 @@ int main(int argc, char **argv) {
 
         /* at the end of the targets list, see if we need to loop */
         /* check the first target */
+        /* TODO do we even need to store the sent number for each target or just once globally? */
         if ((count && targets->sent < count) || loop) {
             /* sleep between rounds */
             /* measure how long the current round took, and subtract that from the sleep time */
