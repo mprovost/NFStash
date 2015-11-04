@@ -1,6 +1,6 @@
 # NFSping
 
-[![asciicast](https://asciinema.org/a/big8si7lqou5jszsbj5e2svyf.png?autoplay=1)](https://asciinema.org/a/big8si7lqou5jszsbj5e2svyf)
+[![asciicast](https://asciinema.org/a/big8si7lqou5jszsbj5e2svyf.png)](https://asciinema.org/a/big8si7lqou5jszsbj5e2svyf?autoplay=1)
 
 NFSping is an open source command line utility for Linux and other POSIX operating systems which measures the availability and response times of an NFS server by sending probe packets. It's based on the [fping](https://github.com/schweikert/fping) program's interface (but doesn't share any code with that project).
 
