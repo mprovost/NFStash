@@ -204,7 +204,7 @@ int main(int argc, char **argv) {
     void *status;
     char *error;
     struct timeval timeout = NFS_TIMEOUT;
-    struct timespec wall_clock, call_start, call_end, loop_start, loop_end, loop_elapsed, sleepy;
+    struct timespec wall_clock, call_start, call_end, call_elapsed, loop_start, loop_end, loop_elapsed, sleepy;
     struct timespec sleep_time = NFS_SLEEP;
     struct timespec wait_time = NFS_WAIT;
     uint16_t port = htons(NFS_PORT);
@@ -631,9 +631,9 @@ int main(int argc, char **argv) {
                 if (count || loop) {
                     /* calculate elapsed microseconds */
                     /* TODO make internal calcs in nanoseconds? */
-                    us = ts2us(call_end) - ts2us(call_start);
+                    timespecsub(&call_end, &call_start, &call_elapsed);
+                    us = ts2us(call_elapsed);
 
-                    /* TODO discard first ping in case of ARP delay? Only for TCP for handshake? */
                     if (us < target->min) target->min = us;
                     if (us > target->max) target->max = us;
                     /* calculate the average time */
