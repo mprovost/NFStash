@@ -40,11 +40,11 @@ NFSping supports several different output formats which makes it ideal for sendi
   - rquota
 - TCP and UDP probes
 - Various output formats
-    - traditional `ping`
-    - timestamped `ping`
-    - `fping` ([Smokeping](https://oss.oetiker.ch/smokeping/) compatible)
-    - [Graphite (Carbon)](https://github.com/graphite-project/carbon) compatible
-    - [StatsD](https://github.com/etsy/statsd) compatible
+    - traditional `ping` (default)
+    - timestamped `ping` (`-D`)
+    - `fping` ([Smokeping](https://oss.oetiker.ch/smokeping/) compatible) (`-C`)
+    - [Graphite (Carbon)](https://github.com/graphite-project/carbon) compatible (`-G`)
+    - [Etsy's StatsD](https://github.com/etsy/statsd) compatible (`-E`)
 - [Hash-Cast](#hash-cast) avoidance
 
 NFSping attempts to ping each target regularly - that is, the delay between pings should be constant, like a metronome. By default it will send a ping to each target every second. This can be changed with the `-p` option (in milliseconds). Instead of sleeping for one second in between pings, the program will pause for the poll time (one second by default) minus the time it took for all of the current responses to come in. This keeps each poll on a regular schedule, which helps when sending data to monitoring systems that expect updates on a regular basis. If the responses take longer than the poll time, it will not pause at all and will continue with the next round of pings.
@@ -72,7 +72,7 @@ NFSping only performs DNS lookups once during initialisation. If the NFS server'
 ## Hash-Cast
 NFS servers can exhibit varied response times for different TCP connections. Some connections will exhibit consistently low response times while others will have much higher ones. This winner-loser pattern has been named Hash-Cast by Chen et al in ["Newer Is Sometimes Better: An Evaluation of NFSv4.1"](https://www.fsl.cs.sunysb.edu/docs/nfs4perf/nfs4perf-sigm15.pdf). They identified this pattern as being caused by the operating system unevenly hashing TCP flows onto different transmit queues on a NIC. Flows that are hashed onto a busy queue will show consistently higher latency. The symptom of a server suffering from hash cast is that NFSping will report a bimodal distribution with two clusters of results, one consistently higher than the other.
 
-To avoid being hashed to a single queue on the server, NFSping reconnects to the server after every ping, using a different local port each time. This doesn't guarantee that the new connection will be assigned to a new queue (if there are 4 queues on the NIC, there is still a 25% chance of hitting the same queue again) but over multiple pings the probability that all queues will be hit approaches certainty. To disable this behaviour and keep reusing the same connection to each server, use the `-R` option.
+To avoid being hashed to a single queue on the server, NFSping reconnects to the server after every ping, using a different local port each time. This doesn't guarantee that the new connection will be assigned to a new queue (if there are 4 queues on the server's NIC, there is still a 25% chance of hitting the same queue again) but over multiple pings the probability that all queues will be hit approaches certainty. To disable this behaviour and keep reusing the same connection to each server, use the `-R` option. Note that connecting to the server is done before the time measurement for the NULL request so it doesn't affect any of the reported response times.
 
 ## Security
 NFSping uses the `AUTH_NONE` authentication flavour which doesn't send any user information. Some NFS servers can be configured to require client connections from privileged ports (< 1024), however according to [RFC 2623](https://tools.ietf.org/html/rfc2623#section-2.3.1) servers shouldn't require these "secure" ports for the NULL procedure. If a server is found that requires authentication or secure ports, please open an issue [here](https://github.com/mprovost/NFSping/issues/new).
@@ -87,7 +87,9 @@ Usage: nfsping [options] [targets...]
     -C n       same as -c, output parseable format
     -d         reverse DNS lookups for targets
     -D         print timestamp (unix time) before each line
-    -g string  prefix for graphite metric names (default "nfsping")
+    -E         StatsD format output (default human readable)
+    -g string  prefix for Graphite/StatsD metric names (default "nfsping")
+    -G         Graphite format output (default human readable)
     -h         display this help and exit
     -i n       interval between sending packets (in ms, default 25)
     -l         loop forever
@@ -96,7 +98,6 @@ Usage: nfsping [options] [targets...]
     -M         use the portmapper (default: NFS/ACL no, mount/NLM/NSM/rquota yes)
     -n         check the mount protocol (default NFS)
     -N         check the portmap protocol (default NFS)
-    -o F       output format ([G]raphite, [S]tatsd, default human readable)
     -p n       polling interval, check targets every n ms (default 1000)
     -P n       specify port (default: NFS 2049, portmap 111)
     -q         quiet, only print summary
@@ -184,10 +185,10 @@ Missed responses are indicated with a dash (-) in the summary output. This form 
 
 To only show the summary line, use the `-q` (quiet) option.
 
-NFSping can also output stats in a variety of formats for inserting into time series databases. Currently only Graphite and StatsD are supported:
+NFSping can also output stats in Graphite and Etsy's StatsD formats for inserting into time series databases.
 
 ```console
-$ nfsping -c 5 -oG filer1
+$ nfsping -c 5 -G filer1
 nfsping.filer1.ping.usec 401 1370501562
 nfsping.filer1.ping.usec 416 1370501563
 nfsping.filer1.ping.usec 403 1370501564
@@ -200,14 +201,14 @@ This is the Graphite plaintext protocol which is <path> <metric> <timestamp>. To
 The default prefix for the Graphite path is "nfsping". This can be changed by specifying a new string as an argument to the `-g` option. Fully qualified domain names (but not IP addresses) for targets will be reversed:
 
 ```console
-$ nfsping -c 1 -oG -g filers filer1.my.domain
+$ nfsping -c 1 -G -g filers filer1.my.domain
 filers.domain.my.filer1.ping.usec 292 1409332974
 ```
 
 This output can be easily redirected to a Carbon server using nc (netcat):
 
 ```console
-$ nfsping -l -oG filer1 filer2 | nc carbon1 2003
+$ nfsping -l -G filer1 filer2 | nc carbon1 2003
 ```
 
 This will send a result every second. Because nfsping is single threaded, unresponsive NFS servers will timeout and may cause the polling round to overrun when specifying multiple targets. It's recommended to run one command per NFS server or cluster to avoid this affecting all monitored hosts. Lost requests (or timeouts) will be reported under a separate path, $prefix.$target.$protocol.lost, with a metric of 1.
@@ -217,7 +218,7 @@ nc will exit if the TCP connection is reset (such as if the Carbon server is res
 Similarly, the StatsD output will produce plaintext output suitable for sending to StatsD with netcat:
 
 ```console
-$ nfsping -c 5 -oS filer1
+$ nfsping -c 5 -E filer1
 nfsping.filer1.ping:0.15|ms
 nfsping.filer1.ping:0.18|ms
 nfsping.filer1.ping:3.27|ms
@@ -230,7 +231,9 @@ Note that this output uses floating point values, as the StatsD protocol only su
 ## TODO
 - convert internal time calculations to nanoseconds
 - [HDRHistogram](https://github.com/HdrHistogram/HdrHistogram_c) support
+- Workaround Coordinated Omission like [wrk2](https://github.com/giltene/wrk2)
 - Fix compilation issues on *BSD
-- OSX support (clock_gettime())
+- OSX support ([clock_gettime](http://www.sudo.ws/repos/sudo/file/adf7997a0a65/lib/util/clock_gettime.c))
 - Multithreaded so slow responses don't block other requests?
 - A simplified version for Nagios-compatible monitoring checks
+- Simplify output formats and move output conversion to a utility

@@ -86,7 +86,6 @@ enum outputs {
     fping,
     graphite,
     statsd,
-    opentsdb,
     unixtime
 };
 

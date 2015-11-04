@@ -3,7 +3,7 @@ nfsping(8) -- send RPC NULL requests to NFS servers
 
 ## SYNOPSIS
 
-`nfsping` [`-aAdDhlLmMnNqQRsTv`] [`-c` <count>] [`-C` <count>] [`-g` <prefix>] [`-i` <interval>] [`-o` <format>] [`-p` <pause>] [`-P` <port>] [`-S` <source>] [`-t` <timeout>] [`-V` <version>] <servers...>
+`nfsping` [`-aAdDEGhlLmMnNqQRsTv`] [`-c` <count>] [`-C` <count>] [`-g` <prefix>] [`-i` <interval>] [`-p` <pause>] [`-P` <port>] [`-S` <source>] [`-t` <timeout>] [`-V` <version>] <servers...>
 
 ## DESCRIPTION
 
@@ -29,8 +29,14 @@ nfsping(8) -- send RPC NULL requests to NFS servers
 * `-D`:
   Print timestamp (Unix time) before each line of output.
 
+* `-E`:
+  Print output in StatsD format ($prefix.$hostname.$protocol:<ms>|ms). Use `-g` to change the prefix from the default "nfsping".
+
 * `-g` <prefix>:
-  Specify string prefix for Graphite metric names. Default = "nfsping".
+  Specify string prefix for Graphite or StatsD metric names. Default = "nfsping".
+
+* `-G`:
+  Print output in Graphite format ($prefix.$hostname.$protocol.usec <usec> <timestamp>). Use `-g` to change the prefix from the default "nfsping".
 
 * `-h`:
   Display a help message and exit.
