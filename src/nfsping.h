@@ -65,10 +65,10 @@ typedef struct targets {
     struct sockaddr_in *client_sock;
     CLIENT *client;
     unsigned long *results;
-    struct targets *next;
     unsigned int sent, received;
     unsigned long min, max;
     float avg;
+    struct targets *next;
 } targets_t;
 
 /* a singly linked list of nfs filehandles */
