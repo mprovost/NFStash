@@ -6,6 +6,7 @@ int verbose = 0;
 
 void usage() {
     printf("Usage: nfslock [options] [filehandle...]\n\
+    -c n     count of lock requests to send to target\n\
     -h       display this help and exit\n\
     -l       loop forever\n\
     -T       use TCP (default UDP)\n\
@@ -92,7 +93,9 @@ int main(int argc, char **argv) {
     CLIENT *client = NULL;
     struct sockaddr_in clnt_info;
     int version = 4;
+    unsigned long count = 0;
     int loop = 0;
+    unsigned int sent = 0;
     struct timespec sleep_time = NFS_SLEEP;
     struct timeval timeout = NFS_TIMEOUT;
     /* source ip address for packets */
@@ -105,10 +108,23 @@ int main(int argc, char **argv) {
     int getaddr;
     char nodename[NI_MAXHOST];
 
-    while ((ch = getopt(argc, argv, "hlTv")) != -1) {
+    while ((ch = getopt(argc, argv, "c:hlTv")) != -1) {
         switch(ch) {
+            /* number of locks per target */
+            case 'c':
+                if (loop) {
+                    fatal("Can't specify count and loop!\n");
+                }
+                count = strtoul(optarg, NULL, 10);
+                if (count == 0 || count == ULONG_MAX) {
+                    fatal("Zero count, nothing to do!\n");
+                }
+                break;
             /* loop forever */
             case 'l':
+                if (count) {
+                    fatal("Can't specify loop and count!\n");
+                }
                 loop = 1;
                 break;
             /* use TCP */
@@ -201,14 +217,19 @@ int main(int argc, char **argv) {
                 input_fh = NULL;
             }
         }
-
     }
+
+    /* at this point we've sent one request to each target */
+    sent++;
 
     /* skip the first dummy entry */
     filehandles = filehandles->next;
 
     /* now check if we're looping through the filehandles */
-    while (loop) {
+    while ((sent < count) || loop) {
+        /* sleep between requests */
+        nanosleep(&sleep_time, NULL);
+
         /* reset to start of list */
         current = filehandles;
 
@@ -252,8 +273,8 @@ int main(int argc, char **argv) {
             current = current->next;
         }
 
-        /* sleep between requests */
-        nanosleep(&sleep_time, NULL);
+        /* just increment this once for all targets */
+        sent++;
     }
 
     /* this is zero if everything worked, or the last error code seen */
