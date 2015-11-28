@@ -19,7 +19,7 @@ void usage() {
 int do_nlm_test(CLIENT *client, char *nodename, pid_t mypid, nfs_fh_list *current) {
     int status;
     unsigned long us;
-    struct timespec call_start, call_end, call_elapsed;
+    struct timespec wall_clock, call_start, call_end, call_elapsed;
     nlm4_testres *res = NULL;
     nlm4_testargs testargs = {
         .cookie    = 0, /* the cookie is only used in async RPC calls */
@@ -51,6 +51,10 @@ int do_nlm_test(CLIENT *client, char *nodename, pid_t mypid, nfs_fh_list *curren
     testargs.alock.l_len = 0;
 
     if (client) {
+        /* first grab the wall clock time for output */
+        clock_gettime(CLOCK_REALTIME, &wall_clock);
+
+        /* then use the more accurate timer for the elapsed RPC time */
 #ifdef CLOCK_MONOTONIC_RAW
         clock_gettime(CLOCK_MONOTONIC_RAW, &call_start);
 #else
@@ -78,7 +82,7 @@ int do_nlm_test(CLIENT *client, char *nodename, pid_t mypid, nfs_fh_list *curren
         us = ts2us(call_elapsed);
 
         /* graphite output for now */
-        printf("nfslock.%s.test.usec %lu %li\n", current->host, us, call_end.tv_sec);
+        printf("nfslock.%s.test.usec %lu %li\n", current->host, us, wall_clock.tv_sec);
     } else {
         clnt_perror(client, "nlm4_test_4");
         /* use something that doesn't overlap with values in nlm4_testres.stat */
