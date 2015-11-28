@@ -97,8 +97,9 @@ bin/nfscat: $(addprefix obj/, cat.o nfs_prot_clnt.o nfs_prot_xdr.o $(common_objs
 	gcc ${CFLAGS} $^ -o $@
 
 nfslock: bin/nfslock
-bin/nfslock: $(addprefix obj/, lock.o nlm_prot_clnt.o nlm_prot_xdr.o $(common_objs)) | bin
-	gcc ${CFLAGS} $^ -o $@
+nfslock_objs = $(addprefix obj/, $(addsuffix .o, lock nlm_prot_clnt nlm_prot_xdr) $(common_objs))
+bin/nfslock: config/clock_gettime.opt $(nfslock_objs) | bin
+	gcc ${CFLAGS} @config/clock_gettime.opt $(nfslock_objs) -o $@
 
 tests: tests/util_tests
 tests/util_tests: tests/util_tests.c tests/minunit.h src/util.o obj/parson.o src/util.h | rpcgen

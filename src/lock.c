@@ -19,7 +19,7 @@ void usage() {
 int do_nlm_test(CLIENT *client, char *nodename, pid_t mypid, nfs_fh_list *current) {
     int status;
     unsigned long us;
-    struct timeval call_start, call_end;
+    struct timespec call_start, call_end, call_elapsed;
     nlm4_testres *res = NULL;
     nlm4_testargs testargs = {
         .cookie    = 0, /* the cookie is only used in async RPC calls */
@@ -51,12 +51,20 @@ int do_nlm_test(CLIENT *client, char *nodename, pid_t mypid, nfs_fh_list *curren
     testargs.alock.l_len = 0;
 
     if (client) {
-        gettimeofday(&call_start, NULL);
+#ifdef CLOCK_MONOTONIC_RAW
+        clock_gettime(CLOCK_MONOTONIC_RAW, &call_start);
+#else
+        clock_gettime(CLOCK_MONOTONIC, &call_start);
+#endif
 
         /* run the test procedure */
         res = nlm4_test_4(&testargs, client);
 
-        gettimeofday(&call_end, NULL);
+#ifdef CLOCK_MONOTONIC_RAW
+        clock_gettime(CLOCK_MONOTONIC_RAW, &call_end);
+#else
+        clock_gettime(CLOCK_MONOTONIC, &call_end);
+#endif
     }
 
     if (res) {
@@ -66,7 +74,8 @@ int do_nlm_test(CLIENT *client, char *nodename, pid_t mypid, nfs_fh_list *curren
             status = res->stat.stat;
         }
 
-        us = tv2us(call_end) - tv2us(call_start);
+        timespecsub(&call_end, &call_start, &call_elapsed);
+        us = ts2us(call_elapsed);
 
         /* graphite output for now */
         printf("nfslock.%s.test.usec %lu %li\n", current->host, us, call_end.tv_sec);
