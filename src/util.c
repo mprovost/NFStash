@@ -221,6 +221,22 @@ int print_fhandle3(struct sockaddr *host, char *path, fhandle3 fhandle) {
 }
 
 
+/* convert an NFS filehandle to a string */
+int nfs_fh3_to_string(char *str, nfs_fh3 fhandle) {
+    int i;
+
+    for (i = 0; i < fhandle.data.data_len; i++) {
+        /* each input byte is two output bytes (in hex) */
+        sprintf(&str[i * 2], "%02hhx", fhandle.data.data_val[i]);
+    }
+
+    /* terminating NUL */
+    str[i * 2] = '\0';
+   
+    return (i * 2) + 1;
+}
+
+
 /* same function as above, but for NFS filehandles */
 /* maybe make a generic struct like sockaddr? */
 int print_nfs_fh3(struct sockaddr *host, char *path, char *filename, nfs_fh3 fhandle) {
