@@ -1,6 +1,6 @@
-.PHONY: all clean rpcgen nfsping nfsmount nfsdf nfscat man install
+.PHONY: all clean rpcgen nfsping nfsmount nfsdf nfscat nfslock nsmnotify man install
 
-all = nfsping nfsmount nfsdf nfsls nfscat nfslock
+all = nfsping nfsmount nfsdf nfsls nfscat nfslock nsmnotify
 all: $(all) man
 
 # installation directory
@@ -100,6 +100,10 @@ nfslock: bin/nfslock
 nfslock_objs = $(addprefix obj/, $(addsuffix .o, lock nlm_prot_clnt nlm_prot_xdr) $(common_objs))
 bin/nfslock: config/clock_gettime.opt $(nfslock_objs) | bin
 	gcc ${CFLAGS} @config/clock_gettime.opt $(nfslock_objs) -o $@
+
+nsmnotify: bin/nsmnotify
+bin/nsmnotify: $(addprefix obj/, notify.o sm_inter_clnt.o sm_inter_xdr.o $(common_objs)) | bin
+	gcc ${CFLAGS} $^ -o $@
 
 tests: tests/util_tests
 tests/util_tests: tests/util_tests.c tests/minunit.h src/util.o obj/parson.o src/util.h | rpcgen
