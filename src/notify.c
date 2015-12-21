@@ -11,52 +11,25 @@ int verbose = 0;
 
 void usage() {
     printf("Usage: nsmnotify [options] server\n\
-    -h       display this help and exit\n\
-    -S addr  set source address\n\
-    -T       use TCP (default UDP)\n\
-    -v       verbose output\n");
+    -h         display this help and exit\n\
+    -S addr    set source address\n\
+    -s server  NFS server address (default localhost)\n\
+    -T         use TCP (default UDP)\n\
+    -v         verbose output\n");
 
     exit(3);
 }
 
-/* SM_STAT */
-/*
-struct sm_name {
-    char *mon_name;
-};
 
-struct sm_stat_res {
-    sm_res res_stat;
-    int state;
-};
-*/
-
-
-/* SM_NOTIFY has no return value */
-/*struct stat_chge {
-    char *mon_name;
-    int state;
-  };
-*/
-
+/* the SM_NOTIFY call */
 void *do_notify(CLIENT *client, char *name, int state) {
     void *status;
-    struct sm_name stat_name = {
-        .mon_name = name
-    };
-    struct sm_stat_res *stat_res;
     struct stat_chge notify_stat = {
         .mon_name = name,
         .state = state
     };
 
-    stat_res = sm_stat_1(&stat_name, client);
-
-    if (stat_res && stat_res->res_stat == stat_succ) {
-        printf("state = %i\n", stat_res->state);
-    }
-
-    /* the SM_NOTIFY call */
+    /* SM_NOTIFY has no return value */
     /* returns NULL on RPC failure */
     status = sm_notify_1(&notify_stat, client);
 
@@ -70,7 +43,10 @@ void *do_notify(CLIENT *client, char *name, int state) {
 
 int main(int argc, char **argv) {
     int ch;
-    char *name;
+    char *client_name;
+    char *server;
+    struct timespec wall_clock;
+    int newstate;
     struct addrinfo hints = {
         .ai_family = AF_INET,
         /* default to UDP */
@@ -86,14 +62,21 @@ int main(int argc, char **argv) {
         .sin_addr = 0
     };
 
-    while ((ch = getopt(argc, argv, "hS:Tv")) != -1) {
+    while ((ch = getopt(argc, argv, "hS:s:Tv")) != -1) {
         switch(ch) {
             /* source ip address for packets */
             case 'S':
                 if (inet_pton(AF_INET, optarg, &src_ip.sin_addr) != 1) {
                     fatal("Invalid source IP address!\n");
                 }
-                break; 
+                break;
+            case 's':
+                if (strlen(optarg) < NI_MAXHOST) {
+                    server = optarg;
+                } else {
+                    fatal("Invalid hostname!\n");
+                }
+                break;
             /* use TCP */
             case 'T':
                 hints.ai_socktype = SOCK_STREAM;
@@ -109,10 +92,9 @@ int main(int argc, char **argv) {
     }
 
     /* first argument */
-    name = argv[1];
+    client_name = argv[optind];
 
-    /* second argument */
-    inet_pton(AF_INET, argv[2], &clnt_info.sin_addr);
+    inet_pton(AF_INET, server, &clnt_info.sin_addr);
 
     clnt_info.sin_family = AF_INET;
     clnt_info.sin_port = 0;
@@ -121,7 +103,13 @@ int main(int argc, char **argv) {
     auth_destroy(client->cl_auth);
     client->cl_auth = authunix_create_default();
 
+    /* use current unix timestamp as state so that it always increments between calls (unless they're the same second) */
+    /* TODO check that clock_gettime returns a signed 32 bit int for seconds (ie time_t == longword) */
+    clock_gettime(CLOCK_REALTIME, &wall_clock);
+
+    debug("Clearing locks for %s on %s with status %li\n", client_name, server, wall_clock.tv_sec);
+
     if (client) {
-        do_notify(client, name, 2);
+        do_notify(client, client_name, wall_clock.tv_sec);
     }
 }
