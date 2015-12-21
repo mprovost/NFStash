@@ -10,7 +10,8 @@
 int verbose = 0;
 
 void usage() {
-    printf("Usage: clear_locks [options] server\n\
+    printf("Usage: clear_locks [options] client\n\
+    Clear NFS locks for client held on server\n\
     -h         display this help and exit\n\
     -S addr    set source address\n\
     -s server  NFS server address (default localhost)\n\
@@ -68,7 +69,7 @@ void *do_free_all(CLIENT *client, char *name, int state){
 int main(int argc, char **argv) {
     int ch;
     char *client_name;
-    char *server;
+    char *server = "";
     struct timespec wall_clock;
     int newstate;
     void *status;
@@ -86,6 +87,11 @@ int main(int argc, char **argv) {
         .sin_family = AF_INET,
         .sin_addr = 0
     };
+
+    /* check for no arguments */
+    if (argc == 1) {
+        usage();
+    }
 
     while ((ch = getopt(argc, argv, "hS:s:Tv")) != -1) {
         switch(ch) {
@@ -116,9 +122,18 @@ int main(int argc, char **argv) {
         }
     }
 
+    /* check if there is no client argument */
+    if (optind == argc) {
+        usage();
+    }
+
     /* first argument */
     client_name = argv[optind];
 
+    /* default to localhost */
+    if (strlen(server) == 0) {
+        server = "127.0.0.1";
+    }
     inet_pton(AF_INET, server, &clnt_info.sin_addr);
 
     clnt_info.sin_family = AF_INET;
