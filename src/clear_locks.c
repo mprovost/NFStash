@@ -1,5 +1,5 @@
 /*
- * NSM Notify
+ * Clear NFS locks from server
  */
 
 
@@ -10,7 +10,7 @@
 int verbose = 0;
 
 void usage() {
-    printf("Usage: nsmnotify [options] server\n\
+    printf("Usage: clear_locks [options] server\n\
     -h         display this help and exit\n\
     -S addr    set source address\n\
     -s server  NFS server address (default localhost)\n\
