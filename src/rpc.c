@@ -35,7 +35,7 @@ CLIENT *destroy_rpc_client(CLIENT *client) {
     if (client) {
         /* have to clean this up first */
         auth_destroy(client->cl_auth);
-        /* this should close the socket */
+        /* this doesn't close the socket unless CLSET_FD_CLOSE is set with clnt_control */
         clnt_destroy(client);
     }
 
@@ -183,9 +183,13 @@ CLIENT *create_rpc_client(struct sockaddr_in *client_sock, struct addrinfo *hint
     }
 
     if (client) {
+        /* TODO check return values */
         /* use AUTH_NONE authentication by default */
         client->cl_auth = authnone_create();
+        /* set the RPC timeout */
         clnt_control(client, CLSET_TIMEOUT, (char *)&timeout);
+        /* set the socket to close when the client is destroyed */
+        clnt_control(client, CLSET_FD_CLOSE, NULL);
     }
 
     return client;
