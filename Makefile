@@ -102,7 +102,7 @@ bin/nfslock: config/clock_gettime.opt $(nfslock_objs) | bin
 	gcc ${CFLAGS} @config/clock_gettime.opt $(nfslock_objs) -o $@
 
 nsmnotify: bin/nsmnotify
-nsmnotify_objs = $(addprefix obj/, notify.o sm_inter_clnt.o sm_inter_xdr.o $(common_objs))
+nsmnotify_objs = $(addprefix obj/, notify.o sm_inter_clnt.o sm_inter_xdr.o nlm_prot_clnt.o nlm_prot_xdr.o $(common_objs))
 bin/nsmnotify: config/clock_gettime.opt $(nsmnotify_objs) | bin
 	gcc ${CFLAGS} @config/clock_gettime.opt $(nsmnotify_objs) -o $@
 
