@@ -102,8 +102,9 @@ bin/nfslock: config/clock_gettime.opt $(nfslock_objs) | bin
 	gcc ${CFLAGS} @config/clock_gettime.opt $(nfslock_objs) -o $@
 
 nsmnotify: bin/nsmnotify
-bin/nsmnotify: $(addprefix obj/, notify.o sm_inter_clnt.o sm_inter_xdr.o $(common_objs)) | bin
-	gcc ${CFLAGS} $^ -o $@
+nsmnotify_objs = $(addprefix obj/, notify.o sm_inter_clnt.o sm_inter_xdr.o $(common_objs))
+bin/nsmnotify: config/clock_gettime.opt $(nsmnotify_objs) | bin
+	gcc ${CFLAGS} @config/clock_gettime.opt $(nsmnotify_objs) -o $@
 
 tests: tests/util_tests
 tests/util_tests: tests/util_tests.c tests/minunit.h src/util.o obj/parson.o src/util.h | rpcgen
