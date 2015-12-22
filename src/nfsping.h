@@ -36,6 +36,7 @@
 #include "src/timespec.h"
 
 #define fatal(x...) do { fprintf(stderr,x); usage(); } while (0)
+#define fatalx(x, y...) do { fprintf(stderr,y); exit(x); } while (0)
 #define debug(x...) do { if (verbose) fprintf(stderr,x); } while (0)
 
 /* struct timeval */
