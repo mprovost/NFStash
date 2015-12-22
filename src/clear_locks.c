@@ -128,7 +128,12 @@ int main(int argc, char **argv) {
 
     /* check if there is no client argument */
     if (optind == argc) {
-        /* TODO lookup local hostname */
+        /* default to using local hostname */
+        client_name = malloc(sizeof(char) * NI_MAXHOST);
+        /* leave room for NULL */
+        if (gethostname(client_name, NI_MAXHOST - 1) == -1) {
+            fatalx(2, "gethostname: %s\n", strerror(errno));
+        }
     } else {
         /* first argument */
         client_name = argv[optind];
