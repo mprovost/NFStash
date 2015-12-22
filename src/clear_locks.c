@@ -51,6 +51,7 @@ void *do_free_all(CLIENT *client, char *name, int state){
     void *status;
     struct nlm4_notify notify_stat = {
         .name = name,
+        /* FIXME state is unused, 0? */
         .state = state
     };
 
@@ -79,7 +80,10 @@ int main(int argc, char **argv) {
         .ai_socktype = SOCK_DGRAM,
     };
     CLIENT *client = NULL;
-    struct sockaddr_in clnt_info;
+    struct sockaddr_in clnt_info = {
+        .sin_family = AF_INET,
+        .sin_port = 0
+    };
     unsigned long version = 1; /* for SM protocol */
     struct timeval timeout = NFS_TIMEOUT;
     /* source ip address for packets */
@@ -124,20 +128,20 @@ int main(int argc, char **argv) {
 
     /* check if there is no client argument */
     if (optind == argc) {
-        usage();
+        /* TODO lookup local hostname */
+    } else {
+        /* first argument */
+        client_name = argv[optind];
     }
 
-    /* first argument */
-    client_name = argv[optind];
-
-    /* default to localhost */
+    /* default to localhost if server not specified */
     if (strlen(server) == 0) {
+        /* TODO or "localhost"? */
         server = "127.0.0.1";
     }
-    inet_pton(AF_INET, server, &clnt_info.sin_addr);
 
-    clnt_info.sin_family = AF_INET;
-    clnt_info.sin_port = 0;
+    /* TODO resolve DNS */
+    inet_pton(AF_INET, server, &clnt_info.sin_addr);
 
     /* use current unix timestamp as state so that it always increments between calls (unless they're the same second) */
     /* TODO check that clock_gettime returns a signed 32 bit int for seconds (ie time_t == longword) */
