@@ -1,0 +1,45 @@
+clear_locks(8) -- clear NFS locks
+=================================
+
+## SYNOPSIS
+
+`clear_locks` [`-hTv`] [`-S` <source>] [`-s` server] <hostname>
+
+## DESCRIPTION
+
+`clear_locks` removes all file locks for an NFS client. It does this first by sending a NSM_NOTIFY RPC call to the NSM (Network Status Monitor) daemon on the server (after looking it up in the portmapper). This notifies the server that the client has rebooted and that it should free any open locks. The NSM_NOTIFY call expects a `status` argument, which is typically an integer that is incremented by the client after each reboot. If the server sees a higher number than the last request, it knows that the client has rebooted. To guarantee that it always sends a higher number, `clear_locks` uses the current epoch time as obtained by clock_gettime() - this increments every second.
+
+If the request to the NSM service fails (for example, if the server isn't running NSM), `clear_locks` makes a second request directly to the NLM (Network Lock Manager) service on the server. It makes an NLM_FREE_ALL RPC request with the specified hostname and a status based on the current timestamp.
+
+If the NFS server requires "secure" ports (<1024), `clear_locks` will have to be run as root.
+
+## OPTIONS
+
+* `-h`:
+  Display a help message and exit.
+
+* `-S` <source>:
+  Use the specified source IP address for request packets.
+
+* `-s` <server>:
+  Connect to the specified NFS server. Default = localhost.
+
+* `-T`:
+  Use TCP to connect to server. Default = UDP.
+
+* `-v`:
+  Display debug output on `stderr`.
+
+## RETURN VALUES
+
+`clear_locks` will return `0` if the request to the server received a successful response. Nonzero exit codes indicate a failure. `1` is an RPC error, `2` is a name resolution failure, `3` is an initialisation failure (typically bad arguments).
+
+## AUTHOR
+
+Matt Provost, mprovost@termcap.net
+
+## COPYRIGHT
+
+Copyright 2015 Matt Provost  
+RPC files Copyright Sun Microsystems  
+NFSv4 files Copyright IETF  

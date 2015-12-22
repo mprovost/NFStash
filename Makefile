@@ -112,7 +112,7 @@ tests/util_tests: tests/util_tests.c tests/minunit.h src/util.o obj/parson.o src
 	tests/util_tests
 
 # man pages
-man: $(addprefix man/man8/, nfsping.8 nfsdf.8 nfsls.8 nfsmount.8 nfslock.8 nfscat.8)
+man: $(addprefix man/man8/, $(addsuffix .8, nfsping nfsdf nfsls nfsmount nfslock nfscat clear_locks))
 
 # quick install
 install: $(addprefix $(prefix)/bin/, $(all)) $(addsuffix .8, $(addprefix $(prefix)/share/man/man8/, $(all)))
