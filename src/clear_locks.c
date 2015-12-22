@@ -94,7 +94,7 @@ int main(int argc, char **argv) {
 
     /* check for no arguments */
     if (argc == 1) {
-        usage();
+        fatal("Either client or server required!\n");
     }
 
     while ((ch = getopt(argc, argv, "hS:s:Tv")) != -1) {
@@ -128,6 +128,11 @@ int main(int argc, char **argv) {
 
     /* check if there is no client argument */
     if (optind == argc) {
+        /* check if we also don't have a server specified */
+        /* clearing locks for our local hostname on the local server doesn't make sense */
+        if (strlen(server) == 0) {
+            fatal("Either client or server required!\n");
+        }
         /* default to using local hostname */
         client_name = malloc(sizeof(char) * NI_MAXHOST);
         /* leave room for NULL */
