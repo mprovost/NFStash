@@ -72,7 +72,6 @@ int main(int argc, char **argv) {
     char *client_name;
     char *server = "";
     struct timespec wall_clock;
-    int newstate;
     void *status;
     struct addrinfo hints = {
         .ai_family = AF_INET,
