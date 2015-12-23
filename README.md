@@ -38,6 +38,7 @@ NFSping supports several different output formats which makes it ideal for sendi
   - Sun's ACL sideband protocol
   - network status monitor (NSM)
   - rquota
+  - Also supports the kernel lock manager (KLM) protocol used by some kernels to communicate with a userspace locking daemon
 - TCP and UDP probes
 - Various output formats
     - traditional `ping` (default)
@@ -92,6 +93,7 @@ Usage: nfsping [options] [targets...]
     -G         Graphite format output (default human readable)
     -h         display this help and exit
     -i n       interval between sending packets (in ms, default 25)
+    -K         check the kernel lock manager (KLM) protocol (default NFS)
     -l         loop forever
     -L         check the network lock manager (NLM) protocol (default NFS)
     -m         use multiple target IP addresses if found

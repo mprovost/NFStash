@@ -1,6 +1,7 @@
 #ifndef NFSPING_H
 #define NFSPING_H
 
+#define _GNU_SOURCE /* for asprintf */
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -11,6 +12,7 @@
 #include <time.h>
 #include <signal.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
@@ -31,6 +33,7 @@
 #include "rpcsrc/nfs_acl.h"
 #include "rpcsrc/sm_inter.h"
 #include "rpcsrc/rquota.h"
+#include "rpcsrc/klm_prot.h"
 
 /* BSD timespec functions */
 #include "src/timespec.h"

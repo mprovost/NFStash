@@ -3,6 +3,16 @@
 #include "util.h"
 #include "stddef.h"
 
+/* local prototypes */
+static void usage(void);
+static FSSTAT3res *get_fsstat(CLIENT *, nfs_fh_list *);
+static int prefix_print(size3, char *, enum byte_prefix);
+static int print_df(int, int, char *, char *, FSSTAT3res *, const enum byte_prefix);
+static void print_inodes(int, int, char *, char *, FSSTAT3res *);
+static char *replace_char(const char *, const char *, const char *);
+static void print_format(enum outputs, char *, char *, char *, FSSTAT3res *, struct timeval);
+
+/* globals */
 int verbose = 0;
 
 void usage() {
@@ -140,7 +150,7 @@ char *replace_char(const char *str, const char *old, const char *new)
     char *ret, *r;
     const char *p, *q;
     size_t oldlen = strlen(old);
-    size_t count, retlen, newlen = strlen(new);
+    size_t count = 0, retlen, newlen = strlen(new);
     int samesize = (oldlen == newlen);
 
     if (!samesize) {
@@ -210,7 +220,6 @@ void print_format(enum outputs format, char *prefix, char *host, char *path, FSS
 
 
 int main(int argc, char **argv) {
-    char *error;
     int ch;
     int inodes = 0;
     enum byte_prefix prefix = NONE;
@@ -221,8 +230,8 @@ int main(int argc, char **argv) {
     size_t n = 0; /* for getline() */
     nfs_fh_list *filehandles, *current, fh_dummy;
     int loop = 0;
-    int maxpath = 0;
-    int maxhost = 0;
+    unsigned int maxpath = 0;
+    unsigned int maxhost = 0;
     CLIENT *client = NULL;
     struct sockaddr_in clnt_info;
     unsigned long version = 3;

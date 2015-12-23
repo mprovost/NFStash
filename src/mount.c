@@ -2,6 +2,13 @@
 #include "rpc.h"
 #include "util.h"
 
+/* local prototypes */
+static void usage(void);
+static u_int mount_perror(mountstat3);
+static mountres3 *get_root_filehandle(char *, CLIENT *, char *);
+static int print_exports(char *, struct exportnode *);
+
+/* globals */
 int verbose = 0;
 
 void usage() {
@@ -66,6 +73,8 @@ mountres3 *get_root_filehandle(char *hostname, CLIENT *client, char *path) {
         }
     } else {
         fprintf(stderr, "%s: Invalid path: %s\n", hostname, path);
+        /* create an empty result */
+        mountres = malloc(sizeof(mountres));
         mountres->fhs_status = MNT3ERR_INVAL;
     }
 
@@ -117,15 +126,13 @@ int print_exports(char *host, struct exportnode *ex) {
 int main(int argc, char **argv) {
     mountres3 *mountres;
     struct sockaddr_in client_sock;
-    char *error;
-    fhstatus result;
     int getaddr;
     struct addrinfo hints, *addr;
     char *host;
     char *path;
     exports ex;
     int exports_count = 0, exports_ok = 0;
-    int ch, first, index;
+    int ch;
     /* command line options */
     int multiple = 0, showmount = 0;
     CLIENT *client;
@@ -234,7 +241,6 @@ int main(int argc, char **argv) {
                     }
                 } else {
                     clnt_pcreateerror("pmap_getport");
-                    mountres->fhs_status = MNT3ERR_SERVERFAULT; /* is this the most appropriate error code? */
                 }
 
                 if (multiple) {

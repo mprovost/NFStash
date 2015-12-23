@@ -3,6 +3,16 @@
 #include "rpc.h"
 #include "string.h"
 
+/* local prototypes */
+static void int_handler(int);
+static void usage(void);
+static void print_summary(targets_t);
+static void print_fping_summary(targets_t);
+static void print_output(enum outputs, char *, targets_t *, unsigned long, u_long, const struct timespec, unsigned long);
+static void print_lost(enum outputs, char *, targets_t *, unsigned long, u_long, const struct timespec);
+static targets_t *make_target(char *, uint16_t);
+
+/* Globals! */
 volatile sig_atomic_t quitting;
 int verbose = 0;
 
@@ -21,6 +31,8 @@ static const struct null_procs null_dispatch[][5] = {
     /* nfs v4 has mounting built in */
     /* only one version of portmap protocol */
     [PMAPPROG - 100000]       [2 ... 4] = { .proc = pmapproc_null_2, .name = "pmapproc_null_2", .protocol = "portmap", .version = 2 },
+    /* KLM just has one version */
+    [KLM_PROG - 100000]       [2 ... 3] = { .proc = klm_null_1, .name = "klm_null_1", .protocol = "klm", .version = 1},
     /* NLM version 3 is used by NFS version 2 */
     /* NLM version 4 is used by NFS version 3 */
     /* v4 has locks integrated into the nfs protocol */
@@ -43,8 +55,11 @@ static const struct null_procs null_dispatch[][5] = {
 };
 
 
+/* handle control-c */
 void int_handler(int sig) {
-    quitting = 1;
+    if (sig == SIGINT) {
+        quitting = 1;
+    }
 }
 
 
@@ -65,6 +80,7 @@ void usage() {
     -G         Graphite format output (default human readable)\n\
     -h         display this help and exit\n\
     -i n       interval between sending packets (in ms, default %lu)\n\
+    -K         check the kernel lock manager (KLM) protocol (default NFS)\n\
     -l         loop forever\n\
     -L         check the network lock manager (NLM) protocol (default NFS)\n\
     -m         use multiple target IP addresses if found\n\
@@ -180,12 +196,12 @@ void print_lost(enum outputs format, char *prefix, targets_t *target, unsigned l
 
 
 /* make a new target */
-targets_t *make_target(char *name, uint16_t port) {
+targets_t *make_target(char *target_name, uint16_t port) {
     targets_t *target;
 
     target = calloc(1, sizeof(targets_t));
     target->next = NULL;
-    target->name = name;
+    target->name = target_name;
     /* always set this even if we might not need it, it should be quick */
     target->ndqf = reverse_fqdn(target->name);
 
@@ -202,7 +218,6 @@ targets_t *make_target(char *name, uint16_t port) {
 
 int main(int argc, char **argv) {
     void *status;
-    char *error;
     struct timeval timeout = NFS_TIMEOUT;
     struct timespec wall_clock, call_start, call_end, call_elapsed, loop_start, loop_end, loop_elapsed, sleepy;
     struct timespec sleep_time = NFS_SLEEP;
@@ -249,7 +264,7 @@ int main(int argc, char **argv) {
     if (argc == 1)
         usage();
 
-    while ((ch = getopt(argc, argv, "aAc:C:dDEg:Ghi:lLmMnNp:P:qQRsS:t:TvV:")) != -1) {
+    while ((ch = getopt(argc, argv, "aAc:C:dDEg:Ghi:KlLmMnNp:P:qQRsS:t:TvV:")) != -1) {
         switch(ch) {
             /* NFS ACL protocol */
             case 'a':
@@ -331,6 +346,15 @@ int main(int argc, char **argv) {
             case 'i':
                 ms2ts(&wait_time, strtoul(optarg, NULL, 10));
                 break;
+            case 'K':
+                if (prognum == NFS_PROGRAM) {
+                    prognum = KLM_PROG;
+                    /* default to the portmapper */
+                    port = 0;
+                } else {
+                    fatal("Only one protocol!\n");
+                }
+                break;
             /* loop forever */
             case 'l':
                 loop = 1;
@@ -385,12 +409,7 @@ int main(int argc, char **argv) {
                 break;
             /* specify NFS port */
             case 'P':
-                /* check for the portmapper option */
-                if (port) {
-                    port = htons(strtoul(optarg, NULL, 10));
-                } else {
-                    fatal("Can't specify both portmapper and port!\n");
-                }
+                port = htons(strtoul(optarg, NULL, 10));
                 break;
             /* quiet, only print summary */
             /* TODO error if output also specified? */

@@ -2,7 +2,13 @@
 #include "rpc.h"
 #include "util.h"
 
+/* local prototypes */
+static void usage(void);
+static int do_nlm_test(CLIENT *, char *, pid_t, nfs_fh_list *);
+
+/* globals */
 int verbose = 0;
+
 
 void usage() {
     printf("Usage: nfslock [options] [filehandle...]\n\
@@ -16,7 +22,8 @@ void usage() {
 
 
 int do_nlm_test(CLIENT *client, char *nodename, pid_t mypid, nfs_fh_list *current) {
-    int status;
+    /* default to failed */
+    int status = nlm4_failed;
     unsigned long us;
     struct timeval call_start, call_end;
     nlm4_testres *res = NULL;
