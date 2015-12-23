@@ -6,12 +6,14 @@ int verbose = 0;
 
 void usage() {
     printf("Usage: nfscat [options] [targets...]\n\
-    -b n     blocksize (in bytes, default 8192)\n\
-    -c n     count of read requests to send to target\n\
-    -h       display this help and exit\n\
-    -S addr  set source address\n\
-    -T       use TCP (default UDP)\n\
-    -v       verbose output\n");
+    -b n      blocksize (in bytes, default 8192)\n\
+    -c n      count of read requests to send to target\n\
+    -h        display this help and exit\n\
+    -S addr   set source address\n\
+    -T        use TCP (default UDP)\n\
+    -g string prefix for Graphite/StatsD metric names (default \"nfsping\")\n\
+    -G        Graphite format output (default human readable)\n\
+    -v        verbose output\n");
 
     exit(3);
 }
@@ -56,6 +58,31 @@ READ3res *do_read(CLIENT *client, nfs_fh_list *dir, offset3 offset, const unsign
 }
 
 
+/* Prints to stderr because file contents are printed via stdout */
+void print_output(enum outputs format, char *prefix, char* host, char* path, count3 count, unsigned long min, unsigned long max, double avg, unsigned long sent, unsigned long received,  const struct timespec now, unsigned long us) {
+    double loss;
+ 
+   if (format == human) {
+        loss = (sent - received) / (double)sent * 100;
+
+        fprintf(stderr, "%s:%s: [%lu] %lu bytes %03.2f ms (xmt/rcv/%%loss = %lu/%lu/%.0f%%, min/avg/max = %.2f/%.2f/%.2f)\n",
+                            host,
+                            path,
+                            received - 1, 
+                            count, 
+                            us / 1000.0,
+                            sent,
+                            received,
+                            loss,
+                            min / 1000.0,
+                            avg / 1000.0,
+                            max / 1000.0 );
+
+    }
+    fflush(stderr);
+}
+
+
 int main(int argc, char **argv) {
     int ch;
     char *input_fh;
@@ -73,18 +100,21 @@ int main(int argc, char **argv) {
     offset3 offset = 0;
     unsigned long blocksize = 8192;
     unsigned long count = 0;
+    struct timespec wall_clock;
     struct timeval timeout = NFS_TIMEOUT;
     unsigned long us;
+    enum outputs format = human;
+    char prefix[255] = "nfscat";
     unsigned long sent = 0, received = 0;
     unsigned long min = ULONG_MAX, max = 0;
-    double avg, loss;
+    double avg = 0;
     /* source ip address for packets */
     struct sockaddr_in src_ip = {
         .sin_family = AF_INET,
         .sin_addr = 0
     };
 
-    while ((ch = getopt(argc, argv, "b:c:hS:Tv")) != -1) {
+    while ((ch = getopt(argc, argv, "b:c:hS:TvGg")) != -1) {
         switch(ch) {
             /* blocksize */
             case 'b':
@@ -103,6 +133,14 @@ int main(int argc, char **argv) {
                     fatal("Invalid source IP address!\n");
                 }
                 break;
+            /* Graphite output  */
+            case 'G':
+                format = graphite;
+                break;
+            /* prefix to use for graphite metrics */
+            case 'g':
+                strncpy(prefix, optarg, sizeof(prefix));
+                break;
             /* use TCP */
             case 'T':
                 hints.ai_socktype = SOCK_STREAM;
@@ -115,7 +153,6 @@ int main(int argc, char **argv) {
             default:
                 usage();
         }
-
     }
 
     /* no arguments, use stdin */
@@ -160,11 +197,15 @@ int main(int argc, char **argv) {
             offset = 0;
             sent = received = 0;
             do {
+                /* grab the wall clock time for output */
+                /* use the start time of the request */
+                /* the call_start timer is more important so do this first so we're not measuring the time this call takes */
+                clock_gettime(CLOCK_REALTIME, &wall_clock);
+
                 res = do_read(client, current, offset, blocksize, &us);
                 sent++;
                 if (res && res->status == NFS3_OK) {
                     received++;
-                    loss = (sent - received) / (double)sent * 100;
                     /* TODO the final read could be short and take less time, discard? */
                     /* what about files that come back in a single RPC? */
                     if (us < min) min = us;
@@ -173,17 +214,9 @@ int main(int argc, char **argv) {
                     avg = (avg * (received - 1) + us) / received;
 
                     if (count) {
-                        fprintf(stderr, "%s:%s: [%lu] %lu bytes %03.2f ms (xmt/rcv/%%loss = %lu/%lu/%.0f%%, min/avg/max = %.2f/%.2f/%.2f)\n",
-                            current->host,
-                            current->path,
-                            received - 1, res->READ3res_u.resok.count, us
-                            / 1000.0,
-                            sent,
-                            received,
-                            loss,
-                            min / 1000.0,
-                            avg / 1000.0,
-                            max / 1000.0 );
+
+                        print_output(format, prefix, current->host, current->path, res->READ3res_u.resok.count, min, max, avg, sent, received, wall_clock, us);
+
                     } else {
                         /* write to stdout */
                         fwrite(res->READ3res_u.resok.data.data_val, 1, res->READ3res_u.resok.data.data_len, stdout);
