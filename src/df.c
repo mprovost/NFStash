@@ -8,6 +8,7 @@ int verbose = 0;
 void usage() {
     printf("Usage: nfsdf [options] [filehandle...]\n\
     -g         display sizes in gigabytes\n\
+    -H         display this help and exit\n\
     -h         display human readable sizes (default)\n\
     -i         display inodes\n\
     -k         display sizes in kilobytes\n\
@@ -18,8 +19,7 @@ void usage() {
     -t         display sizes in terabytes\n\
     -S addr    set source address\n\
     -T         use TCP (default UDP)\n\
-    -v         verbose output\n\
-    ");
+    -v         verbose output\n");
 
     exit(3);
 }
@@ -257,7 +257,7 @@ int main(int argc, char **argv) {
     };
 
 
-    while ((ch = getopt(argc, argv, "ghiklmo:p:S:tTv")) != -1) {
+    while ((ch = getopt(argc, argv, "gHhiklmo:p:S:tTv")) != -1) {
         switch(ch) {
             /* display gigabytes */
             case 'g':
@@ -337,6 +337,8 @@ int main(int argc, char **argv) {
             case 'v':
                 verbose = 1;
                 break;
+            /* have to keep -h available for human readable output */
+            case 'H':
             case '?':
             default:
                 usage();
