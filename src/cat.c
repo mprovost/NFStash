@@ -5,6 +5,8 @@
 /* local prototypes */
 static void usage(void);
 static READ3res *do_read(CLIENT *, nfs_fh_list *, offset3, const unsigned long, unsigned long *);
+static void print_output(enum outputs format, char *prefix, char* host, char* path, count3 count, unsigned long min, unsigned long max, double avg, unsigned long sent, unsigned long received,  const struct timespec now, unsigned long us);
+ 
 
 /* globals */
 int verbose = 0;
@@ -82,6 +84,9 @@ void print_output(enum outputs format, char *prefix, char* host, char* path, cou
                             max / 1000.0 );
 
     }
+    if (format == graphite) {
+       fprintf(stderr, "%s.%s.%s.usec %lu %li\n", prefix, host, path, us, now.tv_sec); 
+    }
     fflush(stderr);
 }
 
@@ -107,7 +112,7 @@ int main(int argc, char **argv) {
     struct timeval timeout = NFS_TIMEOUT;
     unsigned long us;
     enum outputs format = human;
-    char prefix[255] = "nfscat";
+    char *prefix = "nfscat";
     unsigned long sent = 0, received = 0;
     unsigned long min = ULONG_MAX, max = 0;
     double avg = 0;
@@ -117,7 +122,7 @@ int main(int argc, char **argv) {
         .sin_addr = 0
     };
 
-    while ((ch = getopt(argc, argv, "b:c:hS:TvGg")) != -1) {
+    while ((ch = getopt(argc, argv, "b:c:hS:TvGg:")) != -1) {
         switch(ch) {
             /* blocksize */
             case 'b':
@@ -142,7 +147,15 @@ int main(int argc, char **argv) {
                 break;
             /* prefix to use for graphite metrics */
             case 'g':
-                strncpy(prefix, optarg, sizeof(prefix));
+                /*TODO: Find the real limit of graphite prefix. NAME_MAX 
+                        comparison not good enough.
+                */
+                if (strlen(optarg) < NAME_MAX) {
+                    prefix = optarg;
+                } else {
+                    fatal("The prefix is longer than NAME_MAX\n");
+                }
+                //strncpy(prefix, optarg, sizeof(prefix));
                 break;
             /* use TCP */
             case 'T':
