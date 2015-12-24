@@ -66,6 +66,8 @@ mountres3 *get_root_filehandle(char *hostname, CLIENT *client, char *path) {
         }
     } else {
         fprintf(stderr, "%s: Invalid path: %s\n", hostname, path);
+        /* create an empty result */
+        mountres = malloc(sizeof(mountres));
         mountres->fhs_status = MNT3ERR_INVAL;
     }
 
@@ -117,15 +119,13 @@ int print_exports(char *host, struct exportnode *ex) {
 int main(int argc, char **argv) {
     mountres3 *mountres;
     struct sockaddr_in client_sock;
-    char *error;
-    fhstatus result;
     int getaddr;
     struct addrinfo hints, *addr;
     char *host;
     char *path;
     exports ex;
     int exports_count = 0, exports_ok = 0;
-    int ch, first, index;
+    int ch;
     /* command line options */
     int multiple = 0, showmount = 0;
     CLIENT *client;

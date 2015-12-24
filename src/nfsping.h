@@ -1,6 +1,7 @@
 #ifndef NFSPING_H
 #define NFSPING_H
 
+#define _GNU_SOURCE /* for asprintf */
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>

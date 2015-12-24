@@ -77,6 +77,7 @@ entryplus3 *do_readdirplus(CLIENT *client, nfs_fh_list *dir) {
 int main(int argc, char **argv) {
     int ch;
     int all = 0;
+    int count = 0;
     char   *input_fh  = NULL;
     size_t  input_len = 0;
     char *filename;
@@ -91,7 +92,6 @@ int main(int argc, char **argv) {
     unsigned long version = 3;
     struct timeval timeout = NFS_TIMEOUT;
     entryplus3 *entry;
-    int i;
     /* source ip address for packets */
     struct sockaddr_in src_ip = {
         .sin_family = AF_INET,
@@ -161,6 +161,7 @@ int main(int argc, char **argv) {
                 entry = do_readdirplus(client, current);
 
                 while (entry) {
+                    count++;
                     /* first check for hidden files */
                     if (all == 0) {
                         if (entry->name[0] == '.') {
@@ -209,5 +210,13 @@ int main(int argc, char **argv) {
                 input_fh = NULL;
             }
         }
+    }
+
+    /* return success if we saw any entries */
+    /* TODO something better! */
+    if (count) {
+        return EXIT_SUCCESS;
+    } else {
+        return EXIT_FAILURE;
     }
 }

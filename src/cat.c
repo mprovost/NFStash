@@ -28,8 +28,6 @@ READ3res *do_read(CLIENT *client, nfs_fh_list *dir, offset3 offset, const unsign
         .count = blocksize,
     };
     struct rpc_err clnt_err;
-    int i;
-    unsigned int count = 0;
     struct timeval call_start, call_end;
 
     args.offset = offset;

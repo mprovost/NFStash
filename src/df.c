@@ -210,7 +210,6 @@ void print_format(enum outputs format, char *prefix, char *host, char *path, FSS
 
 
 int main(int argc, char **argv) {
-    char *error;
     int ch;
     int inodes = 0;
     enum byte_prefix prefix = NONE;

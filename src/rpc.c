@@ -121,7 +121,7 @@ CLIENT *create_rpc_client(struct sockaddr_in *client_sock, struct addrinfo *hint
         /* if not warn the user */
         if (client_sock->sin_port == 0) {
             /* TODO print the server's IP address in case of multiple targets */
-            fprintf(stderr, "get_rpc_port(%u): program not registered!\n", prognum);
+            fprintf(stderr, "get_rpc_port(%lu): program not registered!\n", prognum);
         }
     }
 

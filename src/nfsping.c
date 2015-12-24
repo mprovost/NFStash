@@ -202,7 +202,6 @@ targets_t *make_target(char *name, uint16_t port) {
 
 int main(int argc, char **argv) {
     void *status;
-    char *error;
     struct timeval timeout = NFS_TIMEOUT;
     struct timespec wall_clock, call_start, call_end, call_elapsed, loop_start, loop_end, loop_elapsed, sleepy;
     struct timespec sleep_time = NFS_SLEEP;
