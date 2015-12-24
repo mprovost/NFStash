@@ -3,6 +3,7 @@
 #include "rpc.h"
 #include "string.h"
 
+/* Globals! */
 volatile sig_atomic_t quitting;
 int verbose = 0;
 
@@ -43,8 +44,11 @@ static const struct null_procs null_dispatch[][5] = {
 };
 
 
+/* handle control-c */
 void int_handler(int sig) {
-    quitting = 1;
+    if (sig == SIGINT) {
+        quitting = 1;
+    }
 }
 
 
