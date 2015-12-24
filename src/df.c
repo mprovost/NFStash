@@ -220,8 +220,8 @@ int main(int argc, char **argv) {
     size_t n = 0; /* for getline() */
     nfs_fh_list *filehandles, *current, fh_dummy;
     int loop = 0;
-    int maxpath = 0;
-    int maxhost = 0;
+    unsigned int maxpath = 0;
+    unsigned int maxhost = 0;
     CLIENT *client = NULL;
     struct sockaddr_in clnt_info;
     unsigned long version = 3;

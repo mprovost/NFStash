@@ -103,7 +103,7 @@ int nfs_perror(nfsstat3 status) {
 /* break up a JSON filehandle into parts */
 /* this uses parson */
 nfs_fh_list *parse_fh(char *input) {
-    int i;
+    unsigned int i;
     const char *tmp;
     char *copy;
     u_int fh_len;
@@ -205,7 +205,7 @@ nfs_fh_list *parse_fh(char *input) {
 /* TODO accept path as struct? */
 /* print the IP address of the host in case there are multiple DNS results for a hostname */
 int print_fhandle3(struct sockaddr *host, char *path, fhandle3 fhandle) {
-    int i;
+    unsigned int i;
     char ip[INET_ADDRSTRLEN];
 
     /* get the IP address as a string */
@@ -224,7 +224,7 @@ int print_fhandle3(struct sockaddr *host, char *path, fhandle3 fhandle) {
 /* same function as above, but for NFS filehandles */
 /* maybe make a generic struct like sockaddr? */
 int print_nfs_fh3(struct sockaddr *host, char *path, char *filename, nfs_fh3 fhandle) {
-    int i;
+    unsigned int i;
     char ip[INET_ADDRSTRLEN];
 
     /* get the IP address as a string */
