@@ -1,3 +1,4 @@
+#include "util.h"
 #include "nfsping.h"
 #include "parson/parson.h"
 
@@ -103,10 +104,10 @@ int nfs_perror(nfsstat3 status) {
 /* break up a JSON filehandle into parts */
 /* this uses parson */
 nfs_fh_list *parse_fh(char *input) {
-    int i;
+    unsigned int i;
     const char *tmp;
     char *copy;
-    u_int fh_len;
+    u_int fh_len = 0;
     struct addrinfo *addr;
     struct addrinfo hints = {
         .ai_family = AF_INET,
@@ -204,16 +205,16 @@ nfs_fh_list *parse_fh(char *input) {
 /* this format has to be parsed again so take structs instead of strings to keep random data from being used as inputs */
 /* TODO accept path as struct? */
 /* print the IP address of the host in case there are multiple DNS results for a hostname */
-int print_fhandle3(struct sockaddr *host, char *path, fhandle3 fhandle) {
-    int i;
+int print_fhandle3(struct sockaddr *host, char *path, fhandle3 file_handle) {
+    unsigned int i;
     char ip[INET_ADDRSTRLEN];
 
     /* get the IP address as a string */
     inet_ntop(AF_INET, &((struct sockaddr_in *)host)->sin_addr, ip, INET_ADDRSTRLEN);
 
     printf("{ \"ip\": \"%s\", \"path\": \"%s\", \"filehandle\": \"", ip, path);
-    for (i = 0; i < fhandle.fhandle3_len; i++) {
-        printf("%02hhx", fhandle.fhandle3_val[i]);
+    for (i = 0; i < file_handle.fhandle3_len; i++) {
+        printf("%02hhx", file_handle.fhandle3_val[i]);
     }
     printf("\" }\n");
 
@@ -239,8 +240,8 @@ int nfs_fh3_to_string(char *str, nfs_fh3 fhandle) {
 
 /* same function as above, but for NFS filehandles */
 /* maybe make a generic struct like sockaddr? */
-int print_nfs_fh3(struct sockaddr *host, char *path, char *filename, nfs_fh3 fhandle) {
-    int i;
+int print_nfs_fh3(struct sockaddr *host, char *path, char *file_name, nfs_fh3 file_handle) {
+    unsigned int i;
     char ip[INET_ADDRSTRLEN];
 
     /* get the IP address as a string */
@@ -252,10 +253,10 @@ int print_nfs_fh3(struct sockaddr *host, char *path, char *filename, nfs_fh3 fha
         printf("/");
     }
     /* filename */
-    printf("%s\", \"filehandle\": \"", filename);
+    printf("%s\", \"filehandle\": \"", file_name);
     /* filehandle */
-    for (i = 0; i < fhandle.data.data_len; i++) {
-        printf("%02hhx", fhandle.data.data_val[i]);
+    for (i = 0; i < file_handle.data.data_len; i++) {
+        printf("%02hhx", file_handle.data.data_val[i]);
     }
     printf("\" }\n");
 

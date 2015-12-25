@@ -3,7 +3,7 @@ nfsping(8) -- send RPC NULL requests to NFS servers
 
 ## SYNOPSIS
 
-`nfsping` [`-aAdDEGhlLmMnNqQRsTv`] [`-c` <count>] [`-C` <count>] [`-g` <prefix>] [`-i` <interval>] [`-p` <pause>] [`-P` <port>] [`-S` <source>] [`-t` <timeout>] [`-V` <version>] <servers...>
+`nfsping` [`-aAdDEGhKlLmMnNqQRsTv`] [`-c` <count>] [`-C` <count>] [`-g` <prefix>] [`-i` <interval>] [`-p` <pause>] [`-P` <port>] [`-S` <source>] [`-t` <timeout>] [`-V` <version>] <servers...>
 
 ## DESCRIPTION
 
@@ -43,6 +43,9 @@ nfsping(8) -- send RPC NULL requests to NFS servers
 
 * `-i` <interval>:
   The interval (delay) between sending packets, in milliseconds. Default = 25.
+
+* `-K`:
+  Send kernel lock manager (KLM) protocol NULL requests. Implies `-M`.
 
 * `-l`:
   Loop forever. Like traditional ICMP `ping(8)`. Exit loop with Ctrl-c.

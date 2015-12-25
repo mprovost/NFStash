@@ -2,6 +2,11 @@
 #include "rpc.h"
 #include "util.h"
 
+/* local prototypes */
+static void usage(void);
+static READ3res *do_read(CLIENT *, nfs_fh_list *, offset3, const unsigned long, unsigned long *);
+
+/* globals */
 int verbose = 0;
 
 void usage() {
@@ -21,38 +26,36 @@ void usage() {
 /* read a file from offset with a size of blocksize */
 /* returns the RPC result, updates us with the time that the call took */
 READ3res *do_read(CLIENT *client, nfs_fh_list *dir, offset3 offset, const unsigned long blocksize, unsigned long *us) {
-    READ3res *readres;
+    READ3res *res;
     READ3args args = {
         .file = dir->nfs_fh,
         .offset = 0,
         .count = blocksize,
     };
     struct rpc_err clnt_err;
-    int i;
-    unsigned int count = 0;
     struct timeval call_start, call_end;
 
     args.offset = offset;
 
     gettimeofday(&call_start, NULL);
-    readres = nfsproc3_read_3(&args, client);
+    res = nfsproc3_read_3(&args, client);
     gettimeofday(&call_end, NULL);
 
     *us = tv2us(call_end) - tv2us(call_start);
 
-    if (readres) {
-        if (readres->status != NFS3_OK) {
+    if (res) {
+        if (res->status != NFS3_OK) {
             clnt_geterr(client, &clnt_err);
             if (clnt_err.re_status)
                 clnt_perror(client, "nfsproc3_read_3");
             else
-                nfs_perror(readres->status);
+                nfs_perror(res->status);
         }
     } else {
         clnt_perror(client, "nfsproc3_read_3");
     }
 
-    return readres;
+    return res;
 }
 
 
@@ -77,7 +80,7 @@ int main(int argc, char **argv) {
     unsigned long us;
     unsigned long sent = 0, received = 0;
     unsigned long min = ULONG_MAX, max = 0;
-    double avg, loss;
+    double avg = 0, loss;
     /* source ip address for packets */
     struct sockaddr_in src_ip = {
         .sin_family = AF_INET,

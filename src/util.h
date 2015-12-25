@@ -3,6 +3,7 @@
 
 #include "nfsping.h"
 
+int nfs_perror(nfsstat3);
 nfs_fh_list *parse_fh(char *);
 int print_fhandle3(struct sockaddr *, char *, fhandle3);
 int nfs_fh3_to_string(char *, nfs_fh3);
