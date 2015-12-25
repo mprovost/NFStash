@@ -19,7 +19,7 @@ void usage() {
 /* do readdirplus calls to get a full list of directory entries */
 entryplus3 *do_readdirplus(CLIENT *client, nfs_fh_list *dir) {
     READDIRPLUS3res *res;
-    entryplus3 *entry, *current, dummy;
+    entryplus3 *res_entry, *current, dummy;
     READDIRPLUS3args args = {
         .dir = dir->nfs_fh,
         .cookie = 0,
@@ -38,16 +38,16 @@ entryplus3 *do_readdirplus(CLIENT *client, nfs_fh_list *dir) {
         /* loop through results, might take multiple calls for the whole directory */
         while (res) {
             if (res->status == NFS3_OK) {
-                entry = res->READDIRPLUS3res_u.resok.reply.entries;
-                while (entry) {
+                res_entry = res->READDIRPLUS3res_u.resok.reply.entries;
+                while (res_entry) {
                     current->nextentry = malloc(sizeof(entryplus3));
                     current = current->nextentry;
                     current->nextentry = NULL;
-                    current = memcpy(current, entry, sizeof(entryplus3));
+                    current = memcpy(current, res_entry, sizeof(entryplus3));
 
-                    args.cookie = entry->cookie;
+                    args.cookie = res_entry->cookie;
 
-                    entry = entry->nextentry;
+                    res_entry = res_entry->nextentry;
                 }
                 if (res->READDIRPLUS3res_u.resok.reply.eof) {
                     break;
@@ -80,7 +80,7 @@ int main(int argc, char **argv) {
     int count = 0;
     char   *input_fh  = NULL;
     size_t  input_len = 0;
-    char *filename;
+    char *file_name;
     nfs_fh_list *current;
     struct addrinfo hints = {
         .ai_family = AF_INET,
@@ -91,7 +91,7 @@ int main(int argc, char **argv) {
     struct sockaddr_in clnt_info;
     unsigned long version = 3;
     struct timeval timeout = NFS_TIMEOUT;
-    entryplus3 *entry;
+    entryplus3 *entries;
     /* source ip address for packets */
     struct sockaddr_in src_ip = {
         .sin_family = AF_INET,
@@ -158,38 +158,38 @@ int main(int argc, char **argv) {
             }
 
             if (client) {
-                entry = do_readdirplus(client, current);
+                entries = do_readdirplus(client, current);
 
-                while (entry) {
+                while (entries) {
                     count++;
                     /* first check for hidden files */
                     if (all == 0) {
-                        if (entry->name[0] == '.') {
-                            entry = entry->nextentry;
+                        if (entries->name[0] == '.') {
+                            entries = entries->nextentry;
                             continue;
                         }
                     }
                     /* if there is no filehandle (/dev, /proc, etc) don't print */
                     /* none of the other utilities can do anything without a filehandle */
                     /* TODO unless -a ? */
-                    if (entry->name_handle.post_op_fh3_u.handle.data.data_len) {
+                    if (entries->name_handle.post_op_fh3_u.handle.data.data_len) {
                         /* if it's a directory print a trailing slash */
                         /* TODO this seems to be 0 sometimes */
-                        if (entry->name_attributes.post_op_attr_u.attributes.type == NF3DIR) {
+                        if (entries->name_attributes.post_op_attr_u.attributes.type == NF3DIR) {
                             /* NUL + / */
-                            filename = malloc(strlen(entry->name) + 2);
-                            strncpy(filename, entry->name, strlen(entry->name));
-                            filename[strlen(filename)] = '/';
+                            file_name = malloc(strlen(entries->name) + 2);
+                            strncpy(file_name, entries->name, strlen(entries->name));
+                            file_name[strlen(file_name)] = '/';
                         } else {
-                            filename = entry->name;
+                            file_name = entries->name;
                         }
 
-                        print_nfs_fh3((struct sockaddr *)current->client_sock, current->path, filename, entry->name_handle.post_op_fh3_u.handle);
+                        print_nfs_fh3((struct sockaddr *)current->client_sock, current->path, file_name, entries->name_handle.post_op_fh3_u.handle);
 
-                        /* TODO free(filename) */
+                        /* TODO free(file_name) */
                     }
 
-                    entry = entry->nextentry;
+                    entries = entries->nextentry;
                 }
             }
             /* cleanup */

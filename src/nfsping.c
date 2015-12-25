@@ -184,12 +184,12 @@ void print_lost(enum outputs format, char *prefix, targets_t *target, unsigned l
 
 
 /* make a new target */
-targets_t *make_target(char *name, uint16_t port) {
+targets_t *make_target(char *target_name, uint16_t port) {
     targets_t *target;
 
     target = calloc(1, sizeof(targets_t));
     target->next = NULL;
-    target->name = name;
+    target->name = target_name;
     /* always set this even if we might not need it, it should be quick */
     target->ndqf = reverse_fqdn(target->name);
 

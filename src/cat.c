@@ -21,7 +21,7 @@ void usage() {
 /* read a file from offset with a size of blocksize */
 /* returns the RPC result, updates us with the time that the call took */
 READ3res *do_read(CLIENT *client, nfs_fh_list *dir, offset3 offset, const unsigned long blocksize, unsigned long *us) {
-    READ3res *readres;
+    READ3res *res;
     READ3args args = {
         .file = dir->nfs_fh,
         .offset = 0,
@@ -33,24 +33,24 @@ READ3res *do_read(CLIENT *client, nfs_fh_list *dir, offset3 offset, const unsign
     args.offset = offset;
 
     gettimeofday(&call_start, NULL);
-    readres = nfsproc3_read_3(&args, client);
+    res = nfsproc3_read_3(&args, client);
     gettimeofday(&call_end, NULL);
 
     *us = tv2us(call_end) - tv2us(call_start);
 
-    if (readres) {
-        if (readres->status != NFS3_OK) {
+    if (res) {
+        if (res->status != NFS3_OK) {
             clnt_geterr(client, &clnt_err);
             if (clnt_err.re_status)
                 clnt_perror(client, "nfsproc3_read_3");
             else
-                nfs_perror(readres->status);
+                nfs_perror(res->status);
         }
     } else {
         clnt_perror(client, "nfsproc3_read_3");
     }
 
-    return readres;
+    return res;
 }
 
 
