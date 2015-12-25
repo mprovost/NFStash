@@ -2,6 +2,11 @@
 #include "rpc.h"
 #include "util.h"
 
+/* local prototypes */
+static void usage(void);
+static entryplus3 *do_readdirplus(CLIENT *, nfs_fh_list *);
+
+/* globals */
 int verbose = 0;
 
 void usage() {

@@ -2,7 +2,13 @@
 #include "rpc.h"
 #include "util.h"
 
+/* local prototypes */
+static void usage(void);
+static int do_nlm_test(CLIENT *, char *, pid_t, nfs_fh_list *);
+
+/* globals */
 int verbose = 0;
+
 
 void usage() {
     printf("Usage: nfslock [options] [filehandle...]\n\

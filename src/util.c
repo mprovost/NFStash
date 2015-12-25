@@ -1,3 +1,4 @@
+#include "util.h"
 #include "nfsping.h"
 #include "parson/parson.h"
 

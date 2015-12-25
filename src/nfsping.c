@@ -3,6 +3,15 @@
 #include "rpc.h"
 #include "string.h"
 
+/* local prototypes */
+static void int_handler(int);
+static void usage(void);
+static void print_summary(targets_t);
+static void print_fping_summary(targets_t);
+static void print_output(enum outputs, char *, targets_t *, unsigned long, u_long, const struct timespec, unsigned long);
+static void print_lost(enum outputs, char *, targets_t *, unsigned long, u_long, const struct timespec);
+static targets_t *make_target(char *, uint16_t);
+
 /* Globals! */
 volatile sig_atomic_t quitting;
 int verbose = 0;

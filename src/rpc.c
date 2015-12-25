@@ -1,7 +1,9 @@
 /* generic RPC functions */
 
 #include "nfsping.h"
+#include "rpc.h"
 
+/* globals */
 extern int verbose;
 
 

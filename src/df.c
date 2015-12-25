@@ -3,6 +3,16 @@
 #include "util.h"
 #include "stddef.h"
 
+/* local prototypes */
+static void usage(void);
+static FSSTAT3res *get_fsstat(CLIENT *, nfs_fh_list *);
+static int prefix_print(size3, char *, enum byte_prefix);
+static int print_df(int, int, char *, char *, FSSTAT3res *, const enum byte_prefix);
+static void print_inodes(int, int, char *, char *, FSSTAT3res *);
+static char *replace_char(const char *, const char *, const char *);
+static void print_format(enum outputs, char *, char *, char *, FSSTAT3res *, struct timeval);
+
+/* globals */
 int verbose = 0;
 
 void usage() {

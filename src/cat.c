@@ -2,6 +2,11 @@
 #include "rpc.h"
 #include "util.h"
 
+/* local prototypes */
+static void usage(void);
+static READ3res *do_read(CLIENT *, nfs_fh_list *, offset3, const unsigned long, unsigned long *);
+
+/* globals */
 int verbose = 0;
 
 void usage() {

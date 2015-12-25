@@ -2,6 +2,13 @@
 #include "rpc.h"
 #include "util.h"
 
+/* local prototypes */
+static void usage(void);
+static u_int mount_perror(mountstat3);
+static mountres3 *get_root_filehandle(char *, CLIENT *, char *);
+static int print_exports(char *, struct exportnode *);
+
+/* globals */
 int verbose = 0;
 
 void usage() {
