@@ -270,7 +270,6 @@ int main(int argc, char **argv) {
             case 'a':
                 if (prognum == NFS_PROGRAM) {
                     prognum = NFS_ACL_PROGRAM;
-                    /* this usually runs on 2049 alongside NFS so leave port as default */
                 } else {
                     fatal("Only one protocol!\n");
                 }
@@ -349,8 +348,6 @@ int main(int argc, char **argv) {
             case 'K':
                 if (prognum == NFS_PROGRAM) {
                     prognum = KLM_PROG;
-                    /* default to the portmapper */
-                    port = 0;
                 } else {
                     fatal("Only one protocol!\n");
                 }
@@ -363,8 +360,6 @@ int main(int argc, char **argv) {
             case 'L':
                 if (prognum == NFS_PROGRAM) {
                     prognum = NLM_PROG;
-                    /* default to the portmapper */
-                    port = 0;
                 } else {
                     fatal("Only one protocol!\n");
                 }
@@ -376,25 +371,31 @@ int main(int argc, char **argv) {
                 break;
             /* use the portmapper */
             case 'M':
-                /* check if it's been changed from the default by the -P option */
-                if (port == htons(NFS_PORT)) {
-                    port = 0;
+                /* portmap can't use portmapper ! */
+                if (prognum != PMAPPROG) {
+                    /* check if it's been changed from the default by the -P option */
+                    if (port == htons(NFS_PORT)) {
+                        port = 0;
+                    } else {
+                        fatal("Can't specify both port and portmapper!\n");
+                    }
                 } else {
-                    fatal("Can't specify both port and portmapper!\n");
+                    fatal("Portmap can't use portmapper!\n");
                 }
                 break;
             /* check mount protocol */
             case 'n':
                 if (prognum == NFS_PROGRAM) {
                     prognum = MOUNTPROG;
-                    /* if we're checking mount instead of nfs, default to using the portmapper */
-                    port = 0;
                 } else {
                     fatal("Only one protocol!\n");
                 }
                 break;
             /* check portmap protocol */
             case 'N':
+                if (port == 0) {
+                    fatal("Portmap can't use portmapper!\n");
+                }
                 if (prognum == NFS_PROGRAM) {
                     prognum = PMAPPROG;
                     port = htons(PMAPPORT); /* 111 */
@@ -407,8 +408,12 @@ int main(int argc, char **argv) {
                 /* TODO check for reasonable values */
                 ms2ts(&sleep_time, strtoul(optarg, NULL, 10));
                 break;
-            /* specify NFS port */
+            /* specify port */
             case 'P':
+                /* check if we've set -M */
+                if (port == 0) {
+                    fatal("Can't specify both port and portmapper!\n");
+                }
                 port = htons(strtoul(optarg, NULL, 10));
                 break;
             /* quiet, only print summary */
@@ -419,8 +424,6 @@ int main(int argc, char **argv) {
             case 'Q':
                 if (prognum == NFS_PROGRAM) {
                     prognum = RQUOTAPROG;
-                    /* default to using the portmapper */
-                    port = 0;
                 } else {
                     fatal("Only one protocol!\n");
                 }
@@ -433,8 +436,6 @@ int main(int argc, char **argv) {
             case 's':
                 if (prognum == NFS_PROGRAM) {
                     prognum = SM_PROG;
-                    /* default to using the portmapper */
-                    port = 0;
                 } else {
                     fatal("Only one protocol!\n");
                 }
@@ -480,6 +481,13 @@ int main(int argc, char **argv) {
     /* check null_dispatch table for supported versions for all protocols */
     if (null_dispatch[prognum_offset][version].proc == 0) {
         fatal("Illegal version %lu\n", version);
+    }
+
+    /* set the default port */
+    /* ACL usually runs on 2049 alongside NFS so leave port as default */
+    if (prognum != (NFS_PROGRAM || NFS_ACL_PROGRAM) && port == NFS_PORT) {
+        /* otherwise use the portmapper */
+        port = 0;
     }
 
     /* output formatting doesn't make sense for the simple check */
