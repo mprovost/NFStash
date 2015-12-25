@@ -7,6 +7,12 @@
 #include "rpc.h"
 #include "util.h"
 
+/* local prototypes */
+static void usage(void);
+static void *do_notify(CLIENT *, char *, int);
+static void *do_free_all(CLIENT *, char *, int);
+
+/* globals */
 int verbose = 0;
 
 void usage() {
@@ -24,10 +30,10 @@ void usage() {
 
 /* the SM_NOTIFY call */
 /* returns a void pointer, NULL is an error, anything else is success */
-void *do_notify(CLIENT *client, char *name, int state) {
+void *do_notify(CLIENT *client, char *client_name, int state) {
     void *status;
     struct stat_chge notify_stat = {
-        .mon_name = name,
+        .mon_name = client_name,
         .state = state
     };
 
@@ -47,10 +53,10 @@ void *do_notify(CLIENT *client, char *name, int state) {
 
 /* the NLM_FREE_ALL call */
 /* returns a void pointer, NULL is an error, anything else is success */
-void *do_free_all(CLIENT *client, char *name, int state){
+void *do_free_all(CLIENT *client, char *client_name, int state){
     void *status;
     struct nlm4_notify notify_stat = {
-        .name = name,
+        .name = client_name,
         /* FIXME state is unused, 0? */
         .state = state
     };
