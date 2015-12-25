@@ -80,7 +80,7 @@ int main(int argc, char **argv) {
     unsigned long us;
     unsigned long sent = 0, received = 0;
     unsigned long min = ULONG_MAX, max = 0;
-    double avg, loss;
+    double avg = 0, loss;
     /* source ip address for packets */
     struct sockaddr_in src_ip = {
         .sin_family = AF_INET,

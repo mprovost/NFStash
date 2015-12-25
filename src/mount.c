@@ -241,7 +241,6 @@ int main(int argc, char **argv) {
                     }
                 } else {
                     clnt_pcreateerror("pmap_getport");
-                    mountres->fhs_status = MNT3ERR_SERVERFAULT; /* is this the most appropriate error code? */
                 }
 
                 if (multiple) {

@@ -22,7 +22,8 @@ void usage() {
 
 
 int do_nlm_test(CLIENT *client, char *nodename, pid_t mypid, nfs_fh_list *current) {
-    int status;
+    /* default to failed */
+    int status = nlm4_failed;
     unsigned long us;
     struct timeval call_start, call_end;
     nlm4_testres *res = NULL;

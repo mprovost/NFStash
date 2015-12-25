@@ -150,7 +150,7 @@ char *replace_char(const char *str, const char *old, const char *new)
     char *ret, *r;
     const char *p, *q;
     size_t oldlen = strlen(old);
-    size_t count, retlen, newlen = strlen(new);
+    size_t count = 0, retlen, newlen = strlen(new);
     int samesize = (oldlen == newlen);
 
     if (!samesize) {
