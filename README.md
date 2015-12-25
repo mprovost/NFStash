@@ -38,7 +38,7 @@ NFSping supports several different output formats which makes it ideal for sendi
   - Sun's ACL sideband protocol
   - network status monitor (NSM)
   - rquota
-  Also supports the kernel lock manager (KLM) protocol used by some kernels to communicate with a userspace locking daemon
+  - Also supports the kernel lock manager (KLM) protocol used by some kernels to communicate with a userspace locking daemon
 - TCP and UDP probes
 - Various output formats
     - traditional `ping` (default)
