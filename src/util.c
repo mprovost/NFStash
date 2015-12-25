@@ -107,7 +107,7 @@ nfs_fh_list *parse_fh(char *input) {
     unsigned int i;
     const char *tmp;
     char *copy;
-    u_int fh_len;
+    u_int fh_len = 0;
     struct addrinfo *addr;
     struct addrinfo hints = {
         .ai_family = AF_INET,
