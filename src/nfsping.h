@@ -33,6 +33,7 @@
 #include "rpcsrc/nfs_acl.h"
 #include "rpcsrc/sm_inter.h"
 #include "rpcsrc/rquota.h"
+#include "rpcsrc/klm_prot.h"
 
 /* BSD timespec functions */
 #include "src/timespec.h"

@@ -26,7 +26,7 @@ print-%: ; @echo $*=$($*)
 
 # phony target to generate rpc files
 # we're only really interested in the generated headers so gcc can figure out the rest of the dependencies
-rpcgen: $(addprefix rpcsrc/, nfs_prot.h mount.h pmap_prot.h nlm_prot.h nfsv4_prot.h nfs_acl.h sm_inter.h rquota.h)
+rpcgen: $(addprefix rpcsrc/, nfs_prot.h mount.h pmap_prot.h nlm_prot.h nfsv4_prot.h nfs_acl.h sm_inter.h rquota.h klm_prot.h)
 
 # pattern rule for rpc files
 # making this into a pattern means they are all evaluated at once which lets -j2 or higher work
@@ -79,7 +79,7 @@ common_objs = $(addsuffix .o, pmap_prot_clnt pmap_prot_xdr util rpc parson)
 
 # make the bin directory first if it's not already there
 nfsping: bin/nfsping
-nfsping_objs = $(addprefix obj/, $(addsuffix .o, nfsping nfs_prot_clnt nfs_prot_xdr nfsv4_prot_clnt nfsv4_prot_xdr mount_clnt mount_xdr nlm_prot_clnt nlm_prot_xdr nfs_acl_clnt sm_inter_clnt sm_inter_xdr rquota_clnt rquota_xdr) $(common_objs))
+nfsping_objs = $(addprefix obj/, $(addsuffix .o, nfsping nfs_prot_clnt nfs_prot_xdr nfsv4_prot_clnt nfsv4_prot_xdr mount_clnt mount_xdr nlm_prot_clnt nlm_prot_xdr nfs_acl_clnt sm_inter_clnt sm_inter_xdr rquota_clnt rquota_xdr klm_prot_clnt klm_prot_xdr) $(common_objs))
 bin/nfsping: config/clock_gettime.opt $(nfsping_objs) | bin
 	gcc ${CFLAGS} @config/clock_gettime.opt $(nfsping_objs) -o $@
 

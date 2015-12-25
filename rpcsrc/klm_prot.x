@@ -115,6 +115,7 @@ struct klm_unlockargs {
 
 program KLM_PROG {
 	version KLM_VERS {
+		void		KLM_NULL (void) =			0;
 
 		klm_testrply	KLM_TEST (struct klm_testargs) =	1;
 
