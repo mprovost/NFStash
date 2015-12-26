@@ -223,12 +223,12 @@ int print_fhandle3(struct sockaddr *host, char *path, fhandle3 file_handle) {
 
 
 /* convert an NFS filehandle to a string */
-int nfs_fh3_to_string(char *str, nfs_fh3 fhandle) {
-    int i;
+int nfs_fh3_to_string(char *str, nfs_fh3 file_handle) {
+    unsigned int i;
 
-    for (i = 0; i < fhandle.data.data_len; i++) {
+    for (i = 0; i < file_handle.data.data_len; i++) {
         /* each input byte is two output bytes (in hex) */
-        sprintf(&str[i * 2], "%02hhx", fhandle.data.data_val[i]);
+        sprintf(&str[i * 2], "%02hhx", file_handle.data.data_val[i]);
     }
 
     /* terminating NUL */
