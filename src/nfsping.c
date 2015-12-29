@@ -10,7 +10,7 @@ static void print_summary(targets_t);
 static void print_fping_summary(targets_t);
 static void print_output(enum outputs, char *, targets_t *, unsigned long, u_long, const struct timespec, unsigned long);
 static void print_lost(enum outputs, char *, targets_t *, unsigned long, u_long, const struct timespec);
-static targets_t *make_target(char *, uint16_t);
+static targets_t *make_target(char *, uint16_t, int);
 
 /* Globals! */
 volatile sig_atomic_t quitting;
@@ -196,14 +196,20 @@ void print_lost(enum outputs format, char *prefix, targets_t *target, unsigned l
 
 
 /* make a new target */
-targets_t *make_target(char *target_name, uint16_t port) {
+targets_t *make_target(char *target_name, uint16_t port, int ip) {
     targets_t *target;
 
     target = calloc(1, sizeof(targets_t));
     target->next = NULL;
     target->name = target_name;
-    /* always set this even if we might not need it, it should be quick */
-    target->ndqf = reverse_fqdn(target->name);
+
+    if (ip) {
+        /* don't reverse IP addresses */
+        target->ndqf = target->name;
+    } else {
+        /* always set this even if we might not need it, it should be quick */
+        target->ndqf = reverse_fqdn(target->name);
+    }
 
     target->client_sock = calloc(1, sizeof(struct sockaddr_in));
     target->client_sock->sin_family = AF_INET;
@@ -234,6 +240,7 @@ int main(int argc, char **argv) {
     targets_t *targets;
     targets_t *target;
     targets_t target_dummy;
+    char ip_address[INET_ADDRSTRLEN]; /* for warning when multiple addresses found */
     int ch;
     unsigned long count = 0;
     /* default to reconnecting to server each round */
@@ -511,14 +518,11 @@ int main(int argc, char **argv) {
 
     /* process the targets from the command line */
     for (index = optind; index < argc; index++) {
-        target->next = make_target(argv[index], port);
+        target->next = make_target(argv[index], port, ip);
         target = target->next;
 
         /* first try treating the hostname as an IP address */
-        if (inet_pton(AF_INET, target->name, &((struct sockaddr_in *)target->client_sock)->sin_addr)) {
-            /* don't reverse an IP address */
-            target->ndqf = target->name;
-        } else {
+        if (inet_pton(AF_INET, target->name, &((struct sockaddr_in *)target->client_sock)->sin_addr) == 0) {
             /* if that fails, do a DNS lookup */
             /* we don't call freeaddrinfo because we keep a pointer to the sin_addr in the target */
             getaddr = getaddrinfo(target->name, "nfs", &hints, &addr);
@@ -527,34 +531,28 @@ int main(int argc, char **argv) {
                 while (addr) {
                     target->client_sock->sin_addr = ((struct sockaddr_in *)addr->ai_addr)->sin_addr;
 
+                    /* if we're using IP addresses */
                     if (ip) {
                         target->name = calloc(1, INET_ADDRSTRLEN);
                         inet_ntop(AF_INET, &((struct sockaddr_in *)addr->ai_addr)->sin_addr, target->name, INET_ADDRSTRLEN);
+                        /* don't reverse an IP address */
+                        target->ndqf = target->name;
                     }
-                    target->ndqf = reverse_fqdn(target->name);
 
                     /* multiple results */
                     if (addr->ai_next) {
                         if (multiple) {
                             /* create the next target */
-                            target->next = make_target(argv[index], port);
+                            target->next = make_target(argv[index], port, ip);
                             target = target->next;
                         } else {
-                            /* we have to look up the IP address if we haven't already for the warning */
-                            if (!ip) {
-                                target->name = calloc(1, INET_ADDRSTRLEN);
-                                inet_ntop(AF_INET, &((struct sockaddr_in *)addr->ai_addr)->sin_addr, target->name, INET_ADDRSTRLEN);
-                            }
-                            fprintf(stderr, "Multiple addresses found for %s, using %s\n", argv[index], target->name);
-                            /* if we're not using the IP address again we can free it */
-                            if (!ip) {
-                                free(target->name);
-                                target->name = argv[index];
-                            }
-                            target->ndqf = reverse_fqdn(target->name);
+                            /* we have to look up the IP address for the warning */
+                            inet_ntop(AF_INET, &((struct sockaddr_in *)addr->ai_addr)->sin_addr, ip_address, INET_ADDRSTRLEN);
+                            fprintf(stderr, "Multiple addresses found for %s, using %s\n", argv[index], ip_address);
                             break;
                         }
                     }
+
                     addr = addr->ai_next;
                 }
             } else {
