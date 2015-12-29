@@ -54,7 +54,7 @@ nfsping(8) -- send RPC NULL requests to NFS servers
   Send network lock manager (NLM) protocol NULL requests. Implies `-M`.
 
 * `-m`:
-  Use multiple target IP addresses if found. For servers with multiple DNS A records (round-robin).
+  Use multiple target IP addresses if found. For servers with multiple DNS A records (round-robin). Implies -A (shows IP address instead of hostnames) so output isn't ambiguous.
 
 * `-M`:
   Use the RPC portmapper to discover the listening port for the protocol on the server. Default no for NFS and NFS ACL, yes for mount, NLM and NSM. Uses UDP by default or TCP if the `-T` option is specified.

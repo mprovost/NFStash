@@ -96,7 +96,7 @@ Usage: nfsping [options] [targets...]
     -K         check the kernel lock manager (KLM) protocol (default NFS)
     -l         loop forever
     -L         check the network lock manager (NLM) protocol (default NFS)
-    -m         use multiple target IP addresses if found
+    -m         use multiple target IP addresses if found (implies -A)
     -M         use the portmapper (default: NFS/ACL no, mount/NLM/NSM/rquota yes)
     -n         check the mount protocol (default NFS)
     -N         check the portmap protocol (default NFS)
