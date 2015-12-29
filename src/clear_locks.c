@@ -15,6 +15,7 @@ static void *do_free_all(CLIENT *, char *, int);
 /* globals */
 int verbose = 0;
 
+
 void usage() {
     printf("Usage: clear_locks [options] client\n\
     Clear NFS locks for client held on server\n\
@@ -76,7 +77,7 @@ void *do_free_all(CLIENT *client, char *client_name, int state){
 int main(int argc, char **argv) {
     int ch;
     char *client_name;
-    char *server = "";
+    char *server_name = NULL;
     struct timespec wall_clock;
     void *status;
     struct addrinfo hints = {
@@ -84,6 +85,8 @@ int main(int argc, char **argv) {
         /* default to UDP */
         .ai_socktype = SOCK_DGRAM,
     };
+    struct addrinfo *addr;
+    int getaddr;
     CLIENT *client = NULL;
     struct sockaddr_in clnt_info = {
         .sin_family = AF_INET,
@@ -98,6 +101,8 @@ int main(int argc, char **argv) {
     };
 
     /* check for no arguments */
+    /* clearing locks for our local hostname on the local server doesn't make sense */
+    /* this won't catch everything so check again after processing options */
     if (argc == 1) {
         fatal("Either client or server required!\n");
     }
@@ -111,8 +116,8 @@ int main(int argc, char **argv) {
                 }
                 break;
             case 's':
-                if (strlen(optarg) < NI_MAXHOST) {
-                    server = optarg;
+                if (strlen(optarg) < SM_MAXSTRLEN) {
+                    server_name = optarg;
                 } else {
                     fatal("Invalid hostname!\n");
                 }
@@ -133,16 +138,19 @@ int main(int argc, char **argv) {
 
     /* check if there is no client argument */
     if (optind == argc) {
-        /* check if we also don't have a server specified */
+        /* check if we have a server specified */
         /* clearing locks for our local hostname on the local server doesn't make sense */
-        if (strlen(server) == 0) {
+        /* we check above for no arguments, now specifically check that we have either a client or server set */
+        if (server_name) {
+            /* default to using local hostname */
+            client_name = calloc(SM_MAXSTRLEN + 1, sizeof(char));
+            /* leave room for NULL */
+            /* TODO check for name too long */
+            if (gethostname(client_name, SM_MAXSTRLEN) == -1) {
+                fatalx(2, "gethostname: %s\n", strerror(errno));
+            }
+        } else {
             fatal("Either client or server required!\n");
-        }
-        /* default to using local hostname */
-        client_name = malloc(sizeof(char) * NI_MAXHOST);
-        /* leave room for NULL */
-        if (gethostname(client_name, NI_MAXHOST - 1) == -1) {
-            fatalx(2, "gethostname: %s\n", strerror(errno));
         }
     } else {
         /* first argument */
@@ -150,27 +158,26 @@ int main(int argc, char **argv) {
     }
 
     /* default to localhost if server not specified */
-    if (strlen(server) == 0) {
+    if (server_name == NULL) {
         /* TODO or "localhost"? */
-        server = "127.0.0.1";
+        server_name = "127.0.0.1";
     }
 
-    /* TODO resolve DNS */
-    inet_pton(AF_INET, server, &clnt_info.sin_addr);
+    /* first try the server name as an IP address */
+    if (inet_pton(AF_INET, server_name, &clnt_info.sin_addr) != 1) {
+        getaddr = getaddrinfo(server_name, "nfs", &hints, &addr);
+    }
 
     /* use current unix timestamp as state so that it always increments between calls (unless they're the same second) */
     /* TODO check that clock_gettime returns a signed 32 bit int for seconds (ie time_t == longword) */
     clock_gettime(CLOCK_REALTIME, &wall_clock);
 
-    debug("Clearing locks for %s on %s with status %li\n", client_name, server, wall_clock.tv_sec);
+    debug("Clearing locks for %s on %s with status %li\n", client_name, server_name, wall_clock.tv_sec);
 
     /* connect to server */
     client = create_rpc_client(&clnt_info, &hints, SM_PROG, version, timeout, src_ip);
 
     if (client) {
-        //auth_destroy(client->cl_auth);
-        //client->cl_auth = authunix_create_default();
-
         /* first try to notify the network status daemon that the client has rebooted */
         status = do_notify(client, client_name, wall_clock.tv_sec);
 
@@ -180,8 +187,6 @@ int main(int argc, char **argv) {
             destroy_rpc_client(client);
             /* just do version 4 for now for NFS v3 */
             client = create_rpc_client(&clnt_info, &hints, NLM_PROG, 4, timeout, src_ip);
-            //auth_destroy(client->cl_auth);
-            //client->cl_auth = authunix_create_default();
 
             status = do_free_all(client, client_name, wall_clock.tv_sec);
         }
