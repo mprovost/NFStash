@@ -12,15 +12,18 @@ static void print_output(enum outputs format, char *prefix, char* host, char* pa
 int verbose = 0;
 
 void usage() {
+    struct timespec sleep_time = NFS_SLEEP;
     printf("Usage: nfscat [options] [targets...]\n\
     -b n      blocksize (in bytes, default 8192)\n\
     -c n      count of read requests to send to target\n\
+    -p n      polling interval, check target every n ms (default %lu)\n\
     -h        display this help and exit\n\
     -S addr   set source address\n\
     -T        use TCP (default UDP)\n\
     -g string prefix for Graphite/StatsD metric names (default \"nfsping\")\n\
     -G        Graphite format output (default human readable)\n\
-    -v        verbose output\n");
+    -v        verbose output\n",
+        ts2ms(sleep_time));
 
     exit(3);
 }
@@ -108,7 +111,8 @@ int main(int argc, char **argv) {
     offset3 offset = 0;
     unsigned long blocksize = 8192;
     unsigned long count = 0;
-    struct timespec wall_clock;
+    struct timespec wall_clock, loop_start, loop_end, loop_elapsed, sleepy;
+    struct timespec sleep_time = NFS_SLEEP;
     struct timeval timeout = NFS_TIMEOUT;
     unsigned long us;
     enum outputs format = human;
@@ -122,7 +126,7 @@ int main(int argc, char **argv) {
         .sin_addr = 0
     };
 
-    while ((ch = getopt(argc, argv, "b:c:hS:TvGg:")) != -1) {
+    while ((ch = getopt(argc, argv, "b:c:hS:TvGg:p:")) != -1) {
         switch(ch) {
             /* blocksize */
             case 'b':
@@ -134,6 +138,11 @@ int main(int argc, char **argv) {
                 if (count == 0) {
                     fatal("Zero count, nothing to do!\n");
                 }
+                break;
+            /* time between pings to target */
+            case 'p':
+                /* TODO check for reasonable values */
+                ms2ts(&sleep_time, strtoul(optarg, NULL, 10));
                 break;
             /* source ip address for packets */
             case 'S':
@@ -213,6 +222,12 @@ int main(int argc, char **argv) {
             offset = 0;
             sent = received = 0;
             do {
+                /* grab the starting time of each loop */
+#ifdef CLOCK_MONOTONIC_RAW
+               clock_gettime(CLOCK_MONOTONIC_RAW, &loop_start);
+#else
+               clock_gettime(CLOCK_MONOTONIC, &loop_start);
+#endif
                 /* grab the wall clock time for output */
                 /* use the start time of the request */
                 /* the call_start timer is more important so do this first so we're not measuring the time this call takes */
@@ -243,6 +258,25 @@ int main(int argc, char **argv) {
                 /* check count argument */
                 if (count && sent >= count) {
                     break;
+                } else {
+                    /* sleep between rounds */
+                    /* measure how long the current round took, and subtract that from the sleep time */
+                    /* this tries to ensure that each polling round takes the same time */
+#ifdef CLOCK_MONOTONIC_RAW
+                    clock_gettime(CLOCK_MONOTONIC_RAW, &loop_end);
+#else
+                    clock_gettime(CLOCK_MONOTONIC, &loop_end);
+#endif
+                    timespecsub(&loop_end, &loop_start, &loop_elapsed);
+                    debug("Polling took %lld.%.9lds\n", (long long)loop_elapsed.tv_sec, loop_elapsed.tv_nsec);
+                    /* don't sleep if we went over the sleep_time */
+                    if (timespeccmp(&loop_elapsed, &sleep_time, >)) {
+                       debug("Slow poll, not sleeping\n");
+                    } else {
+                       timespecsub(&sleep_time, &loop_elapsed, &sleepy);
+                       debug("Sleeping for %lld.%.9lds\n", (long long)sleepy.tv_sec, sleepy.tv_nsec);
+                       nanosleep(&sleepy, NULL);
+                    }
                 }
             /* check for errors or end of file */
             } while (res && res->status == NFS3_OK && res->READ3res_u.resok.eof == 0);
