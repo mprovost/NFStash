@@ -83,7 +83,7 @@ void usage() {
     -K         check the kernel lock manager (KLM) protocol (default NFS)\n\
     -l         loop forever\n\
     -L         check the network lock manager (NLM) protocol (default NFS)\n\
-    -m         use multiple target IP addresses if found\n\
+    -m         use multiple target IP addresses if found (implies -A)\n\
     -M         use the portmapper (default: NFS/ACL no, mount/NLM/NSM/rquota yes)\n\
     -n         check the mount protocol (default NFS)\n\
     -N         check the portmap protocol (default NFS)\n\
@@ -368,6 +368,8 @@ int main(int argc, char **argv) {
             /* TODO in this case do we also want to default to showing IP addresses instead of names? */
             case 'm':
                 multiple = 1;
+                /* implies -A to use IP addresses so output isn't ambiguous */
+                ip = 1;
                 break;
             /* use the portmapper */
             case 'M':
