@@ -97,8 +97,9 @@ bin/nfsls: $(addprefix obj/, ls.o nfs_prot_clnt.o nfs_prot_xdr.o $(common_objs))
 	gcc ${CFLAGS} $^ -o $@
 
 nfscat: bin/nfscat
-bin/nfscat: $(addprefix obj/, cat.o nfs_prot_clnt.o nfs_prot_xdr.o $(common_objs)) | bin
-	gcc ${CFLAGS} $^ -o $@
+nfscat_objs = $(addprefix obj/, $(addsuffix .o, cat nfs_prot_clnt nfs_prot_xdr) $(common_objs))
+bin/nfscat: config/clock_gettime.opt $(nfscat_objs) | bin
+	gcc ${CFLAGS} @config/clock_gettime.opt $(nfscat_objs) -o $@
 
 nfslock: bin/nfslock
 bin/nfslock: $(addprefix obj/, lock.o nlm_prot_clnt.o nlm_prot_xdr.o $(common_objs)) | bin
