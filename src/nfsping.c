@@ -1,7 +1,6 @@
 #include "nfsping.h"
 #include "util.h"
 #include "rpc.h"
-#include "string.h"
 
 /* local prototypes */
 static void int_handler(int);
