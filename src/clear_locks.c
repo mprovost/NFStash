@@ -79,7 +79,7 @@ int main(int argc, char **argv) {
     char *client_name;
     char *server_name = NULL;
     struct timespec wall_clock;
-    void *status;
+    void *status = NULL;
     struct addrinfo hints = {
         .ai_family = AF_INET,
         /* default to UDP */
@@ -214,8 +214,10 @@ int main(int argc, char **argv) {
     } else {
         client = create_rpc_client(&clnt_info, &hints, NLM_PROG, nlm_version, timeout, src_ip);
 
-        /* the NLM call */
-        status = do_free_all(client, client_name, wall_clock.tv_sec);
+        if (client) {
+            /* the NLM call */
+            status = do_free_all(client, client_name, wall_clock.tv_sec);
+        }
     }
 
     if (status) {
