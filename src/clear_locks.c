@@ -87,6 +87,7 @@ int main(int argc, char **argv) {
     };
     struct addrinfo *addr;
     int getaddr;
+    char ip_address[INET_ADDRSTRLEN];
     CLIENT *client = NULL;
     struct sockaddr_in clnt_info = {
         .sin_family = AF_INET,
@@ -166,15 +167,32 @@ int main(int argc, char **argv) {
     }
 
     /* first try the server name as an IP address */
-    if (inet_pton(AF_INET, server_name, &clnt_info.sin_addr) != 1) {
+    if (inet_pton(AF_INET, server_name, &clnt_info.sin_addr)) {
+        debug("Clearing locks for %s on %s\n", client_name, server_name);
+    } else {
+        /* otherwise do a DNS lookup */
         getaddr = getaddrinfo(server_name, "nfs", &hints, &addr);
+
+        if (getaddr == 0) { /* success! */
+            /* only use the first DNS response */
+            /* presumably if there are multiple servers they are coordinating locks */
+            /* TODO a -m option for multiple addresses anyway? */
+            clnt_info.sin_addr = ((struct sockaddr_in *)addr->ai_addr)->sin_addr;
+            if (verbose) {
+                inet_ntop(AF_INET, &((struct sockaddr_in *)addr->ai_addr)->sin_addr, ip_address, INET_ADDRSTRLEN); 
+            }
+            debug("Clearing locks for %s on %s (%s)\n", client_name, server_name, ip_address);
+        /* failure! */
+        } else {
+            fatalx(2, "%s: %s\n", server_name, gai_strerror(getaddr));
+        }
     }
 
     /* use current unix timestamp as state so that it always increments between calls (unless they're the same second) */
     /* TODO check that clock_gettime returns a signed 32 bit int for seconds (ie time_t == longword) */
     clock_gettime(CLOCK_REALTIME, &wall_clock);
 
-    debug("Clearing locks for %s on %s with status %li\n", client_name, server_name, wall_clock.tv_sec);
+    debug("status = %li\n", wall_clock.tv_sec);
 
     /* connect to server */
     client = create_rpc_client(&clnt_info, &hints, SM_PROG, sm_version, timeout, src_ip);
