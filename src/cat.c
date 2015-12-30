@@ -16,12 +16,13 @@ void usage() {
     printf("Usage: nfscat [options] [targets...]\n\
     -b n      blocksize (in bytes, default 8192)\n\
     -c n      count of read requests to send to target\n\
-    -p n      polling interval, check target every n ms (default %lu)\n\
-    -h        display this help and exit\n\
-    -S addr   set source address\n\
-    -T        use TCP (default UDP)\n\
+    -E        StatsD format output (default human readable)\n\
     -g string prefix for Graphite/StatsD metric names (default \"nfsping\")\n\
     -G        Graphite format output (default human readable)\n\
+    -h        display this help and exit\n\
+    -p n      polling interval, check target every n ms (default %lu)\n\
+    -S addr   set source address\n\
+    -T        use TCP (default UDP)\n\
     -v        verbose output\n",
         ts2ms(sleep_time));
 
@@ -90,6 +91,9 @@ void print_output(enum outputs format, char *prefix, char* host, char* path, cou
     if (format == graphite) {
        fprintf(stderr, "%s.%s.%s.usec %lu %li\n", prefix, host, path, us, now.tv_sec); 
     }
+    if (format == statsd) {
+       fprintf(stderr, "%s.%s.%s.msec:%03.2f|ms\n", prefix, host, path, us / 1000.0 );
+    }
     fflush(stderr);
 }
 
@@ -126,7 +130,7 @@ int main(int argc, char **argv) {
         .sin_addr = 0
     };
 
-    while ((ch = getopt(argc, argv, "b:c:hS:TvGg:p:")) != -1) {
+    while ((ch = getopt(argc, argv, "b:c:Eg:Ghp:S:Tv")) != -1) {
         switch(ch) {
             /* blocksize */
             case 'b':
@@ -139,20 +143,9 @@ int main(int argc, char **argv) {
                     fatal("Zero count, nothing to do!\n");
                 }
                 break;
-            /* time between pings to target */
-            case 'p':
-                /* TODO check for reasonable values */
-                ms2ts(&sleep_time, strtoul(optarg, NULL, 10));
-                break;
-            /* source ip address for packets */
-            case 'S':
-                if (inet_pton(AF_INET, optarg, &src_ip.sin_addr) != 1) {
-                    fatal("Invalid source IP address!\n");
-                }
-                break;
-            /* Graphite output  */
-            case 'G':
-                format = graphite;
+            /* [E]tsy's StatsD output */
+            case 'E':
+                format = statsd;
                 break;
             /* prefix to use for graphite metrics */
             case 'g':
@@ -165,6 +158,21 @@ int main(int argc, char **argv) {
                     fatal("The prefix is longer than NAME_MAX\n");
                 }
                 //strncpy(prefix, optarg, sizeof(prefix));
+                break;
+            /* Graphite output  */
+            case 'G':
+                format = graphite;
+                break;
+            /* time between pings to target */
+            case 'p':
+                /* TODO check for reasonable values */
+                ms2ts(&sleep_time, strtoul(optarg, NULL, 10));
+                break;
+            /* source ip address for packets */
+            case 'S':
+                if (inet_pton(AF_INET, optarg, &src_ip.sin_addr) != 1) {
+                    fatal("Invalid source IP address!\n");
+                }
                 break;
             /* use TCP */
             case 'T':
