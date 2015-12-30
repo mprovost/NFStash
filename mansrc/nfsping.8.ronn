@@ -7,7 +7,13 @@ nfsping(8) -- send RPC NULL requests to NFS servers
 
 ## DESCRIPTION
 
-`nfsping` sends RPC NULL requests to an NFS server to determine if it is responding and to measure the response time. It supports the network file system (NFS), mount, portmap (rpcbind), network lock manager (NLM), NFS ACL, network status monitor (NSM) and rquota protocols. The default protocol is NFS version 3 over UDP port 2049. Without any options it will send a single NFS version 3 NULL request over UDP to the specified server and report whether it is alive or dead based on whether it receives a response or not.
+`nfsping` sends RPC NULL requests to an NFS server to determine if it is responding and to measure the response time. It supports the network file system (NFS), mount (`-n`), portmap/rpcbind (`-N`), network lock manager (NLM) (`-L`), NFS ACL (`-a`), network status monitor (NSM) (`-s`), rquota (`-Q`)and kernel lock manager (KLM) (`-K`) protocols. The default protocol is NFS version 3. Use TCP with `-T`, and specify a port with `-P`. The portmapper is used by default with most protocols but can be forced with `-M` for NFS. Without any options `nfsping` will send a single NFS version 3 NULL request over UDP to port 2049 on the specified server and report whether it is alive or dead based on whether it receives a response or not.
+
+With the `-l` option `nfsping` will loop forever, sending packets every second by default like `ping`. It is designed to be compatible with `fping` for use in scripts. With the `-c` option it will send the specified number of requests to each target server and then exit. The `-C` option behaves the same but outputs in `fping`-compatible format for easy parsing.
+
+If a server's hostname resolves to multiple IP addresses, for example with clustered NFS servers, a warning is printed to `stderr`. Use the `-m` option to send requests to all of the IP addresses. In this mode, `nfsping` defaults to printing IP addresses instead of the hostname to differentiate the responses. `-d` can be used to perform reverse DNS lookups on the addresses.
+
+`nfsping` also supports output formats suitable for sending to time series databases. Use `-G` to output Graphite-compatible results or `-E` for the StatsD format. These can be piped to `nc` (or other tools) to be forwarded to the appropriate listening port.
 
 ## OPTIONS
 
@@ -30,7 +36,7 @@ nfsping(8) -- send RPC NULL requests to NFS servers
   Print timestamp (Unix time) before each line of output.
 
 * `-E`:
-  Print output in StatsD format ($prefix.$hostname.$protocol:<ms>|ms). Use `-g` to change the prefix from the default "nfsping".
+  Print output in StatsD format ($prefix.$hostname.$protocol:<msec>|ms). Use `-g` to change the prefix from the default "nfsping".
 
 * `-g` <prefix>:
   Specify string prefix for Graphite or StatsD metric names. Default = "nfsping".
@@ -84,7 +90,7 @@ nfsping(8) -- send RPC NULL requests to NFS servers
   By default nfsping disconnects and reconnects to each server for each ping. Disable this behaviour and maintain the connection(s).
 
 * `-s`:
-  Send network status monitor (NSM) protocol NULL requests. Imples `-M`.
+  Send network status monitor (NSM) protocol NULL requests. Implies `-M`.
 
 * `-S` <source>:
   Use the specified source IP address for request packets.

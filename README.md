@@ -207,7 +207,7 @@ $ nfsping -c 1 -G -g filers filer1.my.domain
 filers.domain.my.filer1.ping.usec 292 1409332974
 ```
 
-This output can be easily redirected to a Carbon server using nc (netcat):
+This output can be easily piped to a Carbon server using nc (netcat):
 
 ```console
 $ nfsping -l -G filer1 filer2 | nc carbon1 2003
