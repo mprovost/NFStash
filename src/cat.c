@@ -22,6 +22,7 @@ void usage() {
     -T        use TCP (default UDP)\n\
     -g string prefix for Graphite/StatsD metric names (default \"nfsping\")\n\
     -G        Graphite format output (default human readable)\n\
+    -E        StatsD format output (default human readable)\n\
     -v        verbose output\n",
         ts2ms(sleep_time));
 
@@ -90,6 +91,9 @@ void print_output(enum outputs format, char *prefix, char* host, char* path, cou
     if (format == graphite) {
        fprintf(stderr, "%s.%s.%s.usec %lu %li\n", prefix, host, path, us, now.tv_sec); 
     }
+    if (format == statsd) {
+       fprintf(stderr, "%s.%s.%s.msec:%03.2f|ms\n", prefix, host, path, us / 1000.0 );
+    }
     fflush(stderr);
 }
 
@@ -126,7 +130,7 @@ int main(int argc, char **argv) {
         .sin_addr = 0
     };
 
-    while ((ch = getopt(argc, argv, "b:c:hS:TvGg:p:")) != -1) {
+    while ((ch = getopt(argc, argv, "b:c:hS:TvEGg:p:")) != -1) {
         switch(ch) {
             /* blocksize */
             case 'b':
@@ -153,6 +157,9 @@ int main(int argc, char **argv) {
             /* Graphite output  */
             case 'G':
                 format = graphite;
+                break;
+            case 'E':
+                format = statsd;
                 break;
             /* prefix to use for graphite metrics */
             case 'g':
