@@ -92,7 +92,9 @@ int main(int argc, char **argv) {
         .sin_family = AF_INET,
         .sin_port = 0
     };
-    unsigned long version = 1; /* for SM protocol */
+    unsigned long sm_version = 1; /* for SM protocol, only one version available */
+    /* just do version 4 for now for NFS v3 */
+    unsigned long nlm_version = 4; /* for NLM protocol */
     struct timeval timeout = NFS_TIMEOUT;
     /* source ip address for packets */
     struct sockaddr_in src_ip = {
@@ -175,7 +177,7 @@ int main(int argc, char **argv) {
     debug("Clearing locks for %s on %s with status %li\n", client_name, server_name, wall_clock.tv_sec);
 
     /* connect to server */
-    client = create_rpc_client(&clnt_info, &hints, SM_PROG, version, timeout, src_ip);
+    client = create_rpc_client(&clnt_info, &hints, SM_PROG, sm_version, timeout, src_ip);
 
     if (client) {
         /* first try to notify the network status daemon that the client has rebooted */
@@ -185,17 +187,16 @@ int main(int argc, char **argv) {
         if (status == NULL) {
             /* the client is set up to talk to the NSM so reconnect to the NLM */
             destroy_rpc_client(client);
-            /* just do version 4 for now for NFS v3 */
-            client = create_rpc_client(&clnt_info, &hints, NLM_PROG, 4, timeout, src_ip);
+            client = create_rpc_client(&clnt_info, &hints, NLM_PROG, nlm_version, timeout, src_ip);
 
+            /* the NLM call */
             status = do_free_all(client, client_name, wall_clock.tv_sec);
         }
+    /* can't connect to SM, try NLM */
     } else {
-        /* just do version 4 for now for NFS v3 */
-        client = create_rpc_client(&clnt_info, &hints, NLM_PROG, 4, timeout, src_ip);
-        auth_destroy(client->cl_auth);
-        client->cl_auth = authunix_create_default();
+        client = create_rpc_client(&clnt_info, &hints, NLM_PROG, nlm_version, timeout, src_ip);
 
+        /* the NLM call */
         status = do_free_all(client, client_name, wall_clock.tv_sec);
     }
 
