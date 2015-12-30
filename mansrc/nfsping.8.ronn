@@ -24,7 +24,7 @@ nfsping(8) -- send RPC NULL requests to NFS servers
   Count of ping requests to send to target(s), outputs `fping(8)` compatible parseable summary when the count is reached or the program is interrupted.
 
 * `-d`:
-  Perform reverse DNS lookups for target(s).
+  Perform reverse DNS lookups for target(s). This option overrides -A (and the implied -A from a -m option).
 
 * `-D`:
   Print timestamp (Unix time) before each line of output.
