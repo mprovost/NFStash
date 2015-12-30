@@ -38,8 +38,9 @@
 /* BSD timespec functions */
 #include "src/timespec.h"
 
-#define fatal(x...) do { fprintf(stderr,x); usage(); } while (0)
-#define debug(x...) do { if (verbose) fprintf(stderr,x); } while (0)
+#define fatal(x...) do { fflush(stdout); fprintf(stderr,x); fflush(stderr); usage(); } while (0)
+#define fatalx(x, y...) do { fflush(stdout); fprintf(stderr,y); fflush(stderr); exit(x); } while (0)
+#define debug(x...) do { if (verbose) { fflush(stdout); fprintf(stderr,x); fflush(stderr); } } while (0)
 
 /* struct timeval */
 /* timeout for RPC requests, keep it the same (or lower) than the sleep time below */

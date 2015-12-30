@@ -12,6 +12,7 @@ int verbose = 0;
 
 void usage() {
     printf("Usage: nfslock [options] [filehandle...]\n\
+    -c n     count of lock requests to send to target\n\
     -h       display this help and exit\n\
     -l       loop forever\n\
     -T       use TCP (default UDP)\n\
@@ -24,8 +25,9 @@ void usage() {
 int do_nlm_test(CLIENT *client, char *nodename, pid_t mypid, nfs_fh_list *current) {
     /* default to failed */
     int status = nlm4_failed;
+    char fh[128];
     unsigned long us;
-    struct timeval call_start, call_end;
+    struct timespec wall_clock, call_start, call_end, call_elapsed;
     nlm4_testres *res = NULL;
     nlm4_testargs testargs = {
         .cookie    = 0, /* the cookie is only used in async RPC calls */
@@ -46,6 +48,7 @@ int do_nlm_test(CLIENT *client, char *nodename, pid_t mypid, nfs_fh_list *curren
     };
 
     /* build the arguments for the test procedure */
+    /* TODO build these once at the start when we make the target */
     /* TODO should we append nfslock to the nodename so it's easy to distinguish from the kernel's own locks? */
     testargs.alock.caller_name = nodename;
     testargs.alock.svid = mypid;
@@ -57,25 +60,40 @@ int do_nlm_test(CLIENT *client, char *nodename, pid_t mypid, nfs_fh_list *curren
     testargs.alock.l_len = 0;
 
     if (client) {
-        gettimeofday(&call_start, NULL);
+        /* first grab the wall clock time for output */
+        clock_gettime(CLOCK_REALTIME, &wall_clock);
+
+        /* then use the more accurate timer for the elapsed RPC time */
+#ifdef CLOCK_MONOTONIC_RAW
+        clock_gettime(CLOCK_MONOTONIC_RAW, &call_start);
+#else
+        clock_gettime(CLOCK_MONOTONIC, &call_start);
+#endif
 
         /* run the test procedure */
         res = nlm4_test_4(&testargs, client);
 
-        gettimeofday(&call_end, NULL);
+#ifdef CLOCK_MONOTONIC_RAW
+        clock_gettime(CLOCK_MONOTONIC_RAW, &call_end);
+#else
+        clock_gettime(CLOCK_MONOTONIC, &call_end);
+#endif
     }
 
     if (res) {
         fprintf(stderr, "%s\n", nlm4_stats_labels[res->stat.stat]);
+        nfs_fh3_to_string(fh, current->nfs_fh);
         /* if we got an error, update the status for return */
         if (res->stat.stat) {
             status = res->stat.stat;
         }
 
-        us = tv2us(call_end) - tv2us(call_start);
+        timespecsub(&call_end, &call_start, &call_elapsed);
+        us = ts2us(call_elapsed);
 
-        /* graphite output for now */
-        printf("nfslock.%s.test.usec %lu %li\n", current->host, us, call_end.tv_sec);
+        /* human output for now */
+        /* use filehandle until we get the mount point from nfsmount, path can be ambiguous (or not present) */
+        printf("%s:%s %lu %li\n", current->host, fh, us, wall_clock.tv_sec);
     } else {
         clnt_perror(client, "nlm4_test_4");
         /* use something that doesn't overlap with values in nlm4_testres.stat */
@@ -99,7 +117,9 @@ int main(int argc, char **argv) {
     CLIENT *client = NULL;
     struct sockaddr_in clnt_info;
     int version = 4;
+    unsigned long count = 0;
     int loop = 0;
+    unsigned int sent = 0;
     struct timespec sleep_time = NFS_SLEEP;
     struct timeval timeout = NFS_TIMEOUT;
     /* source ip address for packets */
@@ -112,10 +132,23 @@ int main(int argc, char **argv) {
     int getaddr;
     char nodename[NI_MAXHOST];
 
-    while ((ch = getopt(argc, argv, "hlTv")) != -1) {
+    while ((ch = getopt(argc, argv, "c:hlTv")) != -1) {
         switch(ch) {
+            /* number of locks per target */
+            case 'c':
+                if (loop) {
+                    fatal("Can't specify count and loop!\n");
+                }
+                count = strtoul(optarg, NULL, 10);
+                if (count == 0 || count == ULONG_MAX) {
+                    fatal("Zero count, nothing to do!\n");
+                }
+                break;
             /* loop forever */
             case 'l':
+                if (count) {
+                    fatal("Can't specify loop and count!\n");
+                }
                 loop = 1;
                 break;
             /* use TCP */
@@ -208,14 +241,19 @@ int main(int argc, char **argv) {
                 input_fh = NULL;
             }
         }
-
     }
+
+    /* at this point we've sent one request to each target */
+    sent++;
 
     /* skip the first dummy entry */
     filehandles = filehandles->next;
 
     /* now check if we're looping through the filehandles */
-    while (loop) {
+    while ((sent < count) || loop) {
+        /* sleep between requests */
+        nanosleep(&sleep_time, NULL);
+
         /* reset to start of list */
         current = filehandles;
 
@@ -259,8 +297,8 @@ int main(int argc, char **argv) {
             current = current->next;
         }
 
-        /* sleep between requests */
-        nanosleep(&sleep_time, NULL);
+        /* just increment this once for all targets */
+        sent++;
     }
 
     /* this is zero if everything worked, or the last error code seen */

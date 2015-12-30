@@ -1,6 +1,6 @@
-.PHONY: all clean rpcgen nfsping nfsmount nfsdf nfscat man install
+.PHONY: all clean rpcgen nfsping nfsmount nfsdf nfscat nfslock clear_locks man install
 
-all = nfsping nfsmount nfsdf nfsls nfscat nfslock
+all = nfsping nfsmount nfsdf nfsls nfscat nfslock clear_locks
 all: $(all) man
 
 # installation directory
@@ -102,8 +102,14 @@ bin/nfscat: config/clock_gettime.opt $(nfscat_objs) | bin
 	gcc ${CFLAGS} @config/clock_gettime.opt $(nfscat_objs) -o $@
 
 nfslock: bin/nfslock
-bin/nfslock: $(addprefix obj/, lock.o nlm_prot_clnt.o nlm_prot_xdr.o $(common_objs)) | bin
-	gcc ${CFLAGS} $^ -o $@
+nfslock_objs = $(addprefix obj/, $(addsuffix .o, lock nlm_prot_clnt nlm_prot_xdr) $(common_objs))
+bin/nfslock: config/clock_gettime.opt $(nfslock_objs) | bin
+	gcc ${CFLAGS} @config/clock_gettime.opt $(nfslock_objs) -o $@
+
+clear_locks: bin/clear_locks
+clear_locks_objs = $(addprefix obj/, $(addsuffix .o, clear_locks sm_inter_clnt sm_inter_xdr nlm_prot_clnt nlm_prot_xdr) $(common_objs))
+bin/clear_locks: config/clock_gettime.opt $(clear_locks_objs) | bin
+	gcc ${CFLAGS} @config/clock_gettime.opt $(clear_locks_objs) -o $@
 
 tests: tests/util_tests
 tests/util_tests: tests/util_tests.c tests/minunit.h src/util.o obj/parson.o src/util.h | rpcgen
@@ -111,7 +117,7 @@ tests/util_tests: tests/util_tests.c tests/minunit.h src/util.o obj/parson.o src
 	tests/util_tests
 
 # man pages
-man: $(addprefix man/man8/, nfsping.8 nfsdf.8 nfsls.8 nfsmount.8 nfslock.8 nfscat.8)
+man: $(addprefix man/man8/, $(addsuffix .8, nfsping nfsdf nfsls nfsmount nfslock nfscat clear_locks))
 
 # quick install
 install: $(addprefix $(prefix)/bin/, $(all)) $(addsuffix .8, $(addprefix $(prefix)/share/man/man8/, $(all)))
