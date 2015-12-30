@@ -9,7 +9,7 @@ static void print_summary(targets_t);
 static void print_fping_summary(targets_t);
 static void print_output(enum outputs, char *, targets_t *, unsigned long, u_long, const struct timespec, unsigned long);
 static void print_lost(enum outputs, char *, targets_t *, unsigned long, u_long, const struct timespec);
-static targets_t *make_target(char *, uint16_t, int);
+static targets_t *make_target(char *, uint16_t);
 
 /* Globals! */
 volatile sig_atomic_t quitting;
@@ -195,20 +195,12 @@ void print_lost(enum outputs format, char *prefix, targets_t *target, unsigned l
 
 
 /* make a new target */
-targets_t *make_target(char *target_name, uint16_t port, int ip) {
+targets_t *make_target(char *target_name, uint16_t port) {
     targets_t *target;
 
     target = calloc(1, sizeof(targets_t));
     target->next = NULL;
     target->name = target_name;
-
-    if (ip) {
-        /* don't reverse IP addresses */
-        target->ndqf = target->name;
-    } else {
-        /* always set this even if we might not need it, it should be quick */
-        target->ndqf = reverse_fqdn(target->name);
-    }
 
     target->client_sock = calloc(1, sizeof(struct sockaddr_in));
     target->client_sock->sin_family = AF_INET;
@@ -491,6 +483,17 @@ int main(int argc, char **argv) {
         fatal("Illegal version %lu\n", version);
     }
 
+    /* check for conflicting options on how we should output hostnames */
+    if (ip && dns) {
+        /* if they've specified -A, override the implied -d from -m */
+        if (multiple) {
+            ip = 0;
+        /* otherwise it's an error, you can't have it both ways */
+        } else {
+            fatal("Can't specify both -A and -d!\n");
+        }
+    }
+
     /* set the default port */
     /* ACL usually runs on 2049 alongside NFS so leave port as default */
     if (prognum != (NFS_PROGRAM || NFS_ACL_PROGRAM) && port == NFS_PORT) {
@@ -517,12 +520,26 @@ int main(int argc, char **argv) {
 
     /* process the targets from the command line */
     for (index = optind; index < argc; index++) {
-        target->next = make_target(argv[index], port, ip);
+        target->next = make_target(argv[index], port);
         target = target->next;
 
         /* first try treating the hostname as an IP address */
-        if (inet_pton(AF_INET, target->name, &((struct sockaddr_in *)target->client_sock)->sin_addr) == 0) {
-            /* if that fails, do a DNS lookup */
+        if (inet_pton(AF_INET, target->name, &((struct sockaddr_in *)target->client_sock)->sin_addr)) {
+            /* reverse dns */
+            if (dns) {
+                target->name = calloc(1, NI_MAXHOST);
+                getaddr = getnameinfo((struct sockaddr *)target->client_sock, sizeof(struct sockaddr_in), target->name, NI_MAXHOST, NULL, 0, NI_NAMEREQD);
+                if (getaddr != 0) { /* failure! */
+                    fprintf(stderr, "%s: %s\n", argv[index], gai_strerror(getaddr));
+                    exit(2); /* ping and fping return 2 for name resolution failures */
+                }
+                target->ndqf = reverse_fqdn(target->name);
+            } else {
+                /* don't reverse IP addresses */
+                target->ndqf = target->name;
+            }
+        /* not an IP address, do a DNS lookup */
+        } else {
             /* we don't call freeaddrinfo because we keep a pointer to the sin_addr in the target */
             getaddr = getaddrinfo(target->name, "nfs", &hints, &addr);
             if (getaddr == 0) { /* success! */
@@ -536,13 +553,26 @@ int main(int argc, char **argv) {
                         inet_ntop(AF_INET, &((struct sockaddr_in *)addr->ai_addr)->sin_addr, target->name, INET_ADDRSTRLEN);
                         /* don't reverse an IP address */
                         target->ndqf = target->name;
+                    /* if we have reverse lookups enabled */
+                    } else if (dns) {
+                        target->name = calloc(1, NI_MAXHOST);
+                        /* it's an error if we've asked to do reverse DNS lookups and it can't find one */
+                        getaddr = getnameinfo((struct sockaddr *)target->client_sock, sizeof(struct sockaddr_in), target->name, NI_MAXHOST, NULL, 0, NI_NAMEREQD);
+                        if (getaddr != 0) { /* failure! */
+                            fprintf(stderr, "%s: %s\n", argv[index], gai_strerror(getaddr));
+                            exit(2); /* ping and fping return 2 for name resolution failures */
+                        }
+                        target->ndqf = reverse_fqdn(target->name);
+                    /* default */
+                    } else {
+                        target->ndqf = reverse_fqdn(target->name);
                     }
 
                     /* multiple results */
                     if (addr->ai_next) {
                         if (multiple) {
                             /* create the next target */
-                            target->next = make_target(argv[index], port, ip);
+                            target->next = make_target(argv[index], port);
                             target = target->next;
                         } else {
                             /* we have to look up the IP address for the warning */
@@ -576,23 +606,6 @@ int main(int argc, char **argv) {
             target = target->next;
         }
     }
-
-    /* if we have reverse lookups enabled */
-    if (dns) {
-        target = targets;
-        while (target) {
-            target->name = calloc(1, NI_MAXHOST);
-            getaddr = getnameinfo((struct sockaddr *)target->client_sock, sizeof(struct sockaddr_in), target->name, NI_MAXHOST, NULL, 0, 0);
-            if (getaddr > 0) { /* failure! */
-                fprintf(stderr, "%s: %s\n", target->name, gai_strerror(getaddr));
-                exit(2); /* ping and fping return 2 for name resolution failures */
-            }
-            target->ndqf = reverse_fqdn(target->name);
-
-            target = target->next;
-        }
-    }
-
 
     /* the main loop */
     while(1) {
