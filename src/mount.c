@@ -133,9 +133,16 @@ int print_exports(char *host, struct exportnode *ex) {
 
 int main(int argc, char **argv) {
     mountres3 *mountres;
-    struct sockaddr_in client_sock;
+    struct sockaddr_in client_sock = {
+        .sin_family = AF_INET
+    };
     int getaddr;
-    struct addrinfo hints, *addr;
+    struct addrinfo hints = {
+        .ai_family = AF_INET,
+        /* default to UDP */
+        .ai_socktype = SOCK_DGRAM
+    };
+    struct addrinfo *addr;
     char *host;
     char *path;
     exports ex;
@@ -151,13 +158,6 @@ int main(int argc, char **argv) {
         .sin_family = AF_INET,
         .sin_addr = 0
     };
-
-    client_sock.sin_family = AF_INET;
-
-    memset(&hints, 0, sizeof(hints));
-    hints.ai_family = AF_INET;
-    /* default to UDP */
-    hints.ai_socktype = SOCK_DGRAM;
 
     /* no arguments passed */
     if (argc == 1)
@@ -256,6 +256,7 @@ int main(int argc, char **argv) {
                     break;
                 }
             }
+        /* getaddrinfo() failure */
         } else {
             fprintf(stderr, "%s: %s\n", host, gai_strerror(getaddr));
             /* TODO soldier on with other arguments or bail at first sign of trouble? */
