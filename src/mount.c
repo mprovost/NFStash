@@ -170,6 +170,7 @@ int main(int argc, char **argv) {
     int ch;
     /* command line options */
     int multiple = 0, showmount = 0;
+    char ip_address[INET_ADDRSTRLEN];
     CLIENT *client;
     u_long version = 3;
     struct timeval timeout = NFS_TIMEOUT;
@@ -274,6 +275,10 @@ int main(int argc, char **argv) {
                 if (multiple) {
                     addr = addr->ai_next;
                 } else {
+                    /* we have to look up the IP address for the warning */
+                    /* TODO move this so it prints before any other output */
+                    inet_ntop(AF_INET, &((struct sockaddr_in *)addr->ai_addr)->sin_addr, ip_address, INET_ADDRSTRLEN);
+                    fprintf(stderr, "Multiple addresses found for %s, using %s\n", argv[optind], ip_address);
                     break;
                 }
             }
