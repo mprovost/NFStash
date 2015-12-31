@@ -181,6 +181,7 @@ int main(int argc, char **argv) {
     };
     unsigned long usec;
     struct timespec wall_clock;
+    JSON_Value *root_value;
 
     /* no arguments passed */
     if (argc == 1)
@@ -250,8 +251,11 @@ int main(int argc, char **argv) {
 
                         if (mountres && mountres->fhs_status == MNT3_OK) {
                             exports_ok++;
+
+                            root_value = json_value_init_object();
+
                             /* print the filehandle in hex */
-                            print_fhandle3(addr->ai_addr, path, mountres->mountres3_u.mountinfo.fhandle, usec, wall_clock);
+                            print_fhandle3(root_value, addr->ai_addr, path, mountres->mountres3_u.mountinfo.fhandle, usec, wall_clock);
                         }
                     } else {
                         /* get the list of all exported filesystems from the server */
@@ -273,8 +277,9 @@ int main(int argc, char **argv) {
 
                                     if (mountres && mountres->fhs_status == MNT3_OK) {
                                         exports_ok++;
+                                        root_value = json_value_init_object();
                                         /* print the filehandle in hex */
-                                        print_fhandle3(addr->ai_addr, ex->ex_dir, mountres->mountres3_u.mountinfo.fhandle, usec, wall_clock);
+                                        print_fhandle3(root_value, addr->ai_addr, ex->ex_dir, mountres->mountres3_u.mountinfo.fhandle, usec, wall_clock);
                                     }
                                     ex = ex->ex_next;
                                 }
