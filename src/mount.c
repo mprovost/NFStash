@@ -10,7 +10,7 @@
 /* local prototypes */
 static void usage(void);
 static void mount_perror(mountstat3);
-static mountres3 *get_root_filehandle(char *, CLIENT *, char *);
+static mountres3 *get_root_filehandle(CLIENT *, char *, char *);
 static int print_exports(char *, struct exportnode *);
 
 /* globals */
@@ -50,33 +50,34 @@ void mount_perror(mountstat3 fhs_status) {
 
 
 /* get the root filehandle from the server */
-mountres3 *get_root_filehandle(char *hostname, CLIENT *client, char *path) {
+mountres3 *get_root_filehandle(CLIENT *client, char *hostname, char *path) {
     struct rpc_err clnt_err;
-    mountres3 *mountres;
+    mountres3 *mountres = NULL;
 
     if (path[0] == '/') {
         /* the actual RPC call */
-        mountres = mountproc_mnt_3(&path, client);
+        if (client) {
+            mountres = mountproc_mnt_3(&path, client);
+        }
 
         if (mountres) {
             if (mountres->fhs_status != MNT3_OK) {
                 fprintf(stderr, "%s:%s: ", hostname, path);
+                /* check if we get an access error, this probably means the server wants us to use a reserved port */
+                /* TODO do this check in mount_perror? */
                 if (mountres->fhs_status == MNT3ERR_ACCES && geteuid()) {
                     fprintf(stderr, "Unable to mount filesystem, consider running as root\n");
                 } else {
                     mount_perror(mountres->fhs_status);
                 }
             }
+        /* RPC error */
         } else {
-            fprintf(stderr, "%s:%s: ", hostname, path);
             clnt_geterr(client, &clnt_err);
-            /* check for authentication errors which probably mean it needs to come from a low port */
-            /* TODO just print one error and exit? */
-            /* check if we are root already */
-            if  (clnt_err.re_status == RPC_AUTHERROR && geteuid())
-               fprintf(stderr, "Unable to mount filesystem, consider running as root\n");
-            else
+            if  (clnt_err.re_status) {
+                fprintf(stderr, "%s:%s: ", hostname, path);
                 clnt_perror(client, "mountproc_mnt_3");
+            }
         }
     } else {
         fprintf(stderr, "%s: Invalid path: %s\n", hostname, path);
@@ -215,9 +216,9 @@ int main(int argc, char **argv) {
                 client = create_rpc_client(&client_sock, &hints, MOUNTPROG, version, timeout, src_ip);
                 /* mounts don't need authentication because they return a list of authentication flavours supported so leave it as default (AUTH_NONE) */
 
-                if (client_sock.sin_port) {
+                if (client) {
                     if (path && !showmount) {
-                        mountres = get_root_filehandle(host, client, path);
+                        mountres = get_root_filehandle(client, host, path);
                         exports_count++;
                         if (mountres && mountres->fhs_status == MNT3_OK) {
                             exports_ok++;
@@ -235,7 +236,7 @@ int main(int argc, char **argv) {
                                 exports_ok = exports_count;
                             } else {
                                 while (ex) {
-                                    mountres = get_root_filehandle(host, client, ex->ex_dir);
+                                    mountres = get_root_filehandle(client, host, ex->ex_dir);
                                     exports_count++;
                                     if (mountres && mountres->fhs_status == MNT3_OK) {
                                         exports_ok++;
@@ -247,8 +248,6 @@ int main(int argc, char **argv) {
                             }
                         }
                     }
-                } else {
-                    clnt_pcreateerror("pmap_getport");
                 }
 
                 if (multiple) {
