@@ -1,3 +1,8 @@
+/*
+ * Get root filehandles from NFS server
+ */
+
+
 #include "nfsping.h"
 #include "rpc.h"
 #include "util.h"
@@ -11,6 +16,7 @@ static int print_exports(char *, struct exportnode *);
 /* globals */
 int verbose = 0;
 
+
 void usage() {
     printf("Usage: nfsmount [options] host[:mountpoint]\n\
     -e       print exports (like showmount -e)\n\
@@ -18,8 +24,7 @@ void usage() {
     -m       use multiple target IP addresses if found\n\
     -S addr  set source address\n\
     -T       use TCP (default UDP)\n\
-    -v       verbose output\n\
-    ");
+    -v       verbose output\n");
 
     exit(3);
 }
@@ -187,6 +192,7 @@ int main(int argc, char **argv) {
         }
     }
 
+
     /* loop through arguments */
     while (optind < argc) {
         /* split host:path arguments, path is optional */
@@ -258,8 +264,9 @@ int main(int argc, char **argv) {
         optind++;
     }
 
-    if (exports_count && exports_count == exports_ok)
+    if (exports_count && exports_count == exports_ok) {
         return EXIT_SUCCESS;
+    }
 
     return EXIT_FAILURE;
 }
