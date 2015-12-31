@@ -198,7 +198,7 @@ nfsping.filer1.ping.usec 410 1370501565
 nfsping.filer1.ping.usec 399 1370501566
 ```
 
-This is the Graphite plaintext protocol which is <path> <metric> <timestamp>. To avoid floating point numbers, nfsping reports the response time in microseconds (usec).
+This is the Graphite plaintext protocol which is `<path> <metric> <timestamp>`. To avoid floating point numbers, nfsping reports the response time in microseconds (usec).
 
 The default prefix for the Graphite path is "nfsping". This can be changed by specifying a new string as an argument to the `-g` option. Fully qualified domain names (but not IP addresses) for targets will be reversed:
 
