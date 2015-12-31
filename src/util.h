@@ -5,7 +5,7 @@
 
 int nfs_perror(nfsstat3);
 nfs_fh_list *parse_fh(char *);
-int print_fhandle3(struct sockaddr *, char *, fhandle3);
+int print_fhandle3(struct sockaddr *, const char *, const fhandle3, const unsigned long);
 int nfs_fh3_to_string(char *, nfs_fh3);
 int print_nfs_fh3(struct sockaddr *, char *, char *, nfs_fh3);
 char* reverse_fqdn(char *);

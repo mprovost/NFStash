@@ -10,7 +10,7 @@
 /* local prototypes */
 static void usage(void);
 static void mount_perror(mountstat3);
-static mountres3 *get_root_filehandle(CLIENT *, char *, char *);
+static mountres3 *get_root_filehandle(CLIENT *, char *, char *, unsigned long *);
 static int print_exports(char *, struct exportnode *);
 
 /* globals */
@@ -50,14 +50,34 @@ void mount_perror(mountstat3 fhs_status) {
 
 
 /* get the root filehandle from the server */
-mountres3 *get_root_filehandle(CLIENT *client, char *hostname, char *path) {
+/* take a pointer to usec so we can return the elapsed call time */
+mountres3 *get_root_filehandle(CLIENT *client, char *hostname, char *path, unsigned long *usec) {
     struct rpc_err clnt_err;
     mountres3 *mountres = NULL;
+    struct timespec call_start, call_end, call_elapsed;
 
     if (path[0] == '/') {
-        /* the actual RPC call */
         if (client) {
+            /* first time marker */
+#ifdef CLOCK_MONOTONIC_RAW
+            clock_gettime(CLOCK_MONOTONIC_RAW, &call_start);
+#else
+            clock_gettime(CLOCK_MONOTONIC, &call_start);
+#endif
+
+            /* the actual RPC call */
             mountres = mountproc_mnt_3(&path, client);
+
+            /* second time marker */
+#ifdef CLOCK_MONOTONIC_RAW
+            clock_gettime(CLOCK_MONOTONIC_RAW, &call_end);
+#else
+            clock_gettime(CLOCK_MONOTONIC, &call_end);
+#endif
+
+            /* calculate elapsed microseconds */
+            timespecsub(&call_end, &call_start, &call_elapsed);
+            *usec = ts2us(call_elapsed);
         }
 
         if (mountres) {
@@ -158,6 +178,7 @@ int main(int argc, char **argv) {
         .sin_family = AF_INET,
         .sin_addr = 0
     };
+    unsigned long usec;
 
     /* no arguments passed */
     if (argc == 1)
@@ -218,12 +239,12 @@ int main(int argc, char **argv) {
 
                 if (client) {
                     if (path && !showmount) {
-                        mountres = get_root_filehandle(client, host, path);
+                        mountres = get_root_filehandle(client, host, path, &usec);
                         exports_count++;
                         if (mountres && mountres->fhs_status == MNT3_OK) {
                             exports_ok++;
                             /* print the filehandle in hex */
-                            print_fhandle3(addr->ai_addr, path, mountres->mountres3_u.mountinfo.fhandle);
+                            print_fhandle3(addr->ai_addr, path, mountres->mountres3_u.mountinfo.fhandle, usec);
                         }
                     } else {
                         /* get the list of all exported filesystems from the server */
@@ -236,12 +257,12 @@ int main(int argc, char **argv) {
                                 exports_ok = exports_count;
                             } else {
                                 while (ex) {
-                                    mountres = get_root_filehandle(client, host, ex->ex_dir);
+                                    mountres = get_root_filehandle(client, host, ex->ex_dir, &usec);
                                     exports_count++;
                                     if (mountres && mountres->fhs_status == MNT3_OK) {
                                         exports_ok++;
                                         /* print the filehandle in hex */
-                                        print_fhandle3(addr->ai_addr, ex->ex_dir, mountres->mountres3_u.mountinfo.fhandle);
+                                        print_fhandle3(addr->ai_addr, ex->ex_dir, mountres->mountres3_u.mountinfo.fhandle, usec);
                                     }
                                     ex = ex->ex_next;
                                 }
