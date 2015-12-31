@@ -230,7 +230,7 @@ nfsping.filer1.ping:78.07|ms
 
 Note that this output uses floating point values, as the StatsD protocol only supports milliseconds. While floating point values are supported by the protocol, some implementations may not handle them. This output has been tested as working with [statsite](https://github.com/armon/statsite).
 
-## ROADMAP
+## Roadmap
 - [ ] convert internal time calculations to nanoseconds
 - [ ] [HDRHistogram](https://github.com/HdrHistogram/HdrHistogram_c) support
 - [ ] Workaround Coordinated Omission like [wrk2](https://github.com/giltene/wrk2)
