@@ -205,14 +205,14 @@ nfs_fh_list *parse_fh(char *input) {
 /* this format has to be parsed again so take structs instead of strings to keep random data from being used as inputs */
 /* TODO accept path as struct? */
 /* print the IP address of the host in case there are multiple DNS results for a hostname */
-int print_fhandle3(struct sockaddr *host, const char *path, const fhandle3 file_handle, const unsigned long usec) {
+int print_fhandle3(struct sockaddr *host, const char *path, const fhandle3 file_handle, const unsigned long usec, const struct timespec wall_clock) {
     unsigned int i;
     char ip[INET_ADDRSTRLEN];
 
     /* get the IP address as a string */
     inet_ntop(AF_INET, &((struct sockaddr_in *)host)->sin_addr, ip, INET_ADDRSTRLEN);
 
-    printf("{ \"ip\": \"%s\", \"path\": \"%s\", \"usec\": %lu, \"filehandle\": \"", ip, path, usec);
+    printf("{ \"ip\": \"%s\", \"path\": \"%s\", \"usec\": %lu, \"timestamp\": %li \"filehandle\": \"", ip, path, usec, wall_clock.tv_sec);
     for (i = 0; i < file_handle.fhandle3_len; i++) {
         printf("%02hhx", file_handle.fhandle3_val[i]);
     }

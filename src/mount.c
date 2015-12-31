@@ -180,6 +180,7 @@ int main(int argc, char **argv) {
         .sin_addr = 0
     };
     unsigned long usec;
+    struct timespec wall_clock;
 
     /* no arguments passed */
     if (argc == 1)
@@ -240,12 +241,17 @@ int main(int argc, char **argv) {
 
                 if (client) {
                     if (path && !showmount) {
-                        mountres = get_root_filehandle(client, host, path, &usec);
                         exports_count++;
+
+                        /* get the current timestamp */
+                        clock_gettime(CLOCK_REALTIME, &wall_clock);
+
+                        mountres = get_root_filehandle(client, host, path, &usec);
+
                         if (mountres && mountres->fhs_status == MNT3_OK) {
                             exports_ok++;
                             /* print the filehandle in hex */
-                            print_fhandle3(addr->ai_addr, path, mountres->mountres3_u.mountinfo.fhandle, usec);
+                            print_fhandle3(addr->ai_addr, path, mountres->mountres3_u.mountinfo.fhandle, usec, wall_clock);
                         }
                     } else {
                         /* get the list of all exported filesystems from the server */
@@ -258,12 +264,17 @@ int main(int argc, char **argv) {
                                 exports_ok = exports_count;
                             } else {
                                 while (ex) {
-                                    mountres = get_root_filehandle(client, host, ex->ex_dir, &usec);
                                     exports_count++;
+
+                                    /* get the current timestamp */
+                                    clock_gettime(CLOCK_REALTIME, &wall_clock);
+                                    
+                                    mountres = get_root_filehandle(client, host, ex->ex_dir, &usec);
+
                                     if (mountres && mountres->fhs_status == MNT3_OK) {
                                         exports_ok++;
                                         /* print the filehandle in hex */
-                                        print_fhandle3(addr->ai_addr, ex->ex_dir, mountres->mountres3_u.mountinfo.fhandle, usec);
+                                        print_fhandle3(addr->ai_addr, ex->ex_dir, mountres->mountres3_u.mountinfo.fhandle, usec, wall_clock);
                                     }
                                     ex = ex->ex_next;
                                 }
