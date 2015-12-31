@@ -9,26 +9,41 @@ extern int verbose;
 
 /* look up a remote RPC program's port using the portmapper */
 /* this replaces pmap_getport but lets us use our own RPC client connection */
-/* pmap_getport uses its own client so you can't specify a source IP address for example */
+/* pmap_getport uses its own client so you can't specify a source IP address or timeout etc */
 /* return the port in network byte order */
 /* protocol can be PMAP_IPPROTO_TCP or PMAP_IPPROTO_UDP */
 uint16_t get_rpc_port(CLIENT *client, long unsigned prognum, long unsigned version, long unsigned protocol) {
-    u_long *port;
+    u_long *res = NULL;
+    uint16_t port = 0;
     pmap pmap_args = {
         .pm_prog = prognum,
         .pm_vers = version,
         .pm_prot = protocol,
     };
+    /* for printing error messages */
+    struct sockaddr_in clnt_info;
+    char ip_address[INET_ADDRSTRLEN];
 
-    port = pmapproc_getport_2(&pmap_args, client);
+    if (client) {
+        res = pmapproc_getport_2(&pmap_args, client);
 
-    /* 0 is failure */
-    if (port == 0) {
-        clnt_perror(client, "pmapproc_getport_2");
-        exit(EXIT_FAILURE);
+        if (res) {
+            /* convert to network byte order */
+            port = htons(*res);
+            /* RPC succeeded, but program isn't registered */
+            if (port == 0) {
+                /* get the server address out of the client */
+                clnt_control(client, CLGET_SERVER_ADDR, (char *)&clnt_info);
+                inet_ntop(AF_INET, &(((struct sockaddr_in *)&clnt_info)->sin_addr), ip_address, INET_ADDRSTRLEN);
+                fprintf(stderr, "get_rpc_port(%s:%lu): program not registered!\n", ip_address, prognum);
+            }
+        /* Portmapper RPC failure */
+        } else {
+            clnt_perror(client, "pmapproc_getport_2");
+        }
     }
 
-    return(htons(*port));
+    return port;
 }
 
 
@@ -119,17 +134,13 @@ CLIENT *create_rpc_client(struct sockaddr_in *client_sock, struct addrinfo *hint
         client = destroy_rpc_client(client);
 
         /* by this point we should know which port we're talking to */
+        /* TODO print IP address */
         debug("portmapper = %u\n", ntohs(client_sock->sin_port));
-        /* if not warn the user */
-        if (client_sock->sin_port == 0) {
-            /* TODO print the server's IP address in case of multiple targets */
-            fprintf(stderr, "get_rpc_port(%lu): program not registered!\n", prognum);
-        }
     }
 
     /* now make the client connection */
 
-    /* by now we should have a port defined no matter what */
+    /* by now we should have a port defined unless the program isn't registered */
     if (client_sock->sin_port) {
         /* Make sure and make new sockets for each new connection */
         /* clnttcp_create will happily reuse open sockets */
@@ -179,6 +190,7 @@ CLIENT *create_rpc_client(struct sockaddr_in *client_sock, struct addrinfo *hint
                 /* this is just verbose output so don't return an error */
             } else {
                 inet_ntop(AF_INET, (struct sockaddr_in *)&getaddr.sin_addr, ip, INET_ADDRSTRLEN);
+                /* TODO print destination address and port */
                 debug("source port = %s:%u\n", ip, ntohs(getaddr.sin_port));
             }
         }
