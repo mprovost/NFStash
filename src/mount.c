@@ -9,7 +9,7 @@
 
 /* local prototypes */
 static void usage(void);
-static u_int mount_perror(mountstat3);
+static void mount_perror(mountstat3);
 static mountres3 *get_root_filehandle(char *, CLIENT *, char *);
 static int print_exports(char *, struct exportnode *);
 
@@ -30,20 +30,22 @@ void usage() {
 }
 
 
-u_int mount_perror(mountstat3 fhs_status) {
+/* print an error message for mount results */
+/* for now just print the error name from the header */
+void mount_perror(mountstat3 fhs_status) {
     static const char *labels[] = {
-        [MNT3ERR_NOENT] = "MNT3ERR_NOENT",
-        [MNT3ERR_ACCES] = "MNT3ERR_ACCES",
-        [MNT3ERR_NOTDIR] = "MNT3ERR_NOTDIR",
-        [MNT3ERR_INVAL] = "MNT3ERR_INVAL",
+        [MNT3ERR_NOENT]       = "MNT3ERR_NOENT",
+        [MNT3ERR_ACCES]       = "MNT3ERR_ACCES",
+        [MNT3ERR_NOTDIR]      = "MNT3ERR_NOTDIR",
+        [MNT3ERR_INVAL]       = "MNT3ERR_INVAL",
         [MNT3ERR_NAMETOOLONG] = "MNT3ERR_NAMETOOLONG",
-        [MNT3ERR_NOTSUPP] = "MNT3ERR_NOTSUPP",
+        [MNT3ERR_NOTSUPP]     = "MNT3ERR_NOTSUPP",
         [MNT3ERR_SERVERFAULT] = "MNT3ERR_SERVERFAULT",
     };
 
-    if (fhs_status && fhs_status != MNT3_OK)
+    if (fhs_status && fhs_status != MNT3_OK) {
         fprintf(stderr, "%s\n", labels[fhs_status]);
-    return fhs_status;
+    }
 }
 
 
