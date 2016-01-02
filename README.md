@@ -1,8 +1,8 @@
-# NFStash **⏞** : CLI NFS client tools
+# NFStash **⏞** : NFS client CLI tools
 
 NFStash (pronounced "en-ef stash") is a suite of **command line tools** for Linux and other POSIX operating systems which implement Network File System (NFS) client procedures. These utilities can be used for **testing, debugging, monitoring and benchmarking** the responses from an NFS server in a **composable** and **reproducible** way, either **interactively** or in **scripts**.
 
-The suite consists of:
+The suite consists of these tools:
 
 - [`nfsping`](md/nfsping.md): send RPC NULL requests to NFS servers
 - [`nfsmount`](https://rawgit.com/mprovost/NFSping/master/man/nfsmount.8.html): lookup NFS filesystem root filehandles
