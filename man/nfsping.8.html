@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv='content-type' value='text/html;charset=utf8'>
+  <meta name='generator' value='Ronn/v0.7.3 (http://github.com/rtomayko/ronn/tree/0.7.3)'>
+  <title>nfsping(8) - send RPC NULL requests to NFS servers</title>
+  <style type='text/css' media='all'>
+  /* style: man */
+  body#manpage {margin:0}
+  .mp {max-width:100ex;padding:0 9ex 1ex 4ex}
+  .mp p,.mp pre,.mp ul,.mp ol,.mp dl {margin:0 0 20px 0}
+  .mp h2 {margin:10px 0 0 0}
+  .mp > p,.mp > pre,.mp > ul,.mp > ol,.mp > dl {margin-left:8ex}
+  .mp h3 {margin:0 0 0 4ex}
+  .mp dt {margin:0;clear:left}
+  .mp dt.flush {float:left;width:8ex}
+  .mp dd {margin:0 0 0 9ex}
+  .mp h1,.mp h2,.mp h3,.mp h4 {clear:left}
+  .mp pre {margin-bottom:20px}
+  .mp pre+h2,.mp pre+h3 {margin-top:22px}
+  .mp h2+pre,.mp h3+pre {margin-top:5px}
+  .mp img {display:block;margin:auto}
+  .mp h1.man-title {display:none}
+  .mp,.mp code,.mp pre,.mp tt,.mp kbd,.mp samp,.mp h3,.mp h4 {font-family:monospace;font-size:14px;line-height:1.42857142857143}
+  .mp h2 {font-size:16px;line-height:1.25}
+  .mp h1 {font-size:20px;line-height:2}
+  .mp {text-align:justify;background:#fff}
+  .mp,.mp code,.mp pre,.mp pre code,.mp tt,.mp kbd,.mp samp {color:#131211}
+  .mp h1,.mp h2,.mp h3,.mp h4 {color:#030201}
+  .mp u {text-decoration:underline}
+  .mp code,.mp strong,.mp b {font-weight:bold;color:#131211}
+  .mp em,.mp var {font-style:italic;color:#232221;text-decoration:none}
+  .mp a,.mp a:link,.mp a:hover,.mp a code,.mp a pre,.mp a tt,.mp a kbd,.mp a samp {color:#0000ff}
+  .mp b.man-ref {font-weight:normal;color:#434241}
+  .mp pre {padding:0 4ex}
+  .mp pre code {font-weight:normal;color:#434241}
+  .mp h2+pre,h3+pre {padding-left:0}
+  ol.man-decor,ol.man-decor li {margin:3px 0 10px 0;padding:0;float:left;width:33%;list-style-type:none;text-transform:uppercase;color:#999;letter-spacing:1px}
+  ol.man-decor {width:100%}
+  ol.man-decor li.tl {text-align:left}
+  ol.man-decor li.tc {text-align:center;letter-spacing:4px}
+  ol.man-decor li.tr {text-align:right;float:right}
+  </style>
+</head>
+<!--
+  The following styles are deprecated and will be removed at some point:
+  div#man, div#man ol.man, div#man ol.head, div#man ol.man.
+
+  The .man-page, .man-decor, .man-head, .man-foot, .man-title, and
+  .man-navigation should be used instead.
+-->
+<body id='manpage'>
+  <div class='mp' id='man'>
+
+  <div class='man-navigation' style='display:none'>
+    <a href="#NAME">NAME</a>
+    <a href="#SYNOPSIS">SYNOPSIS</a>
+    <a href="#DESCRIPTION">DESCRIPTION</a>
+    <a href="#OPTIONS">OPTIONS</a>
+    <a href="#RETURN-VALUES">RETURN VALUES</a>
+    <a href="#HISTORY">HISTORY</a>
+    <a href="#AUTHOR">AUTHOR</a>
+    <a href="#COPYRIGHT">COPYRIGHT</a>
+  </div>
+
+  <ol class='man-decor man-head man head'>
+    <li class='tl'>nfsping(8)</li>
+    <li class='tc'></li>
+    <li class='tr'>nfsping(8)</li>
+  </ol>
+
+  <h2 id="NAME">NAME</h2>
+<p class="man-name">
+  <code>nfsping</code> - <span class="man-whatis">send RPC NULL requests to NFS servers</span>
+</p>
+
+<h2 id="SYNOPSIS">SYNOPSIS</h2>
+
+<p><code>nfsping</code> [<code>-aAdDEGhKlLmMnNqQRsTv</code>] [<code>-c</code> <var>count</var>] [<code>-C</code> <var>count</var>] [<code>-g</code> <var>prefix</var>] [<code>-i</code> <var>interval</var>] [<code>-p</code> <var>pause</var>] [<code>-P</code> <var>port</var>] [<code>-S</code> <var>source</var>] [<code>-t</code> <var>timeout</var>] [<code>-V</code> <var>version</var>] &lt;servers...></p>
+
+<h2 id="DESCRIPTION">DESCRIPTION</h2>
+
+<p><code>nfsping</code> sends RPC NULL requests to an NFS server to determine if it is responding and to measure the response time. It supports the network file system (NFS), mount (<code>-n</code>), portmap/rpcbind (<code>-N</code>), network lock manager (NLM) (<code>-L</code>), NFS ACL (<code>-a</code>), network status monitor (NSM) (<code>-s</code>), rquota (<code>-Q</code>)and kernel lock manager (KLM) (<code>-K</code>) protocols. The default protocol is NFS version 3. Use TCP with <code>-T</code>, and specify a port with <code>-P</code>. The portmapper is used by default with most protocols but can be forced with <code>-M</code> for NFS. Without any options <code>nfsping</code> will send a single NFS version 3 NULL request over UDP to port 2049 on the specified server and report whether it is alive or dead based on whether it receives a response or not.</p>
+
+<p>With the <code>-l</code> option <code>nfsping</code> will loop forever, sending packets every second by default like <code>ping</code>. It is designed to be compatible with <code>fping</code> for use in scripts. With the <code>-c</code> option it will send the specified number of requests to each target server and then exit. The <code>-C</code> option behaves the same but outputs in <code>fping</code>-compatible format for easy parsing.</p>
+
+<p>If a server's hostname resolves to multiple IP addresses, for example with clustered NFS servers, a warning is printed to <code>stderr</code>. Use the <code>-m</code> option to send requests to all of the IP addresses. In this mode, <code>nfsping</code> defaults to printing IP addresses instead of the hostname to differentiate the responses. <code>-d</code> can be used to perform reverse DNS lookups on the addresses.</p>
+
+<p><code>nfsping</code> also supports output formats suitable for sending to time series databases. Use <code>-G</code> to output Graphite-compatible results or <code>-E</code> for the StatsD format. These can be piped to <code>nc</code> (or other tools) to be forwarded to the appropriate listening port.</p>
+
+<h2 id="OPTIONS">OPTIONS</h2>
+
+<dl>
+<dt class="flush"><code>-a</code></dt><dd><p>Send NFS ACL protocol NULL requests. Uses UDP port 2049 by default, use the portmapper with <code>-M</code>.</p></dd>
+<dt class="flush"><code>-A</code></dt><dd><p>Display IP addresses (instead of hostnames).</p></dd>
+<dt><code>-c</code> <var>count</var></dt><dd><p>Count of ping requests to send to target(s) before exiting. Print a line of output after each response is received (unless the <code>-q</code> option is specified). A summary of all responses is printed when the count is reached or the program is interrupted.</p></dd>
+<dt><code>-C</code> <var>count</var></dt><dd><p>Count of ping requests to send to target(s), outputs <code>fping(8)</code> compatible parseable summary when the count is reached or the program is interrupted.</p></dd>
+<dt class="flush"><code>-d</code></dt><dd><p>Perform reverse DNS lookups for target(s). This option overrides -A (and the implied -A from a -m option).</p></dd>
+<dt class="flush"><code>-D</code></dt><dd><p>Print timestamp (Unix time) before each line of output.</p></dd>
+<dt class="flush"><code>-E</code></dt><dd><p>Print output in StatsD format ($prefix.$hostname.$protocol:<var>msec</var>|ms). Use <code>-g</code> to change the prefix from the default "nfsping".</p></dd>
+<dt><code>-g</code> <var>prefix</var></dt><dd><p>Specify string prefix for Graphite or StatsD metric names. Default = "nfsping".</p></dd>
+<dt class="flush"><code>-G</code></dt><dd><p>Print output in Graphite format ($prefix.$hostname.$protocol.usec <var>usec</var> <var>timestamp</var>). Use <code>-g</code> to change the prefix from the default "nfsping".</p></dd>
+<dt class="flush"><code>-h</code></dt><dd><p>Display a help message and exit.</p></dd>
+<dt><code>-i</code> <var>interval</var></dt><dd><p>The interval (delay) between sending packets, in milliseconds. Default = 25.</p></dd>
+<dt class="flush"><code>-K</code></dt><dd><p>Send kernel lock manager (KLM) protocol NULL requests. Implies <code>-M</code>.</p></dd>
+<dt class="flush"><code>-l</code></dt><dd><p>Loop forever. Like traditional ICMP <code>ping(8)</code>. Exit loop with Ctrl-c.</p></dd>
+<dt class="flush"><code>-L</code></dt><dd><p>Send network lock manager (NLM) protocol NULL requests. Implies <code>-M</code>.</p></dd>
+<dt class="flush"><code>-m</code></dt><dd><p>Use multiple target IP addresses if found. For servers with multiple DNS A records (round-robin). Implies -A (shows IP address instead of hostnames) so output isn't ambiguous.</p></dd>
+<dt class="flush"><code>-M</code></dt><dd><p>Use the RPC portmapper to discover the listening port for the protocol on the server. Default no for NFS and NFS ACL, yes for mount, NLM and NSM. Uses UDP by default or TCP if the <code>-T</code> option is specified.</p></dd>
+<dt class="flush"><code>-n</code></dt><dd><p>Send mount protocol NULL requests. Implies <code>-M</code>.</p></dd>
+<dt class="flush"><code>-N</code></dt><dd><p>Send portmap protocol NULL requests.</p></dd>
+<dt><code>-o</code> <var>format</var></dt><dd><p>Specify output format for input to another program. Currently supported are [<code>G</code>]raphite and [<code>S</code>]tatsd.</p></dd>
+<dt><code>-p</code> <var>pause</var></dt><dd><p>The polling interval. <code>nfsping</code> will pause up to this amount of milliseconds between requests to each target. Default = 1000 (one second).</p></dd>
+<dt class="flush"><code>-P</code> <var>port</var></dt><dd><p>The port on the server. Default = 2049 for NFS and NFS ACL, 111 for portmap. The portmapper on the server is queried for other protocols.</p></dd>
+<dt class="flush"><code>-q</code></dt><dd><p>Quiet. Only print a summary.</p></dd>
+<dt class="flush"><code>-Q</code></dt><dd><p>Send rquota protocol NULL requests. Implies <code>-M</code>.</p></dd>
+<dt class="flush"><code>-R</code></dt><dd><p>By default nfsping disconnects and reconnects to each server for each ping. Disable this behaviour and maintain the connection(s).</p></dd>
+<dt class="flush"><code>-s</code></dt><dd><p>Send network status monitor (NSM) protocol NULL requests. Implies <code>-M</code>.</p></dd>
+<dt><code>-S</code> <var>source</var></dt><dd><p>Use the specified source IP address for request packets.</p></dd>
+<dt><code>-t</code> <var>timeout</var></dt><dd><p>Timeout in milliseconds to wait for a RPC response from the server. Default = 1000.</p></dd>
+<dt class="flush"><code>-T</code></dt><dd><p>Use TCP to connect to server. Default = UDP.</p></dd>
+<dt class="flush"><code>-v</code></dt><dd><p>Display debug output on <code>stderr</code>.</p></dd>
+<dt><code>-V</code> <var>version</var></dt><dd><p>Use NFS protocol <code>version</code>. Default = 3 for NFS, supports versions 2/3/4. Other protocols use the version corresponding to the specified NFS version (except the portmapper which always uses version 2 of the portmap protocol). An error is returned for illegal or unsupported versions of the specified protocol.</p></dd>
+</dl>
+
+
+<h2 id="RETURN-VALUES">RETURN VALUES</h2>
+
+<p><code>nfsping</code> will return <code>0</code> if all requests to all targets received responses. Nonzero exit codes indicate a failure. <code>1</code> is an RPC error, <code>2</code> is a name resolution failure, <code>3</code> is an initialisation failure (typically bad arguments).</p>
+
+<h2 id="HISTORY">HISTORY</h2>
+
+<p>This program was inspired by <code>fping(8)</code> but doesn't share any code with it.</p>
+
+<h2 id="AUTHOR">AUTHOR</h2>
+
+<p>Matt Provost, mprovost@termcap.net</p>
+
+<h2 id="COPYRIGHT">COPYRIGHT</h2>
+
+<p>Copyright 2015 Matt Provost<br />
+RPC files Copyright Sun Microsystems<br />
+NFSv4 files Copyright IETF</p>
+
+
+  <ol class='man-decor man-foot man foot'>
+    <li class='tl'></li>
+    <li class='tc'>December 2015</li>
+    <li class='tr'>nfsping(8)</li>
+  </ol>
+
+  </div>
+</body>
+</html>

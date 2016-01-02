@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv='content-type' value='text/html;charset=utf8'>
+  <meta name='generator' value='Ronn/v0.7.3 (http://github.com/rtomayko/ronn/tree/0.7.3)'>
+  <title>clear_locks(8) - clear file locks on an NFS server</title>
+  <style type='text/css' media='all'>
+  /* style: man */
+  body#manpage {margin:0}
+  .mp {max-width:100ex;padding:0 9ex 1ex 4ex}
+  .mp p,.mp pre,.mp ul,.mp ol,.mp dl {margin:0 0 20px 0}
+  .mp h2 {margin:10px 0 0 0}
+  .mp > p,.mp > pre,.mp > ul,.mp > ol,.mp > dl {margin-left:8ex}
+  .mp h3 {margin:0 0 0 4ex}
+  .mp dt {margin:0;clear:left}
+  .mp dt.flush {float:left;width:8ex}
+  .mp dd {margin:0 0 0 9ex}
+  .mp h1,.mp h2,.mp h3,.mp h4 {clear:left}
+  .mp pre {margin-bottom:20px}
+  .mp pre+h2,.mp pre+h3 {margin-top:22px}
+  .mp h2+pre,.mp h3+pre {margin-top:5px}
+  .mp img {display:block;margin:auto}
+  .mp h1.man-title {display:none}
+  .mp,.mp code,.mp pre,.mp tt,.mp kbd,.mp samp,.mp h3,.mp h4 {font-family:monospace;font-size:14px;line-height:1.42857142857143}
+  .mp h2 {font-size:16px;line-height:1.25}
+  .mp h1 {font-size:20px;line-height:2}
+  .mp {text-align:justify;background:#fff}
+  .mp,.mp code,.mp pre,.mp pre code,.mp tt,.mp kbd,.mp samp {color:#131211}
+  .mp h1,.mp h2,.mp h3,.mp h4 {color:#030201}
+  .mp u {text-decoration:underline}
+  .mp code,.mp strong,.mp b {font-weight:bold;color:#131211}
+  .mp em,.mp var {font-style:italic;color:#232221;text-decoration:none}
+  .mp a,.mp a:link,.mp a:hover,.mp a code,.mp a pre,.mp a tt,.mp a kbd,.mp a samp {color:#0000ff}
+  .mp b.man-ref {font-weight:normal;color:#434241}
+  .mp pre {padding:0 4ex}
+  .mp pre code {font-weight:normal;color:#434241}
+  .mp h2+pre,h3+pre {padding-left:0}
+  ol.man-decor,ol.man-decor li {margin:3px 0 10px 0;padding:0;float:left;width:33%;list-style-type:none;text-transform:uppercase;color:#999;letter-spacing:1px}
+  ol.man-decor {width:100%}
+  ol.man-decor li.tl {text-align:left}
+  ol.man-decor li.tc {text-align:center;letter-spacing:4px}
+  ol.man-decor li.tr {text-align:right;float:right}
+  </style>
+</head>
+<!--
+  The following styles are deprecated and will be removed at some point:
+  div#man, div#man ol.man, div#man ol.head, div#man ol.man.
+
+  The .man-page, .man-decor, .man-head, .man-foot, .man-title, and
+  .man-navigation should be used instead.
+-->
+<body id='manpage'>
+  <div class='mp' id='man'>
+
+  <div class='man-navigation' style='display:none'>
+    <a href="#NAME">NAME</a>
+    <a href="#SYNOPSIS">SYNOPSIS</a>
+    <a href="#DESCRIPTION">DESCRIPTION</a>
+    <a href="#OPTIONS">OPTIONS</a>
+    <a href="#RETURN-VALUES">RETURN VALUES</a>
+    <a href="#HISTORY">HISTORY</a>
+    <a href="#AUTHOR">AUTHOR</a>
+    <a href="#COPYRIGHT">COPYRIGHT</a>
+  </div>
+
+  <ol class='man-decor man-head man head'>
+    <li class='tl'>clear_locks(8)</li>
+    <li class='tc'></li>
+    <li class='tr'>clear_locks(8)</li>
+  </ol>
+
+  <h2 id="NAME">NAME</h2>
+<p class="man-name">
+  <code>clear_locks</code> - <span class="man-whatis">clear file locks on an NFS server</span>
+</p>
+
+<h2 id="SYNOPSIS">SYNOPSIS</h2>
+
+<p><code>clear_locks</code> [<code>-hTv</code>] [<code>-S</code> <var>source</var>] [<code>-s</code> server] <var>client</var></p>
+
+<h2 id="DESCRIPTION">DESCRIPTION</h2>
+
+<p><code>clear_locks</code> removes all file locks for a specified NFS client on the local host's NFS server. It can be used to forcibly remove locks for a client that has failed or is no longer reachable. However if the client is still active this can cause it to become out of sync with the server (for example, the server can issue a lock to another client for a file that the "cleared" client still believes it holds).</p>
+
+<p>A remote NFS server can be selected using the -s option. In this case <code>clear_locks</code> will default to using the local hostname as the client unless one is provided. The hostname should match the one originally provided to the NFS server by the client.</p>
+
+<p><code>clear_locks</code> operates by sending an NSM_NOTIFY RPC call to the NSM (Network Status Monitor) daemon on the server (after looking up the service's port with the server's portmapper) for the client with the specified hostname. This notifies the server that the client has rebooted and that it should free any open locks that are being held. The NSM_NOTIFY call expects a <code>status</code> argument, which is typically an integer that is incremented by the client after each reboot. If the server receives a higher status number than the last request, it detects that the client has rebooted and clears any open locks (generally by contacting the local network lock manager). It will also stop monitoring the client, so if the server itself reboots the status monitor won't attempt to contact that client. To guarantee that it always sends a higher status number, <code>clear_locks</code> uses the current epoch time as obtained by clock_gettime() - this increments every second.</p>
+
+<p>If the connection to the NSM service fails (for example, if the server isn't running an NSM daemon), <code>clear_locks</code> makes a second attempt to free the client's locks by directly connecting to the NLM (Network Lock Manager) service on the server. It then makes an NLM_FREE_ALL RPC request with the specified hostname and a status based on the current timestamp.</p>
+
+<p>If the NFS server requires "secure" ports (&lt;1024), <code>clear_locks</code> will have to be run as root. Typically these RPC calls do not require any client authentication.</p>
+
+<h2 id="OPTIONS">OPTIONS</h2>
+
+<dl>
+<dt class="flush"><code>-h</code></dt><dd><p>Display a help message and exit.</p></dd>
+<dt><code>-S</code> <var>source</var></dt><dd><p>Use the specified source IP address for request packets.</p></dd>
+<dt><code>-s</code> <var>server</var></dt><dd><p>Connect to the specified NFS server. Default = localhost.</p></dd>
+<dt class="flush"><code>-T</code></dt><dd><p>Use TCP to connect to server. Default = UDP.</p></dd>
+<dt class="flush"><code>-v</code></dt><dd><p>Display debug output on <code>stderr</code>.</p></dd>
+</dl>
+
+
+<h2 id="RETURN-VALUES">RETURN VALUES</h2>
+
+<p><code>clear_locks</code> will return <code>0</code> if the request to the server received a response. Nonzero exit codes indicate a failure. <code>1</code> is an RPC error, <code>2</code> is a name resolution failure, <code>3</code> is an initialisation failure (typically bad arguments). However, neither NSM_NOTIFY or NLM_FREE_ALL have a return value that indicates whether the call was successful so a zero exit status doesn't always indicate that the command actually cleared any locks, only that the server was successfully contacted.</p>
+
+<h2 id="HISTORY">HISTORY</h2>
+
+<p>This implementation of <code>clear_locks</code> is based on the interface of the original SunOS tool. However it has been implemented from scratch and uses a different strategy to free locks (notifying the status monitor daemon on the server that the client has rebooted, as opposed to the SunOS tool which contacted the network lock daemon on the server to free client locks). This is the first version that runs on Linux.</p>
+
+<h2 id="AUTHOR">AUTHOR</h2>
+
+<p>Matt Provost, mprovost@termcap.net</p>
+
+<h2 id="COPYRIGHT">COPYRIGHT</h2>
+
+<p>Copyright 2015 Matt Provost<br />
+RPC files Copyright Sun Microsystems</p>
+
+
+  <ol class='man-decor man-foot man foot'>
+    <li class='tl'></li>
+    <li class='tc'>December 2015</li>
+    <li class='tr'>clear_locks(8)</li>
+  </ol>
+
+  </div>
+</body>
+</html>
