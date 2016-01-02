@@ -181,7 +181,8 @@ int main(int argc, char **argv) {
     };
     unsigned long usec;
     struct timespec wall_clock;
-    JSON_Value *root_value;
+    JSON_Value *json_root;
+    JSON_Object *json;
 
     /* no arguments passed */
     if (argc == 1)
@@ -252,10 +253,14 @@ int main(int argc, char **argv) {
                         if (mountres && mountres->fhs_status == MNT3_OK) {
                             exports_ok++;
 
-                            root_value = json_value_init_object();
+                            json_root = json_value_init_object();
+                            json = json_value_get_object(json_root);
+
+                            json_object_set_number(json, "timestamp", wall_clock.tv_sec);
 
                             /* print the filehandle in hex */
-                            print_fhandle3(root_value, addr->ai_addr, path, mountres->mountres3_u.mountinfo.fhandle, usec, wall_clock);
+                            print_fhandle3(json_root, addr->ai_addr, path, mountres->mountres3_u.mountinfo.fhandle, usec, wall_clock);
+
                         }
                     } else {
                         /* get the list of all exported filesystems from the server */
@@ -277,9 +282,11 @@ int main(int argc, char **argv) {
 
                                     if (mountres && mountres->fhs_status == MNT3_OK) {
                                         exports_ok++;
-                                        root_value = json_value_init_object();
+                                        json_root = json_value_init_object();
+                                        json = json_value_get_object(json_root);
+                                        json_object_set_number(json, "timestamp", wall_clock.tv_sec);
                                         /* print the filehandle in hex */
-                                        print_fhandle3(root_value, addr->ai_addr, ex->ex_dir, mountres->mountres3_u.mountinfo.fhandle, usec, wall_clock);
+                                        print_fhandle3(json_root, addr->ai_addr, ex->ex_dir, mountres->mountres3_u.mountinfo.fhandle, usec, wall_clock);
                                     }
                                     ex = ex->ex_next;
                                 }
