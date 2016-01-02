@@ -4,23 +4,23 @@ NFStash (pronounced "en-ef stash") is a suite of **command line tools** for Linu
 
 The suite consists of:
 
-- [nfsping](md/nfsping.md): send RPC NULL requests to NFS servers
-- nfsmount: lookup NFS filesystem root filehandles
-- nfsdf: report NFS server disk space usage
-- nfsls: list directory contents on an NFS server
-- nfscat: read a file over NFS and print to stdout
-- nfslock: test getting an NFS lock on a filehandle
-- clear_locks: clear file locks on an NFS server
+- [`nfsping`](md/nfsping.md): send RPC NULL requests to NFS servers
+- `nfsmount`: lookup NFS filesystem root filehandles
+- `nfsdf`: report NFS server disk space usage
+- `nfsls`: list directory contents on an NFS server
+- `nfscat`: read a file over NFS and print to stdout
+- `nfslock`: test getting an NFS lock on a filehandle
+- `clear_locks`: clear file locks on an NFS server
 
 The goal of the project is to eventually support all 22 NFS version 3 client procedures.
 
 ## Main Features
 - [BSD licensed](http://opensource.org/licenses/bsd-license.php)
-- Written in C for portability and speed
+- Written in **C** for portability and speed
 - Built from the original Sun RPC protocol files
 - No requirement for any libraries other than libc (and librt for clock_gettime() if using an older version of GNU libc).
 - No dependencies on the operating system's NFS client
-- Easily readable and parseable JSON output
+- Easily readable and parseable **JSON** output
 - Timing output compatible with [fping](https://github.com/schweikert/fping), [Graphite](https://github.com/graphite-project/graphite-web) or [StatsD](https://github.com/etsy/statsd)
 
 ## Installation
