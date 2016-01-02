@@ -9,7 +9,6 @@ static void print_summary(targets_t);
 static void print_fping_summary(targets_t);
 static void print_output(enum outputs, char *, targets_t *, unsigned long, u_long, const struct timespec, unsigned long);
 static void print_lost(enum outputs, char *, targets_t *, unsigned long, u_long, const struct timespec);
-static targets_t *make_target(char *, uint16_t);
 
 /* Globals! */
 volatile sig_atomic_t quitting;
@@ -191,25 +190,6 @@ void print_lost(enum outputs format, char *prefix, targets_t *target, unsigned l
         }
     }
     fflush(stdout);
-}
-
-
-/* make a new target */
-targets_t *make_target(char *target_name, uint16_t port) {
-    targets_t *target;
-
-    target = calloc(1, sizeof(targets_t));
-    target->next = NULL;
-    target->name = target_name;
-
-    target->client_sock = calloc(1, sizeof(struct sockaddr_in));
-    target->client_sock->sin_family = AF_INET;
-    target->client_sock->sin_port = port;
-
-    /* set this so that the first comparison will always be smaller */
-    target->min = ULONG_MAX;
-
-    return target;
 }
 
 

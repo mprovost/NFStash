@@ -312,6 +312,25 @@ char* reverse_fqdn(char *fqdn) {
 }
 
 
+/* make a new target */
+targets_t *make_target(char *target_name, uint16_t port) {
+    targets_t *target;
+
+    target = calloc(1, sizeof(targets_t));
+    target->next = NULL;
+    target->name = target_name;
+
+    target->client_sock = calloc(1, sizeof(struct sockaddr_in));
+    target->client_sock->sin_family = AF_INET;
+    target->client_sock->sin_port = port;
+
+    /* set this so that the first comparison will always be smaller */
+    target->min = ULONG_MAX;
+
+    return target;
+}
+
+
 /* convert a timeval to microseconds */
 unsigned long tv2us(struct timeval tv) {
     return tv.tv_sec * 1000000 + tv.tv_usec;
