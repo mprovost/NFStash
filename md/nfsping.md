@@ -26,10 +26,6 @@ NFSping checks if each target server is responding by sending it a NULL RPC requ
 NFSping supports several different output formats which makes it ideal for sending the response time data to be recorded and graphed by programs such as [Smokeping](https://oss.oetiker.ch/smokeping/) or [Graphite](https://github.com/graphite-project/graphite-web).
 
 ## Features
-- [BSD licensed](http://opensource.org/licenses/bsd-license.php)
-- Written in C for portability and speed
-  - Doesn't require any libraries other than libc (and librt for clock_gettime() if using an older version of GNU libc).
-  - No dependencies on the operating system's NFS client
 - Supports all seven of the RPC protocols that are used by NFS
   - NFS - versions 2/3/4
   - mount
@@ -112,23 +108,6 @@ Usage: nfsping [options] [targets...]
     -v         verbose output
     -V n       specify NFS version (2/3/4, default 3)
 ```
-
-## Installation
-
-```console
-$ git clone git://github.com/mprovost/NFSping.git
-$ cd NFSping && make
-$ sudo make install
-```
-
-- `make install` will copy the binaries to `/usr/local/bin/` and manpages to `/usr/local/share/man/`. To change this edit the `prefix` in the Makefile.
-- Requires `gmake`.
-- Uses some `gcc`-isms that may mean it won't compile with other C compilers but that hasn't been tested.
-- Manpages are built with [`ronn`](http://rtomayko.github.io/ronn/).
-- RPC code is generated with `rpcgen`.
-- At the moment it doesn't compile on FreeBSD because of conflicts with the portmap header files that it generates and the builtin RPC headers shipped with FreeBSD.
-- It doesn't compile on OSX yet due to a missing clock_gettime() - this will take some porting effort (probably based on sudo_clock_gettime() from sudo).
-- The Makefile uses a test in the `/config` directory to check whether it needs to link the realtime library (-lrt) to pull in clock_gettime(). This is included in libc itself in glibc > 2.17.
 
 ## Examples
 
@@ -229,13 +208,3 @@ nfsping.filer1.ping:78.07|ms
 ```
 
 Note that this output uses floating point values, as the StatsD protocol only supports milliseconds. While floating point values are supported by the protocol, some implementations may not handle them. This output has been tested as working with [statsite](https://github.com/armon/statsite).
-
-## Roadmap
-- [ ] convert internal time calculations to nanoseconds
-- [ ] [HDRHistogram](https://github.com/HdrHistogram/HdrHistogram_c) support
-- [ ] Workaround Coordinated Omission like [wrk2](https://github.com/giltene/wrk2)
-- [ ] Fix compilation issues on *BSD
-- [ ] OSX support ([clock_gettime](http://www.sudo.ws/repos/sudo/file/adf7997a0a65/lib/util/clock_gettime.c))
-- [ ] Multithreaded so slow responses don't block other requests?
-- [ ] A simplified version for Nagios-compatible monitoring checks
-- [ ] Simplify output formats and move output conversion to a utility
