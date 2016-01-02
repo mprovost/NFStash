@@ -10,7 +10,7 @@ clean:
 	rm -rf obj bin deps man rpcsrc/*.c rpcsrc/*.h config/*.opt
 
 #output directories
-bin obj deps man/man8:
+bin obj deps:
 	mkdir -p $@
 
 # CFLAGS borrowed from https://github.com/ggreer/the_silver_searcher
@@ -34,18 +34,18 @@ rpcgen: $(addprefix rpcsrc/, nfs_prot.h mount.h pmap_prot.h nlm_prot.h nfsv4_pro
 %.h %_clnt.c %_svc.c %_xdr.c: %.x
 	rpcgen -DWANT_NFS3 $<
 
-# pattern rule for makefiles using ronn
+# pattern rule for manfiles using ronn
 # unfortunately every section of the manual has a different suffix so we can't make one general rule
-# create the output directory first
-man/man8/%.8: mansrc/%.8.ronn | man/man8
-	ronn -w -r $< --pipe > $@
+# the pattern rule has two targets, for roff and html
+%.8 %.html: %.8.ronn
+	ronn $<
 
 # pattern rule for installing binaries
 $(prefix)/bin/%: bin/%
 	install $< $(@D)
 
 # pattern rule for installing manpages
-$(prefix)/share/man/man8/%: man/man8/% $(prefix)/share/man/man8/
+$(prefix)/share/man/man8/%.8: man/%.8 $(prefix)/share/man/man8/
 	install -m644 $< $(@D)
 
 # create man8 if it is missing.
@@ -117,7 +117,7 @@ tests/util_tests: tests/util_tests.c tests/minunit.h src/util.o obj/parson.o src
 	tests/util_tests
 
 # man pages
-man: $(addprefix man/man8/, $(addsuffix .8, nfsping nfsdf nfsls nfsmount nfslock nfscat clear_locks))
+man: $(addprefix man/, $(addsuffix .8, nfsping nfsdf nfsls nfsmount nfslock nfscat clear_locks))
 
 # quick install
 install: $(addprefix $(prefix)/bin/, $(all)) $(addsuffix .8, $(addprefix $(prefix)/share/man/man8/, $(all)))
