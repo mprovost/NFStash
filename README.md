@@ -5,12 +5,12 @@ NFStash (pronounced "en-ef stash") is a suite of **command line tools** for Linu
 The suite consists of:
 
 - [`nfsping`](md/nfsping.md): send RPC NULL requests to NFS servers
-- [`nfsmount`](man/nfsmount.8.html): lookup NFS filesystem root filehandles
-- [`nfsdf`](man/nfsdf.html): report NFS server disk space usage
-- [`nfsls`](man/nfsls.8.html): list directory contents on an NFS server
-- [`nfscat`](man/nfscat.8.html): read a file over NFS and print to stdout
-- [`nfslock`](man/nfslock.8.html): test getting an NFS lock on a filehandle
-- [`clear_locks`](man/clear_locks.8.html): clear file locks on an NFS server
+- [`nfsmount`](https://rawgit.com/mprovost/NFSping/man/nfsmount.8.html): lookup NFS filesystem root filehandles
+- [`nfsdf`](https://rawgit.com/mprovost/NFSping/man/nfsdf.html): report NFS server disk space usage
+- [`nfsls`](https://rawgit.com/mprovost/NFSping/man/nfsls.8.html): list directory contents on an NFS server
+- [`nfscat`](https://rawgit.com/mprovost/NFSping/man/nfscat.8.html): read a file over NFS and print to stdout
+- [`nfslock`](https://rawgit.com/mprovost/NFSping/man/nfslock.8.html): test getting an NFS lock on a filehandle
+- [`clear_locks`](https://rawgit.com/mprovost/NFSping/man/clear_locks.8.html): clear file locks on an NFS server
 
 The goal of the project is to eventually support all 22 NFS version 3 client procedures.
 
