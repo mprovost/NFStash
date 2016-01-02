@@ -1,6 +1,6 @@
 # NFStash **⏞**: CLI NFS client tools
 
-NFStash (pronounced "en-ef-ess tash") is a suite of **command line tools** for Linux and other POSIX operating systems which implement Network File System (NFS) client procedures. These utilities can be used for **testing, debugging, monitoring and benchmarking** the responses from an NFS server in a **composable** and **reproducible** way, either **interactively** or in **scripts**.
+NFStash (pronounced "en-ef stash") is a suite of **command line tools** for Linux and other POSIX operating systems which implement Network File System (NFS) client procedures. These utilities can be used for **testing, debugging, monitoring and benchmarking** the responses from an NFS server in a **composable** and **reproducible** way, either **interactively** or in **scripts**.
 
 The suite consists of:
 
