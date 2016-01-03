@@ -500,75 +500,8 @@ int main(int argc, char **argv) {
 
     /* process the targets from the command line */
     for (index = optind; index < argc; index++) {
-        target->next = make_target(argv[index], port);
+        target->next = make_target(argv[index], port, dns, ip, multiple);
         target = target->next;
-
-        /* first try treating the hostname as an IP address */
-        if (inet_pton(AF_INET, target->name, &((struct sockaddr_in *)target->client_sock)->sin_addr)) {
-            /* reverse dns */
-            if (dns) {
-                target->name = calloc(1, NI_MAXHOST);
-                getaddr = getnameinfo((struct sockaddr *)target->client_sock, sizeof(struct sockaddr_in), target->name, NI_MAXHOST, NULL, 0, NI_NAMEREQD);
-                if (getaddr != 0) { /* failure! */
-                    fprintf(stderr, "%s: %s\n", argv[index], gai_strerror(getaddr));
-                    exit(2); /* ping and fping return 2 for name resolution failures */
-                }
-                target->ndqf = reverse_fqdn(target->name);
-            } else {
-                /* don't reverse IP addresses */
-                target->ndqf = target->name;
-            }
-        /* not an IP address, do a DNS lookup */
-        } else {
-            /* we don't call freeaddrinfo because we keep a pointer to the sin_addr in the target */
-            getaddr = getaddrinfo(target->name, "nfs", &hints, &addr);
-            if (getaddr == 0) { /* success! */
-                /* loop through possibly multiple DNS responses */
-                while (addr) {
-                    target->client_sock->sin_addr = ((struct sockaddr_in *)addr->ai_addr)->sin_addr;
-
-                    /* if we're using IP addresses */
-                    if (ip) {
-                        target->name = calloc(1, INET_ADDRSTRLEN);
-                        inet_ntop(AF_INET, &((struct sockaddr_in *)addr->ai_addr)->sin_addr, target->name, INET_ADDRSTRLEN);
-                        /* don't reverse an IP address */
-                        target->ndqf = target->name;
-                    /* if we have reverse lookups enabled */
-                    } else if (dns) {
-                        target->name = calloc(1, NI_MAXHOST);
-                        /* it's an error if we've asked to do reverse DNS lookups and it can't find one */
-                        getaddr = getnameinfo((struct sockaddr *)target->client_sock, sizeof(struct sockaddr_in), target->name, NI_MAXHOST, NULL, 0, NI_NAMEREQD);
-                        if (getaddr != 0) { /* failure! */
-                            fprintf(stderr, "%s: %s\n", argv[index], gai_strerror(getaddr));
-                            exit(2); /* ping and fping return 2 for name resolution failures */
-                        }
-                        target->ndqf = reverse_fqdn(target->name);
-                    /* default */
-                    } else {
-                        target->ndqf = reverse_fqdn(target->name);
-                    }
-
-                    /* multiple results */
-                    if (addr->ai_next) {
-                        if (multiple) {
-                            /* create the next target */
-                            target->next = make_target(argv[index], port);
-                            target = target->next;
-                        } else {
-                            /* we have to look up the IP address for the warning */
-                            inet_ntop(AF_INET, &((struct sockaddr_in *)addr->ai_addr)->sin_addr, ip_address, INET_ADDRSTRLEN);
-                            fprintf(stderr, "Multiple addresses found for %s, using %s\n", argv[index], ip_address);
-                            break;
-                        }
-                    }
-
-                    addr = addr->ai_next;
-                }
-            } else {
-                fprintf(stderr, "getaddrinfo error (%s): %s\n", target->name, gai_strerror(getaddr));
-                exit(2); /* ping and fping return 2 for name resolution failures */
-            }
-        }
     }
 
     /* skip the first dummy entry */

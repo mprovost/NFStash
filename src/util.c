@@ -313,8 +313,16 @@ char* reverse_fqdn(char *fqdn) {
 
 
 /* make a new target */
-targets_t *make_target(char *target_name, uint16_t port) {
-    targets_t *target;
+targets_t *make_target(char *target_name, uint16_t port, int dns, int ip, int multiple) {
+    targets_t *target, *first;
+    struct addrinfo hints = {
+        .ai_family = AF_INET,
+        .ai_socktype = SOCK_DGRAM,
+    };
+    struct addrinfo *addr;
+    int getaddr;
+    char ip_address[INET_ADDRSTRLEN]; /* for warning when multiple addresses found */
+
 
     target = calloc(1, sizeof(targets_t));
     target->next = NULL;
@@ -327,7 +335,84 @@ targets_t *make_target(char *target_name, uint16_t port) {
     /* set this so that the first comparison will always be smaller */
     target->min = ULONG_MAX;
 
-    return target;
+    /* save the head of the list in case of multiple DNS responses */
+    first = target;
+
+    /* first try treating the hostname as an IP address */
+    if (inet_pton(AF_INET, target->name, &((struct sockaddr_in *)target->client_sock)->sin_addr)) {
+        /* reverse dns */
+        if (dns) {
+            target->name = calloc(1, NI_MAXHOST);
+            getaddr = getnameinfo((struct sockaddr *)target->client_sock, sizeof(struct sockaddr_in), target->name, NI_MAXHOST, NULL, 0, NI_NAMEREQD);
+            if (getaddr != 0) { /* failure! */
+                fprintf(stderr, "%s: %s\n", target_name, gai_strerror(getaddr));
+                exit(2); /* ping and fping return 2 for name resolution failures */
+            }
+            target->ndqf = reverse_fqdn(target->name);
+        } else {
+            /* don't reverse IP addresses */
+            target->ndqf = target->name;
+        }
+    /* not an IP address, do a DNS lookup */
+    } else {
+        /* we don't call freeaddrinfo because we keep a pointer to the sin_addr in the target */
+        getaddr = getaddrinfo(target->name, "nfs", &hints, &addr);
+        if (getaddr == 0) { /* success! */
+            /* loop through possibly multiple DNS responses */
+            while (addr) {
+                target->client_sock->sin_addr = ((struct sockaddr_in *)addr->ai_addr)->sin_addr;
+
+                /* if we're using IP addresses */
+                if (ip) {
+                    target->name = calloc(1, INET_ADDRSTRLEN);
+                    inet_ntop(AF_INET, &((struct sockaddr_in *)addr->ai_addr)->sin_addr, target->name, INET_ADDRSTRLEN);
+                    /* don't reverse an IP address */
+                    target->ndqf = target->name;
+                /* if we have reverse lookups enabled */
+                } else if (dns) {
+                    target->name = calloc(1, NI_MAXHOST);
+                    /* it's an error if we've asked to do reverse DNS lookups and it can't find one */
+                    getaddr = getnameinfo((struct sockaddr *)target->client_sock, sizeof(struct sockaddr_in), target->name, NI_MAXHOST, NULL, 0, NI_NAMEREQD);
+                    if (getaddr != 0) { /* failure! */
+                        fprintf(stderr, "%s: %s\n", target_name, gai_strerror(getaddr));
+                        exit(2); /* ping and fping return 2 for name resolution failures */
+                    }
+                    target->ndqf = reverse_fqdn(target->name);
+                /* default */
+                } else {
+                    target->ndqf = reverse_fqdn(target->name);
+                }
+
+                /* multiple results */
+                if (addr->ai_next) {
+                    if (multiple) {
+                        /* make the next target */
+                        target->next = calloc(1, sizeof(targets_t));
+                        target = target->next;
+                        target->next = NULL;
+                        target->name = target_name;
+                        target->client_sock = calloc(1, sizeof(struct sockaddr_in));
+                        target->client_sock->sin_family = AF_INET;
+                        target->client_sock->sin_port = port;
+                        target->min = ULONG_MAX;
+                    } else {
+                        /* we have to look up the IP address for the warning */
+                        inet_ntop(AF_INET, &((struct sockaddr_in *)addr->ai_addr)->sin_addr, ip_address, INET_ADDRSTRLEN);
+                        fprintf(stderr, "Multiple addresses found for %s, using %s\n", target_name, ip_address);
+                        break;
+                    }
+                }
+
+                addr = addr->ai_next;
+            }
+        } else {
+            fprintf(stderr, "getaddrinfo error (%s): %s\n", target->name, gai_strerror(getaddr));
+            exit(2); /* ping and fping return 2 for name resolution failures */
+        }
+    } /* end of DNS */
+
+    /* only return the head of the list */
+    return first;
 }
 
 
