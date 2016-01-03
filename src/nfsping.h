@@ -38,6 +38,9 @@
 /* BSD timespec functions */
 #include "src/timespec.h"
 
+/* Parson JSON */
+#include "parson/parson.h"
+
 #define fatal(x...) do { fflush(stdout); fprintf(stderr,x); fflush(stderr); usage(); } while (0)
 #define fatalx(x, y...) do { fflush(stdout); fprintf(stderr,y); fflush(stderr); exit(x); } while (0)
 #define debug(x...) do { if (verbose) { fflush(stdout); fprintf(stderr,x); fflush(stderr); } } while (0)
@@ -72,6 +75,7 @@ typedef struct targets {
     unsigned int sent, received;
     unsigned long min, max;
     float avg;
+    JSON_Value *json_root;
     struct targets *next;
 } targets_t;
 
