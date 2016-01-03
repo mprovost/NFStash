@@ -202,16 +202,18 @@ int main(int argc, char **argv) {
     uint16_t port = htons(NFS_PORT);
     unsigned long prognum = NFS_PROGRAM;
     unsigned long prognum_offset = NFS_PROGRAM - 100000;
-    struct addrinfo hints = {0}, *addr;
+    struct addrinfo hints = {
+        .ai_family = AF_INET,
+        /* default to UDP */
+        .ai_socktype = SOCK_DGRAM,
+    };
     struct rpc_err clnt_err;
-    int getaddr;
     unsigned long us;
     enum outputs format = human;
     char prefix[255] = "nfsping";
     targets_t *targets;
     targets_t *target;
     targets_t target_dummy;
-    char ip_address[INET_ADDRSTRLEN]; /* for warning when multiple addresses found */
     int ch;
     unsigned long count = 0;
     /* default to reconnecting to server each round */
@@ -227,6 +229,7 @@ int main(int argc, char **argv) {
         .sin_addr = INADDR_ANY
     };
 
+
     /* listen for ctrl-c */
     quitting = 0;
     signal(SIGINT, int_handler);
@@ -234,13 +237,10 @@ int main(int argc, char **argv) {
     /* don't quit on (TCP) broken pipes */
     signal(SIGPIPE, SIG_IGN);
 
-    hints.ai_family = AF_INET;
-    /* default to UDP */
-    hints.ai_socktype = SOCK_DGRAM;
-
     /* no arguments passed */
     if (argc == 1)
         usage();
+
 
     while ((ch = getopt(argc, argv, "aAc:C:dDEg:Ghi:KlLmMnNp:P:qQRsS:t:TvV:")) != -1) {
         switch(ch) {
@@ -455,6 +455,7 @@ int main(int argc, char **argv) {
         }
     }
 
+
     /* calculate this once */
     prognum_offset = prognum - 100000;
 
@@ -519,6 +520,7 @@ int main(int argc, char **argv) {
             target = target->next;
         }
     }
+
 
     /* the main loop */
     while(1) {
