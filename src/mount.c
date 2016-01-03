@@ -153,25 +153,23 @@ int print_exports(char *host, struct exportnode *ex) {
 
 int main(int argc, char **argv) {
     mountres3 *mountres;
-    struct sockaddr_in client_sock = {
-        .sin_family = AF_INET
-    };
-    int getaddr;
     struct addrinfo hints = {
         .ai_family = AF_INET,
         /* default to UDP */
         .ai_socktype = SOCK_DGRAM
     };
-    struct addrinfo *addr;
     char *host;
     char *path;
     exports ex;
+    targets_t *targets;
+    targets_t *current;
+    targets_t target_dummy;
     int exports_count = 0, exports_ok = 0;
     int ch;
     /* command line options */
+    uint16_t port = 0; /* 0 = use portmapper */
+    int dns = 0, ip = 0;
     int multiple = 0, showmount = 0;
-    char ip_address[INET_ADDRSTRLEN];
-    CLIENT *client;
     u_long version = 3;
     struct timeval timeout = NFS_TIMEOUT;
     /* source ip address for packets */
@@ -181,7 +179,6 @@ int main(int argc, char **argv) {
     };
     unsigned long usec;
     struct timespec wall_clock;
-    JSON_Value *json_root;
     JSON_Object *json;
 
     /* no arguments passed */
@@ -220,99 +217,82 @@ int main(int argc, char **argv) {
         }
     }
 
+    /* pointer to head of list */
+    current = &target_dummy;
+    targets = current;
 
-    /* loop through arguments */
+    /* loop through arguments and create targets */
     while (optind < argc) {
         /* split host:path arguments, path is optional */
         host = strtok(argv[optind], ":");
         path = strtok(NULL, ":");
 
-        /* DNS lookup */
-        getaddr = getaddrinfo(host, "nfs", &hints, &addr);
+        current->next = make_target(host, &hints, port, dns, ip, multiple);
+        current = current->next;
+        current->path = path;
 
-        if (getaddr == 0) { /* success! */
-            /* loop through possibly multiple DNS responses */
-            while (addr) {
-                client_sock.sin_addr = ((struct sockaddr_in *)addr->ai_addr)->sin_addr;
-                client_sock.sin_family = AF_INET;
-                client_sock.sin_port = 0; /* use portmapper */
+        optind++;
+    }
 
-                /* create an rpc connection */
-                client = create_rpc_client(&client_sock, &hints, MOUNTPROG, version, timeout, src_ip);
-                /* mounts don't need authentication because they return a list of authentication flavours supported so leave it as default (AUTH_NONE) */
+    /* reset to head of list, skip the first dummy entry */
+    current = targets->next;
 
-                if (client) {
-                    if (path && !showmount) {
-                        exports_count++;
+    while(current) {
+        /* create an rpc connection */
+        current->client = create_rpc_client(current->client_sock, &hints, MOUNTPROG, version, timeout, src_ip);
+        /* mounts don't need authentication because they return a list of authentication flavours supported so leave it as default (AUTH_NONE) */
 
-                        /* get the current timestamp */
-                        clock_gettime(CLOCK_REALTIME, &wall_clock);
+        if (current->client) {
+            if (current->path && !showmount) {
+                exports_count++;
 
-                        mountres = get_root_filehandle(client, host, path, &usec);
+                /* get the current timestamp */
+                clock_gettime(CLOCK_REALTIME, &wall_clock);
 
-                        if (mountres && mountres->fhs_status == MNT3_OK) {
-                            exports_ok++;
+                mountres = get_root_filehandle(current->client, current->name, current->path, &usec);
 
-                            json_root = json_value_init_object();
-                            json = json_value_get_object(json_root);
+                if (mountres && mountres->fhs_status == MNT3_OK) {
+                    exports_ok++;
 
-                            json_object_set_number(json, "timestamp", wall_clock.tv_sec);
+                    json = json_value_get_object(current->json_root);
 
-                            /* print the filehandle in hex */
-                            print_fhandle3(json_root, addr->ai_addr, path, mountres->mountres3_u.mountinfo.fhandle, usec, wall_clock);
+                    json_object_set_number(json, "timestamp", wall_clock.tv_sec);
 
-                        }
+                    /* print the filehandle in hex */
+                    print_fhandle3(current->json_root, current->client_sock, current->path, mountres->mountres3_u.mountinfo.fhandle, usec, wall_clock);
+                }
+            } else {
+                /* get the list of all exported filesystems from the server */
+                ex = *mountproc_export_3(NULL, current->client);
+
+                if (ex) {
+                    if (showmount) {
+                        exports_count = print_exports(current->name, ex);
+                        /* if the call succeeds at all it can't return individual bad results */
+                        exports_ok = exports_count;
                     } else {
-                        /* get the list of all exported filesystems from the server */
-                        ex = *mountproc_export_3(NULL, client);
+                        while (ex) {
+                            exports_count++;
 
-                        if (ex) {
-                            if (showmount) {
-                                exports_count = print_exports(host, ex);
-                                /* if the call succeeds at all it can't return individual bad results */
-                                exports_ok = exports_count;
-                            } else {
-                                while (ex) {
-                                    exports_count++;
+                            /* get the current timestamp */
+                            clock_gettime(CLOCK_REALTIME, &wall_clock);
+                            
+                            mountres = get_root_filehandle(current->client, current->path, ex->ex_dir, &usec);
 
-                                    /* get the current timestamp */
-                                    clock_gettime(CLOCK_REALTIME, &wall_clock);
-                                    
-                                    mountres = get_root_filehandle(client, host, ex->ex_dir, &usec);
-
-                                    if (mountres && mountres->fhs_status == MNT3_OK) {
-                                        exports_ok++;
-                                        json_root = json_value_init_object();
-                                        json = json_value_get_object(json_root);
-                                        json_object_set_number(json, "timestamp", wall_clock.tv_sec);
-                                        /* print the filehandle in hex */
-                                        print_fhandle3(json_root, addr->ai_addr, ex->ex_dir, mountres->mountres3_u.mountinfo.fhandle, usec, wall_clock);
-                                    }
-                                    ex = ex->ex_next;
-                                }
+                            if (mountres && mountres->fhs_status == MNT3_OK) {
+                                exports_ok++;
+                                json = json_value_get_object(current->json_root);
+                                json_object_set_number(json, "timestamp", wall_clock.tv_sec);
+                                /* print the filehandle in hex */
+                                print_fhandle3(current->json_root, current->client_sock, ex->ex_dir, mountres->mountres3_u.mountinfo.fhandle, usec, wall_clock);
                             }
+                            ex = ex->ex_next;
                         }
                     }
                 }
-
-                if (multiple) {
-                    addr = addr->ai_next;
-                } else {
-                    /* we have to look up the IP address for the warning */
-                    /* TODO move this so it prints before any other output */
-                    inet_ntop(AF_INET, &((struct sockaddr_in *)addr->ai_addr)->sin_addr, ip_address, INET_ADDRSTRLEN);
-                    fprintf(stderr, "Multiple addresses found for %s, using %s\n", argv[optind], ip_address);
-                    break;
-                }
             }
-        /* getaddrinfo() failure */
-        } else {
-            fprintf(stderr, "%s: %s\n", host, gai_strerror(getaddr));
-            /* TODO soldier on with other arguments or bail at first sign of trouble? */
-            return EXIT_FAILURE;
         }
-
-        optind++;
+        current = current->next;
     }
 
     if (exports_count && exports_count == exports_ok) {
