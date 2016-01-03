@@ -313,12 +313,8 @@ char* reverse_fqdn(char *fqdn) {
 
 
 /* make a new target */
-targets_t *make_target(char *target_name, uint16_t port, int dns, int ip, int multiple) {
+targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t port, int dns, int ip, int multiple) {
     targets_t *target, *first;
-    struct addrinfo hints = {
-        .ai_family = AF_INET,
-        .ai_socktype = SOCK_DGRAM,
-    };
     struct addrinfo *addr;
     int getaddr;
     char ip_address[INET_ADDRSTRLEN]; /* for warning when multiple addresses found */
@@ -356,7 +352,7 @@ targets_t *make_target(char *target_name, uint16_t port, int dns, int ip, int mu
     /* not an IP address, do a DNS lookup */
     } else {
         /* we don't call freeaddrinfo because we keep a pointer to the sin_addr in the target */
-        getaddr = getaddrinfo(target->name, "nfs", &hints, &addr);
+        getaddr = getaddrinfo(target->name, "nfs", hints, &addr);
         if (getaddr == 0) { /* success! */
             /* loop through possibly multiple DNS responses */
             while (addr) {
