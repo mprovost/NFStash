@@ -21,6 +21,7 @@ void usage() {
     printf("Usage: nfsmount [options] host[:mountpoint]\n\
     -e       print exports (like showmount -e)\n\
     -h       display this help and exit\n\
+    -l       loop forever\n\
     -m       use multiple target IP addresses if found\n\
     -S addr  set source address\n\
     -T       use TCP (default UDP)\n\
@@ -169,6 +170,7 @@ int main(int argc, char **argv) {
     /* command line options */
     uint16_t port = 0; /* 0 = use portmapper */
     int dns = 0, ip = 0;
+    int loop = 0;
     int multiple = 0, showmount = 0;
     u_long version = 3;
     struct timeval timeout = NFS_TIMEOUT;
@@ -185,11 +187,14 @@ int main(int argc, char **argv) {
     if (argc == 1)
         usage();
 
-    while ((ch = getopt(argc, argv, "ehmS:Tv")) != -1) {
+    while ((ch = getopt(argc, argv, "ehlmS:Tv")) != -1) {
         switch(ch) {
             /* output like showmount -e */
             case 'e':
                 showmount = 1;
+                break;
+            case 'l':
+                loop = 1;
                 break;
             /* specify source address */
             case 'S':
@@ -234,66 +239,75 @@ int main(int argc, char **argv) {
         optind++;
     }
 
-    /* reset to head of list, skip the first dummy entry */
-    current = targets->next;
+    /* skip the first dummy entry */
+    targets = targets->next;
 
-    while(current) {
-        /* create an rpc connection */
-        current->client = create_rpc_client(current->client_sock, &hints, MOUNTPROG, version, timeout, src_ip);
-        /* mounts don't need authentication because they return a list of authentication flavours supported so leave it as default (AUTH_NONE) */
+    while(1) {
+        /* reset to head of list */
+        current = targets;
 
-        if (current->client) {
-            if (current->path && !showmount) {
-                exports_count++;
+        while(current) {
+            /* create an rpc connection */
+            current->client = create_rpc_client(current->client_sock, &hints, MOUNTPROG, version, timeout, src_ip);
+            /* mounts don't need authentication because they return a list of authentication flavours supported so leave it as default (AUTH_NONE) */
 
-                /* get the current timestamp */
-                clock_gettime(CLOCK_REALTIME, &wall_clock);
+            if (current->client) {
+                if (current->path && !showmount) {
+                    exports_count++;
 
-                mountres = get_root_filehandle(current->client, current->name, current->path, &usec);
+                    /* get the current timestamp */
+                    clock_gettime(CLOCK_REALTIME, &wall_clock);
 
-                if (mountres && mountres->fhs_status == MNT3_OK) {
-                    exports_ok++;
+                    mountres = get_root_filehandle(current->client, current->name, current->path, &usec);
 
-                    json = json_value_get_object(current->json_root);
+                    if (mountres && mountres->fhs_status == MNT3_OK) {
+                        exports_ok++;
 
-                    json_object_set_number(json, "timestamp", wall_clock.tv_sec);
+                        json = json_value_get_object(current->json_root);
 
-                    /* print the filehandle in hex */
-                    print_fhandle3(current->json_root, current->client_sock, current->path, mountres->mountres3_u.mountinfo.fhandle, usec, wall_clock);
-                }
-            } else {
-                /* get the list of all exported filesystems from the server */
-                ex = *mountproc_export_3(NULL, current->client);
+                        json_object_set_number(json, "timestamp", wall_clock.tv_sec);
 
-                if (ex) {
-                    if (showmount) {
-                        exports_count = print_exports(current->name, ex);
-                        /* if the call succeeds at all it can't return individual bad results */
-                        exports_ok = exports_count;
-                    } else {
-                        while (ex) {
-                            exports_count++;
+                        /* print the filehandle in hex */
+                        print_fhandle3(current->json_root, current->client_sock, current->path, mountres->mountres3_u.mountinfo.fhandle, usec, wall_clock);
+                    }
+                } else {
+                    /* get the list of all exported filesystems from the server */
+                    ex = *mountproc_export_3(NULL, current->client);
 
-                            /* get the current timestamp */
-                            clock_gettime(CLOCK_REALTIME, &wall_clock);
-                            
-                            mountres = get_root_filehandle(current->client, current->path, ex->ex_dir, &usec);
+                    if (ex) {
+                        if (showmount) {
+                            exports_count = print_exports(current->name, ex);
+                            /* if the call succeeds at all it can't return individual bad results */
+                            exports_ok = exports_count;
+                        } else {
+                            while (ex) {
+                                exports_count++;
 
-                            if (mountres && mountres->fhs_status == MNT3_OK) {
-                                exports_ok++;
-                                json = json_value_get_object(current->json_root);
-                                json_object_set_number(json, "timestamp", wall_clock.tv_sec);
-                                /* print the filehandle in hex */
-                                print_fhandle3(current->json_root, current->client_sock, ex->ex_dir, mountres->mountres3_u.mountinfo.fhandle, usec, wall_clock);
+                                /* get the current timestamp */
+                                clock_gettime(CLOCK_REALTIME, &wall_clock);
+                                
+                                mountres = get_root_filehandle(current->client, current->path, ex->ex_dir, &usec);
+
+                                if (mountres && mountres->fhs_status == MNT3_OK) {
+                                    exports_ok++;
+                                    json = json_value_get_object(current->json_root);
+                                    json_object_set_number(json, "timestamp", wall_clock.tv_sec);
+                                    /* print the filehandle in hex */
+                                    print_fhandle3(current->json_root, current->client_sock, ex->ex_dir, mountres->mountres3_u.mountinfo.fhandle, usec, wall_clock);
+                                }
+                                ex = ex->ex_next;
                             }
-                            ex = ex->ex_next;
                         }
                     }
                 }
             }
+            current = current->next;
+        } /* while(current) */
+
+        if (loop == 0) {
+            break;
         }
-        current = current->next;
-    }
+    } /* while(1) */
 
     if (exports_count && exports_count == exports_ok) {
         return EXIT_SUCCESS;
