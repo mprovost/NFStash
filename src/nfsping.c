@@ -501,7 +501,7 @@ int main(int argc, char **argv) {
 
     /* process the targets from the command line */
     for (index = optind; index < argc; index++) {
-        target->next = make_target(argv[index], port, dns, ip, multiple);
+        target->next = make_target(argv[index], &hints, port, dns, ip, multiple);
         target = target->next;
     }
 
