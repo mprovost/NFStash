@@ -1,6 +1,10 @@
 #include "util.h"
 #include "nfsping.h"
-#include "parson/parson.h"
+
+
+/* local prototypes */
+targets_t *init_target(char *, uint16_t);
+
 
 /* print a string message for each NFS status code */
 /* returns that original status unless there was illegal input and then -1 */
@@ -205,7 +209,7 @@ nfs_fh_list *parse_fh(char *input) {
 /* this format has to be parsed again so take structs instead of strings to keep random data from being used as inputs */
 /* TODO accept path as struct? */
 /* print the IP address of the host in case there are multiple DNS results for a hostname */
-int print_fhandle3(JSON_Value *json_root, struct sockaddr *host, const char *path, const fhandle3 file_handle, const unsigned long usec, const struct timespec wall_clock) {
+int print_fhandle3(JSON_Value *json_root, struct sockaddr_in *host, const char *path, const fhandle3 file_handle, const unsigned long usec, const struct timespec wall_clock) {
     unsigned int i;
     char ip[INET_ADDRSTRLEN];
     /* two chars for each byte (FF in hex) plus terminating NULL */
@@ -312,6 +316,28 @@ char* reverse_fqdn(char *fqdn) {
 }
 
 
+/* allocate and initialise a target struct */
+targets_t *init_target(char *target_name, uint16_t port) {
+    targets_t *target;
+    
+    target = calloc(1, sizeof(targets_t));
+    target->next = NULL;
+    target->name = target_name;
+
+    /* set this so that the first comparison will always be smaller */
+    target->min = ULONG_MAX;
+
+    target->client_sock = calloc(1, sizeof(struct sockaddr_in));
+    target->client_sock->sin_family = AF_INET;
+    target->client_sock->sin_port = port;
+
+    /* json object for output */
+    target->json_root = json_value_init_object();
+
+    return target;
+}
+
+
 /* make a new target */
 targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t port, int dns, int ip, int multiple) {
     targets_t *target, *first;
@@ -320,16 +346,7 @@ targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t
     char ip_address[INET_ADDRSTRLEN]; /* for warning when multiple addresses found */
 
 
-    target = calloc(1, sizeof(targets_t));
-    target->next = NULL;
-    target->name = target_name;
-
-    target->client_sock = calloc(1, sizeof(struct sockaddr_in));
-    target->client_sock->sin_family = AF_INET;
-    target->client_sock->sin_port = port;
-
-    /* set this so that the first comparison will always be smaller */
-    target->min = ULONG_MAX;
+    target = init_target(target_name, port);
 
     /* save the head of the list in case of multiple DNS responses */
     first = target;
@@ -383,14 +400,8 @@ targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t
                 if (addr->ai_next) {
                     if (multiple) {
                         /* make the next target */
-                        target->next = calloc(1, sizeof(targets_t));
+                        target->next = init_target(target_name, port);
                         target = target->next;
-                        target->next = NULL;
-                        target->name = target_name;
-                        target->client_sock = calloc(1, sizeof(struct sockaddr_in));
-                        target->client_sock->sin_family = AF_INET;
-                        target->client_sock->sin_port = port;
-                        target->min = ULONG_MAX;
                     } else {
                         /* we have to look up the IP address for the warning */
                         inet_ntop(AF_INET, &((struct sockaddr_in *)addr->ai_addr)->sin_addr, ip_address, INET_ADDRSTRLEN);
