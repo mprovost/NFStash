@@ -69,6 +69,7 @@ enum byte_prefix {
 typedef struct targets {
     char *name;
     char *ndqf; /* reversed name */
+    char *path;
     struct sockaddr_in *client_sock;
     CLIENT *client;
     unsigned long *results;
