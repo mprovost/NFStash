@@ -175,6 +175,7 @@ int main(int argc, char **argv) {
     int multiple = 0, showmount = 0;
     u_long version = 3;
     struct timeval timeout = NFS_TIMEOUT;
+    struct timespec sleep_time = NFS_SLEEP;
     /* source ip address for packets */
     struct sockaddr_in src_ip = {
         .sin_family = AF_INET,
@@ -309,10 +310,15 @@ int main(int argc, char **argv) {
                     }
                 }
             }
+
             current = current->next;
+
         } /* while(current) */
 
-        if (loop == 0) {
+        if (loop) {
+            /* sleep between rounds */
+            nanosleep(&sleep_time, NULL);
+        } else {
             break;
         }
 
