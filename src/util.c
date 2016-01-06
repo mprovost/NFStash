@@ -5,6 +5,17 @@
 /* local prototypes */
 targets_t *init_target(char *, uint16_t);
 
+/* globals */
+volatile sig_atomic_t quitting;
+
+
+/* handle control-c */
+void int_handler(int sig) {
+    if (sig == SIGINT) {
+            quitting = 1;
+    }
+}
+
 
 /* print a string message for each NFS status code */
 /* returns that original status unless there was illegal input and then -1 */

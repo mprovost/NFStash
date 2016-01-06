@@ -4,6 +4,7 @@
 #include "nfsping.h"
 #include "parson/parson.h"
 
+void int_handler(int);
 int nfs_perror(nfsstat3);
 nfs_fh_list *parse_fh(char *);
 int print_fhandle3(JSON_Value *, struct sockaddr_in *, const char *, const fhandle3, const unsigned long, const struct timespec);

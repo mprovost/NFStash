@@ -3,15 +3,15 @@
 #include "rpc.h"
 
 /* local prototypes */
-static void int_handler(int);
 static void usage(void);
 static void print_summary(targets_t);
 static void print_fping_summary(targets_t);
 static void print_output(enum outputs, char *, targets_t *, unsigned long, u_long, const struct timespec, unsigned long);
 static void print_lost(enum outputs, char *, targets_t *, unsigned long, u_long, const struct timespec);
 
+
 /* Globals! */
-volatile sig_atomic_t quitting;
+extern volatile sig_atomic_t quitting;
 int verbose = 0;
 
 /* dispatch table for null function calls, this saves us from a bunch of if statements */
@@ -51,14 +51,6 @@ static const struct null_procs null_dispatch[][5] = {
     /* Only one version of RQUOTA protocol. Even for NFSv4! */
     [RQUOTAPROG - 100000]     [2 ... 4] = { .proc = rquotaproc_null_1, .name = "rquotaproc_null_1", .protocol = "rquotaproc_null_1", .version = 1},
 };
-
-
-/* handle control-c */
-void int_handler(int sig) {
-    if (sig == SIGINT) {
-        quitting = 1;
-    }
-}
 
 
 void usage() {
