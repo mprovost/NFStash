@@ -14,6 +14,7 @@ static mountres3 *get_root_filehandle(CLIENT *, char *, char *, unsigned long *)
 static int print_exports(char *, struct exportnode *);
 
 /* globals */
+extern volatile sig_atomic_t quitting;
 int verbose = 0;
 
 
@@ -239,6 +240,10 @@ int main(int argc, char **argv) {
         optind++;
     }
 
+    /* listen for ctrl-c */
+    quitting = 0;
+    signal(SIGINT, int_handler);
+
     /* skip the first dummy entry */
     targets = targets->next;
 
@@ -247,9 +252,12 @@ int main(int argc, char **argv) {
         current = targets;
 
         while(current) {
-            /* create an rpc connection */
-            current->client = create_rpc_client(current->client_sock, &hints, MOUNTPROG, version, timeout, src_ip);
-            /* mounts don't need authentication because they return a list of authentication flavours supported so leave it as default (AUTH_NONE) */
+
+            if (current->client == NULL) {
+                /* create an rpc connection */
+                current->client = create_rpc_client(current->client_sock, &hints, MOUNTPROG, version, timeout, src_ip);
+                /* mounts don't need authentication because they return a list of authentication flavours supported so leave it as default (AUTH_NONE) */
+            }
 
             if (current->client) {
                 if (current->path && !showmount) {
@@ -305,6 +313,11 @@ int main(int argc, char **argv) {
         } /* while(current) */
 
         if (loop == 0) {
+            break;
+        }
+
+        /* ctrl-c */
+        if (quitting) {
             break;
         }
     } /* while(1) */
