@@ -24,6 +24,7 @@ void usage() {
     -h       display this help and exit\n\
     -l       loop forever\n\
     -m       use multiple target IP addresses if found\n\
+    -p n     polling interval, check targets every n ms (default 1000)\n\
     -S addr  set source address\n\
     -T       use TCP (default UDP)\n\
     -v       verbose output\n");
@@ -189,7 +190,7 @@ int main(int argc, char **argv) {
     if (argc == 1)
         usage();
 
-    while ((ch = getopt(argc, argv, "ehlmS:Tv")) != -1) {
+    while ((ch = getopt(argc, argv, "ehlmp:S:Tv")) != -1) {
         switch(ch) {
             /* output like showmount -e */
             case 'e':
@@ -198,16 +199,21 @@ int main(int argc, char **argv) {
             case 'l':
                 loop = 1;
                 break;
+            /* use multiple IP addresses if found */
+            /* TODO in this case do we also want to default to showing IP addresses instead of names? */
+            case 'm':
+                multiple = 1;
+                break;
+            /* time between pings to target */
+            case 'p':
+                /* TODO check for reasonable values */
+                ms2ts(&sleep_time, strtoul(optarg, NULL, 10));
+                break;
             /* specify source address */
             case 'S':
                 if (inet_pton(AF_INET, optarg, &src_ip.sin_addr) != 1) {
                     fatal("Invalid source IP address!\n");
                 }
-                break;
-            /* use multiple IP addresses if found */
-            /* TODO in this case do we also want to default to showing IP addresses instead of names? */
-            case 'm':
-                multiple = 1;
                 break;
             /* use TCP */
             case 'T':
