@@ -15,10 +15,10 @@ The suite consists of these tools:
 The goal of the project is to eventually support all 22 NFS version 3 client procedures.
 
 ## Main Features
-- [BSD licensed](http://opensource.org/licenses/bsd-license.php)
+- Free and Open Source software ([BSD licensed](http://opensource.org/licenses/bsd-license.php))
 - Written in **C** for portability and speed
 - Built from the original Sun RPC protocol files
-- No requirement for any libraries other than libc (and librt for clock_gettime() if using an older version of GNU libc).
+- No requirement for any libraries other than libc (and `librt` for `clock_gettime()` if using an older version of GNU libc).
 - No dependencies on the operating system's NFS client
 - Easily readable and parseable **JSON** output
 - Timing output compatible with [fping](https://github.com/schweikert/fping), [Graphite](https://github.com/graphite-project/graphite-web) or [StatsD](https://github.com/etsy/statsd)
@@ -37,15 +37,20 @@ $ sudo make install
 - Manpages are built with [`ronn`](http://rtomayko.github.io/ronn/).
 - RPC code is generated with `rpcgen`.
 - At the moment it doesn't compile on FreeBSD because of conflicts with the portmap header files that it generates and the builtin RPC headers shipped with FreeBSD.
-- It doesn't compile on OSX yet due to a missing clock_gettime() - this will take some porting effort (probably based on sudo_clock_gettime() from sudo).
+- It doesn't compile on OSX yet due to a missing `clock_gettime()` - this will take some porting effort (probably using [https://github.com/ThomasHabets/monotonic_clock]).
 - The Makefile uses a test in the `/config` directory to check whether it needs to link the realtime library (-lrt) to pull in clock_gettime(). This is included in libc itself in glibc > 2.17.
 
 ## Roadmap
+NFStash is under active development and heading towards an initial stable release.
+
 - [ ] convert internal time calculations to nanoseconds
 - [ ] [HDRHistogram](https://github.com/HdrHistogram/HdrHistogram_c) support
 - [ ] Workaround Coordinated Omission like [wrk2](https://github.com/giltene/wrk2)
-- [ ] Fix compilation issues on *BSD
-- [ ] OSX support ([clock_gettime](http://www.sudo.ws/repos/sudo/file/adf7997a0a65/lib/util/clock_gettime.c))
+- [ ] Fix portmap header conflicts on *BSD
+- [ ] OSX support ([clock_gettime](https://github.com/ThomasHabets/monotonic_clock))
 - [ ] Multithreaded so slow responses don't block other requests?
 - [ ] A simplified version of NFSping for Nagios-compatible monitoring checks
 - [ ] Simplify output formats and move output conversion to a utility
+
+## Contributing
+Patches and bug reports are welcome. If someone is interested in contributing code to the project, sponsorship for a development environment in Google Cloud Engine or Amazon Web Services is available. Please contact the author for more details.
