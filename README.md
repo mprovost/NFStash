@@ -37,7 +37,7 @@ $ sudo make install
 - Manpages are built with [`ronn`](http://rtomayko.github.io/ronn/).
 - RPC code is generated with `rpcgen`.
 - At the moment it doesn't compile on FreeBSD because of conflicts with the portmap header files that it generates and the builtin RPC headers shipped with FreeBSD.
-- It doesn't compile on OSX yet due to a missing `clock_gettime()` - this will take some porting effort (probably using [https://github.com/ThomasHabets/monotonic_clock]).
+- It doesn't compile on OSX yet due to a missing `clock_gettime()` - this will take some porting effort (probably using [monotonic_clock](https://github.com/ThomasHabets/monotonic_clock)).
 - The Makefile uses a test in the `/config` directory to check whether it needs to link the realtime library (-lrt) to pull in clock_gettime(). This is included in libc itself in glibc > 2.17.
 
 ## Roadmap
