@@ -80,15 +80,17 @@
 
 <h2 id="DESCRIPTION">DESCRIPTION</h2>
 
-<p><code>clear_locks</code> removes all file locks for a specified NFS client on the local host's NFS server. It can be used to forcibly remove locks for a client that has failed or is no longer reachable. However if the client is still active this can cause it to become out of sync with the server (for example, the server can issue a lock to another client for a file that the "cleared" client still believes it holds).</p>
+<p><code>clear_locks</code> removes all file locks for a specified NFS client on an NFS server (the local server by default). It can be used to forcibly remove stuck locks for a client that has crashed, failed, hung, or is unreachable. However if this program is run while the specified client is still active, it can cause the client to become out of sync with the server (for example, the server can issue a lock to another client for a file that the "cleared" client still believes it holds).</p>
 
-<p>A remote NFS server can be selected using the -s option. In this case <code>clear_locks</code> will default to using the local hostname as the client unless one is provided. The hostname should match the one originally provided to the NFS server by the client.</p>
+<p>A remote NFS server can be selected using the <code>-s</code> option. In this case <code>clear_locks</code> will default to using the local hostname as the client unless one is provided. The hostname should match the one originally provided to the NFS server by the client (usually the fully qualified domain name).</p>
 
-<p><code>clear_locks</code> operates by sending an NSM_NOTIFY RPC call to the NSM (Network Status Monitor) daemon on the server (after looking up the service's port with the server's portmapper) for the client with the specified hostname. This notifies the server that the client has rebooted and that it should free any open locks that are being held. The NSM_NOTIFY call expects a <code>status</code> argument, which is typically an integer that is incremented by the client after each reboot. If the server receives a higher status number than the last request, it detects that the client has rebooted and clears any open locks (generally by contacting the local network lock manager). It will also stop monitoring the client, so if the server itself reboots the status monitor won't attempt to contact that client. To guarantee that it always sends a higher status number, <code>clear_locks</code> uses the current epoch time as obtained by clock_gettime() - this increments every second.</p>
+<p><code>clear_locks</code> operates by sending an NSM_NOTIFY RPC call to the NSM (Network Status Monitor) daemon on the server (after looking up the service's port with the server's portmapper) for the client with the specified hostname. This notifies the server that the client has rebooted and that it should free any open locks that are being held. The NSM_NOTIFY call expects a <code>status</code> argument, which is typically an integer that is incremented by the client after each reboot. If the server receives a higher status number than the last request, it detects that the client has rebooted and clears any open locks (generally by contacting the local network lock manager). It will also stop monitoring the client, so if the server itself reboots the status monitor won't attempt to contact that client. To guarantee that it always sends a higher status number, <code>clear_locks</code> uses the current epoch time as obtained by <code>clock_gettime</code> - this increments every second.</p>
 
 <p>If the connection to the NSM service fails (for example, if the server isn't running an NSM daemon), <code>clear_locks</code> makes a second attempt to free the client's locks by directly connecting to the NLM (Network Lock Manager) service on the server. It then makes an NLM_FREE_ALL RPC request with the specified hostname and a status based on the current timestamp.</p>
 
 <p>If the NFS server requires "secure" ports (&lt;1024), <code>clear_locks</code> will have to be run as root. Typically these RPC calls do not require any client authentication.</p>
+
+<p>Currently <code>clear_locks</code> only supports NFS version 3 (version 2 doesn't have locking and in version 4 it's integrated into the protocol).</p>
 
 <h2 id="OPTIONS">OPTIONS</h2>
 
@@ -96,7 +98,7 @@
 <dt class="flush"><code>-h</code></dt><dd><p>Display a help message and exit.</p></dd>
 <dt><code>-S</code> <var>source</var></dt><dd><p>Use the specified source IP address for request packets.</p></dd>
 <dt><code>-s</code> <var>server</var></dt><dd><p>Connect to the specified NFS server. Default = localhost.</p></dd>
-<dt class="flush"><code>-T</code></dt><dd><p>Use TCP to connect to server. Default = UDP.</p></dd>
+<dt class="flush"><code>-T</code></dt><dd><p>Use TCP to connect to the server. Default = UDP.</p></dd>
 <dt class="flush"><code>-v</code></dt><dd><p>Display debug output on <code>stderr</code>.</p></dd>
 </dl>
 
@@ -121,7 +123,7 @@ RPC files Copyright Sun Microsystems</p>
 
   <ol class='man-decor man-foot man foot'>
     <li class='tl'></li>
-    <li class='tc'>December 2015</li>
+    <li class='tc'>January 2016</li>
     <li class='tr'>clear_locks(8)</li>
   </ol>
 
