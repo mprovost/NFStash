@@ -76,6 +76,7 @@ typedef struct targets {
     unsigned int sent, received;
     unsigned long min, max;
     float avg;
+    /* the JSON object for output */
     JSON_Value *json_root;
     struct targets *next;
 } targets_t;
