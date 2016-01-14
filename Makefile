@@ -7,7 +7,7 @@ all: $(all) man
 prefix = /usr/local
 
 clean:
-	rm -rf obj bin deps man rpcsrc/*.c rpcsrc/*.h config/*.opt
+	rm -rf obj bin deps man/*.html man/*.8 rpcsrc/*.c rpcsrc/*.h config/*.opt
 
 #output directories
 bin obj deps:
@@ -37,8 +37,10 @@ rpcgen: $(addprefix rpcsrc/, nfs_prot.h mount.h pmap_prot.h nlm_prot.h nfsv4_pro
 # pattern rule for manfiles using ronn
 # unfortunately every section of the manual has a different suffix so we can't make one general rule
 # the pattern rule has two targets, for roff and html
+# use git log to get the last commit date of the source file, use this for the date in the output
+# otherwise ronn uses the mtime of the file which will change if you switch branches etc
 %.8 %.html: %.8.ronn
-	ronn $<
+	ronn --date `git log -n1 --pretty=format:%ci -- $< | cut -f1 -d" "` $<
 
 # pattern rule for installing binaries
 $(prefix)/bin/%: bin/%
@@ -123,6 +125,7 @@ man: $(addprefix man/, $(addsuffix .8, nfsping nfsdf nfsls nfsmount nfslock nfsc
 install: $(addprefix $(prefix)/bin/, $(all)) $(addsuffix .8, $(addprefix $(prefix)/share/man/man8/, $(all)))
 
 # include generated dependency files
+# TODO also don't include for man target (others?)
 ifneq ($(MAKECMDGOALS),clean)
 -include $(SRC:src/%.c=deps/%.d)
 endif
