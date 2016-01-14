@@ -235,10 +235,15 @@ int main(int argc, char **argv) {
     targets = current;
 
     /* loop through arguments and create targets */
+    /* TODO accept from stdin? */
     while (optind < argc) {
         /* split host:path arguments, path is optional */
         host = strtok(argv[optind], ":");
         path = strtok(NULL, ":");
+
+        if (strlen(path) && showmount) {
+            fatalx(3, "Can't specify -e (exports) and a path!\n");
+        }
 
         current->next = make_target(host, &hints, port, dns, ip, multiple);
         current = current->next;
@@ -267,7 +272,8 @@ int main(int argc, char **argv) {
             }
 
             if (current->client) {
-                if (current->path && !showmount) {
+                /* looking for a specific path, don't have to do the export call */
+                if (current->path) {
                     exports_count++;
 
                     /* get the current timestamp */
@@ -300,7 +306,7 @@ int main(int argc, char **argv) {
 
                                 /* get the current timestamp */
                                 clock_gettime(CLOCK_REALTIME, &wall_clock);
-                                
+
                                 mountres = get_root_filehandle(current->client, current->path, ex->ex_dir, &usec);
 
                                 if (mountres && mountres->fhs_status == MNT3_OK) {
