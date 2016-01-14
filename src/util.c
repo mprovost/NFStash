@@ -2,9 +2,6 @@
 #include "nfsping.h"
 
 
-/* local prototypes */
-targets_t *init_target(char *, uint16_t);
-
 /* globals */
 volatile sig_atomic_t quitting;
 

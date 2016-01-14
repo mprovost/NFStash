@@ -10,8 +10,10 @@
 /* local prototypes */
 static void usage(void);
 static void mount_perror(mountstat3);
+static exports get_exports(CLIENT *, char *, unsigned long *);
 static mountres3 *get_root_filehandle(CLIENT *, char *, char *, unsigned long *);
 static int print_exports(char *, struct exportnode *);
+static targets_t *make_exports(targets_t *, const uint16_t);
 
 /* globals */
 extern volatile sig_atomic_t quitting;
@@ -52,6 +54,50 @@ void mount_perror(mountstat3 fhs_status) {
 }
 
 
+/* get the list of exports from a server */
+exports get_exports(CLIENT *client, char *hostname, unsigned long *usec) {
+    struct rpc_err clnt_err;
+    exports ex = NULL;
+    struct timespec call_start, call_end, call_elapsed;
+
+    if (client) {
+        /* first time marker */
+#ifdef CLOCK_MONOTONIC_RAW
+        clock_gettime(CLOCK_MONOTONIC_RAW, &call_start);
+#else
+        clock_gettime(CLOCK_MONOTONIC, &call_start);
+#endif
+
+        /* the actual RPC call */
+        ex = *mountproc_export_3(NULL, client);
+
+        /* second time marker */
+#ifdef CLOCK_MONOTONIC_RAW
+        clock_gettime(CLOCK_MONOTONIC_RAW, &call_end);
+#else
+        clock_gettime(CLOCK_MONOTONIC, &call_end);
+#endif
+
+        /* calculate elapsed microseconds */
+        timespecsub(&call_end, &call_start, &call_elapsed);
+        *usec = ts2us(call_elapsed);
+    }
+
+    /* export call doesn't return errors */
+    /* it also doesn't usually require a privileged port */
+    if (ex == NULL) {
+        /* RPC error */
+        clnt_geterr(client, &clnt_err);
+        if  (clnt_err.re_status) {
+            fprintf(stderr, "%s: ", hostname);
+            clnt_perror(client, "mountproc_export_3");
+        }
+    }
+
+    return ex;
+}
+
+
 /* get the root filehandle from the server */
 /* take a pointer to usec so we can return the elapsed call time */
 mountres3 *get_root_filehandle(CLIENT *client, char *hostname, char *path, unsigned long *usec) {
@@ -59,6 +105,7 @@ mountres3 *get_root_filehandle(CLIENT *client, char *hostname, char *path, unsig
     mountres3 *mountres = NULL;
     struct timespec call_start, call_end, call_elapsed;
 
+    /* TODO check for valid path when parsing arguments in main() */
     if (path[0] == '/') {
         if (client) {
             /* first time marker */
@@ -154,6 +201,33 @@ int print_exports(char *host, struct exportnode *ex) {
 }
 
 
+targets_t *make_exports(targets_t *target, const uint16_t port) {
+    exports ex;
+    unsigned long usec = 0;
+
+    /* get the list of exports from the server */
+    ex = get_exports(target->client, target->name, &usec);
+    printf("get_exports: %lu\n", usec);
+
+    while (ex) {
+        /* copy the hostname from the mount result into the target */
+        target->path = calloc(1, MNTPATHLEN);
+        strncpy(target->path, ex->ex_dir, MNTPATHLEN);
+
+        /* if there's another result, make a new target */
+        if (ex->ex_next) {
+            /* make a new target */
+            target->next = init_target(target->name, port);
+            target = target->next;
+        }
+
+        ex = ex->ex_next;
+    }
+
+    return target;
+}
+
+
 int main(int argc, char **argv) {
     mountres3 *mountres;
     struct addrinfo hints = {
@@ -163,11 +237,10 @@ int main(int argc, char **argv) {
     };
     char *host;
     char *path;
-    exports ex;
     targets_t *targets;
     targets_t *current;
     targets_t target_dummy;
-    int exports_count = 0, exports_ok = 0;
+    unsigned int exports_count = 0, exports_ok = 0;
     int ch;
     /* command line options */
     uint16_t port = 0; /* 0 = use portmapper */
@@ -241,13 +314,25 @@ int main(int argc, char **argv) {
         host = strtok(argv[optind], ":");
         path = strtok(NULL, ":");
 
-        if (strlen(path) && showmount) {
+        if (path && showmount) {
             fatalx(3, "Can't specify -e (exports) and a path!\n");
         }
 
         current->next = make_target(host, &hints, port, dns, ip, multiple);
+
+        if (path) {
+            current->path = path;
+        } else {
+            /* create an rpc connection */
+            if (current->next->client == NULL) {
+                current->next->client = create_rpc_client(current->next->client_sock, &hints, MOUNTPROG, version, timeout, src_ip);
+            }
+
+            /* look up the export list on the server and create a target for each */
+            current = make_exports(current->next, port);
+        }
+
         current = current->next;
-        current->path = path;
 
         optind++;
     }
@@ -272,10 +357,6 @@ int main(int argc, char **argv) {
             }
 
             if (current->client) {
-                /* looking for a specific path, don't have to do the export call */
-                if (current->path) {
-                    exports_count++;
-
                     /* get the current timestamp */
                     clock_gettime(CLOCK_REALTIME, &wall_clock);
 
@@ -291,36 +372,6 @@ int main(int argc, char **argv) {
                         /* print the filehandle in hex */
                         print_fhandle3(current->json_root, current->client_sock, current->path, mountres->mountres3_u.mountinfo.fhandle, usec, wall_clock);
                     }
-                } else {
-                    /* get the list of all exported filesystems from the server */
-                    ex = *mountproc_export_3(NULL, current->client);
-
-                    if (ex) {
-                        if (showmount) {
-                            exports_count = print_exports(current->name, ex);
-                            /* if the call succeeds at all it can't return individual bad results */
-                            exports_ok = exports_count;
-                        } else {
-                            while (ex) {
-                                exports_count++;
-
-                                /* get the current timestamp */
-                                clock_gettime(CLOCK_REALTIME, &wall_clock);
-
-                                mountres = get_root_filehandle(current->client, current->path, ex->ex_dir, &usec);
-
-                                if (mountres && mountres->fhs_status == MNT3_OK) {
-                                    exports_ok++;
-                                    json = json_value_get_object(current->json_root);
-                                    json_object_set_number(json, "timestamp", wall_clock.tv_sec);
-                                    /* print the filehandle in hex */
-                                    print_fhandle3(current->json_root, current->client_sock, ex->ex_dir, mountres->mountres3_u.mountinfo.fhandle, usec, wall_clock);
-                                }
-                                ex = ex->ex_next;
-                            }
-                        }
-                    }
-                }
             }
 
             current = current->next;
