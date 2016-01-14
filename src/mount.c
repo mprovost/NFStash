@@ -218,6 +218,10 @@ targets_t *make_exports(targets_t *target, const uint16_t port) {
         if (ex->ex_next) {
             /* make a new target */
             target->next = init_target(target->name, port);
+
+            /* reuse the same client connection */
+            target->next->client = target->client;
+
             target = target->next;
         }
 
