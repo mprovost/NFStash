@@ -10,7 +10,7 @@
 /* local prototypes */
 static void usage(void);
 static void mount_perror(mountstat3);
-static exports get_exports(CLIENT *, char *, unsigned long *);
+static exports get_exports(CLIENT *, char *);
 static mountres3 *get_root_filehandle(CLIENT *, char *, char *, unsigned long *);
 static int print_exports(char *, struct exportnode *);
 static targets_t *make_exports(targets_t *, const uint16_t);
@@ -55,9 +55,10 @@ void mount_perror(mountstat3 fhs_status) {
 
 
 /* get the list of exports from a server */
-exports get_exports(CLIENT *client, char *hostname, unsigned long *usec) {
+exports get_exports(CLIENT *client, char *hostname) {
     struct rpc_err clnt_err;
     exports ex = NULL;
+    unsigned long usec;
     struct timespec call_start, call_end, call_elapsed;
 
     if (client) {
@@ -80,7 +81,8 @@ exports get_exports(CLIENT *client, char *hostname, unsigned long *usec) {
 
         /* calculate elapsed microseconds */
         timespecsub(&call_end, &call_start, &call_elapsed);
-        *usec = ts2us(call_elapsed);
+        usec = ts2us(call_elapsed);
+        printf("%s : mountproc_export_3=%03.2f ms\n", hostname, usec / 1000.0);
     }
 
     /* export call doesn't return errors */
@@ -196,16 +198,13 @@ int print_exports(char *host, struct exportnode *ex) {
 /* make a target list by querying the server for a list of exports */
 targets_t *make_exports(targets_t *target, const uint16_t port) {
     exports ex;
-    /* timer for the exports call */
-    unsigned long usec = 0;
     targets_t dummy;
     targets_t *current = &dummy;
     targets_t *head = current;
 
     if (target->client) {
         /* get the list of exports from the server */
-        ex = get_exports(target->client, target->name, &usec);
-        printf("get_exports: %lu\n", usec);
+        ex = get_exports(target->client, target->name);
 
         while (ex) {
             /* allocate a new entry */
@@ -348,7 +347,7 @@ int main(int argc, char **argv) {
                 current->client = create_rpc_client(current->client_sock, &hints, MOUNTPROG, version, timeout, src_ip);
 
                 if (showmount) {
-                    ex = get_exports(current->client, host, &usec);
+                    ex = get_exports(current->client, host);
                     exports_count = print_exports(host, ex);
                 } else {
                     /* look up the export list on the server and create a target for each */
