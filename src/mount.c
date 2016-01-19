@@ -266,6 +266,7 @@ int main(int argc, char **argv) {
         .sin_addr = 0
     };
     unsigned long usec;
+    double loss;
     struct timespec wall_clock;
     JSON_Object *json;
 
@@ -395,27 +396,50 @@ int main(int argc, char **argv) {
         while(current) {
 
             if (current->client == NULL) {
+                /* TODO see if we can reuse the previous target's connection */
                 /* create an rpc connection */
                 current->client = create_rpc_client(current->client_sock, &hints, MOUNTPROG, version, timeout, src_ip);
                 /* mounts don't need authentication because they return a list of authentication flavours supported so leave it as default (AUTH_NONE) */
             }
 
             if (current->client) {
-                    /* get the current timestamp */
-                    clock_gettime(CLOCK_REALTIME, &wall_clock);
+                exports_count++;
 
-                    mountres = get_root_filehandle(current->client, current->name, current->path, &usec);
+                /* get the current timestamp */
+                clock_gettime(CLOCK_REALTIME, &wall_clock);
 
-                    if (mountres && mountres->fhs_status == MNT3_OK) {
-                        exports_ok++;
+                mountres = get_root_filehandle(current->client, current->name, current->path, &usec);
 
+                current->sent++;
+
+                if (mountres && mountres->fhs_status == MNT3_OK) {
+                    current->received++;
+                    exports_ok++;
+
+                    if (usec < current->min) current->min = usec;
+                    if (usec > current->max) current->max = usec;
+                    /* calculate the average time */
+                    current->avg = (current->avg * (current->received - 1) + usec) / current->received;
+                    loss = (current->sent - current->received) / (double)current->sent * 100;
+
+                    if (loop) {
+                        /* print "ping" style output */
+                        /* TODO spacing for different path lengths */
+                        printf("%s:%s : [%u], %03.2f ms (%03.2f avg, %.0f%% loss)\n",
+                            current->name,
+                            current->path,
+                            current->sent - 1,
+                            usec / 1000.0,
+                            current->avg / 1000.0,
+                            loss);
+                    } else {
                         json = json_value_get_object(current->json_root);
-
                         json_object_set_number(json, "timestamp", wall_clock.tv_sec);
 
                         /* print the filehandle in hex */
                         print_fhandle3(current->json_root, current->client_sock, current->path, mountres->mountres3_u.mountinfo.fhandle, usec, wall_clock);
                     }
+                }
             }
 
             current = current->next;
