@@ -59,6 +59,8 @@ exports get_exports(CLIENT *client, char *hostname) {
     struct rpc_err clnt_err;
     exports ex = NULL;
     unsigned long usec;
+    struct sockaddr_in clnt_info;
+    char ip_address[INET_ADDRSTRLEN];
     struct timespec call_start, call_end, call_elapsed;
 
     if (client) {
@@ -79,10 +81,15 @@ exports get_exports(CLIENT *client, char *hostname) {
         clock_gettime(CLOCK_MONOTONIC, &call_end);
 #endif
 
+        /* get the client's IP address as a string for output */
+        clnt_control(client, CLGET_SERVER_ADDR, (char *)&clnt_info);
+        inet_ntop(AF_INET, &(((struct sockaddr_in *)&clnt_info)->sin_addr), ip_address, INET_ADDRSTRLEN);
+
         /* calculate elapsed microseconds */
         timespecsub(&call_end, &call_start, &call_elapsed);
         usec = ts2us(call_elapsed);
-        printf("%s : mountproc_export_3=%03.2f ms\n", hostname, usec / 1000.0);
+
+        printf("%s (%s): mountproc_export_3=%03.2f ms\n", hostname, ip_address, usec / 1000.0);
     }
 
     /* export call doesn't return errors */
