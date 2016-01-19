@@ -346,7 +346,8 @@ targets_t *init_target(char *target_name, uint16_t port) {
 }
 
 
-/* make a new target */
+/* make a new target, or list of targets if there are multiple DNS entries */
+/* return the head of the list */
 targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t port, int dns, int ip, int multiple) {
     targets_t *target, *first;
     struct addrinfo *addr;
@@ -428,6 +429,32 @@ targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t
 
     /* only return the head of the list */
     return first;
+}
+
+
+/* append a target (or target list) to the end of a target list */
+/* return a pointer to the last element in the newly extended list */
+targets_t *append_target(targets_t **head, targets_t *new_target) {
+    targets_t *current = *head;
+
+    if (current) {
+        /* find the last target in the list */
+        while (current->next) {
+            current = current->next;
+        }
+        /* append */
+        current->next = new_target;
+    /* empty list */
+    } else {
+        *head = new_target;
+    }
+
+    /* go to the end of the list */
+    while (current->next) {
+        current = current->next;
+    }
+
+    return current;
 }
 
 
