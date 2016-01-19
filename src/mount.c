@@ -324,6 +324,8 @@ int main(int argc, char **argv) {
                 fatalx(3, "%s: Invalid path: %s\n", host, path);
             }
 
+            /* TODO check length against MNTPATHLEN */
+
             if (showmount) {
                 fatalx(3, "Can't specify -e (exports) and a path!\n");
             }
@@ -333,25 +335,28 @@ int main(int argc, char **argv) {
         new_targets = make_target(host, &hints, port, dns, ip, multiple);
 
         /* go through this argument's list of possibly multiple dns responses/targets */
+        current = new_targets;
 
-        while (new_targets) {
+        while (current) {
             if (path) {
-                new_targets->path = path;
+                /* copy the path into the new target */
+                current->path = calloc(1, MNTPATHLEN);
+                strncpy(current->path, path, MNTPATHLEN);
             /* no path given, look up exports on server */
             } else {
                 /* first create an rpc connection so we can query the server for an exports list */
-                new_targets->client = create_rpc_client(new_targets->client_sock, &hints, MOUNTPROG, version, timeout, src_ip);
+                current->client = create_rpc_client(current->client_sock, &hints, MOUNTPROG, version, timeout, src_ip);
 
                 if (showmount) {
-                    ex = get_exports(new_targets->client, host, &usec);
+                    ex = get_exports(current->client, host, &usec);
                     exports_count = print_exports(host, ex);
                 } else {
                     /* look up the export list on the server and create a target for each */
-                    append_target(&exports_dummy_ptr, make_exports(new_targets, port));
+                    append_target(&exports_dummy_ptr, make_exports(current, port));
                 }
             }
 
-            new_targets = new_targets->next;
+            current = current->next;
         }
 
         /* append to the global target list */
