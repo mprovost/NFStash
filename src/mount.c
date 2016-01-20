@@ -271,6 +271,10 @@ int main(int argc, char **argv) {
     double loss;
     struct timespec wall_clock;
     JSON_Object *json;
+    /* for output alignment */
+    /* printf requires an int for %*s formats */
+    int width = 0;
+    int tmpwidth = 0;
 
     /* no arguments passed */
     if (argc == 1)
@@ -394,6 +398,17 @@ int main(int argc, char **argv) {
         targets = targets->next;
     }
 
+    /* calculate the maximum width for aligned printing */
+    current = targets;
+    while (current) {
+        tmpwidth = strlen(current->name) + strlen(current->path);
+        if (tmpwidth > width) {
+            width = tmpwidth;
+        }
+
+        current = current->next;
+    }
+
 
     /* now we have a target list, loop through and query the server(s) */
     while(1) {
@@ -432,9 +447,11 @@ int main(int argc, char **argv) {
 
                     if (loop) {
                         /* print "ping" style output */
-                        /* TODO spacing for different path lengths */
-                        printf("%s:%s : [%u], %03.2f ms (%03.2f avg, %.0f%% loss)\n",
+                        printf("%s:%-*s : [%u], %03.2f ms (%03.2f avg, %.0f%% loss)\n",
                             current->name,
+                            /* have to cast size_t to int for compiler warning */
+                            /* printf only accepts ints for field widths with * */
+                            width - (int)strlen(current->name),
                             current->path,
                             current->sent - 1,
                             usec / 1000.0,
