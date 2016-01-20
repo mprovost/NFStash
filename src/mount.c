@@ -287,9 +287,7 @@ void print_summary(targets_t *targets, enum outputs format, const int width) {
     unsigned long i;
 
     /* print a newline between the results and the summary */
-    if (format == human || unixtime || fping) {
-        fprintf(stderr, "\n");
-    }
+    fprintf(stderr, "\n");
 
     while (current) {
         /* first print the aligned host and path */
@@ -297,12 +295,6 @@ void print_summary(targets_t *targets, enum outputs format, const int width) {
             current->name,
             width - (int)strlen(current->name),
             current->path);
-
-        /* check if this is still set to the default value */
-        /* that means we never saw any responses */
-        if (current->min == ULONG_MAX) {
-            current->min = 0;
-        }
 
         switch (format) {
             case human:
@@ -325,6 +317,8 @@ void print_summary(targets_t *targets, enum outputs format, const int width) {
                     }
                 }
                 break;
+            default:
+                fatalx(3, "There should be a summary here!");
         }
 
         fprintf(stderr, "\n");
