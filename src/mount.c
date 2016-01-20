@@ -270,7 +270,6 @@ int main(int argc, char **argv) {
     unsigned long usec;
     double loss;
     struct timespec wall_clock;
-    JSON_Object *json;
     /* for output alignment */
     /* printf requires an int for %*s formats */
     int width = 0;
@@ -458,9 +457,6 @@ int main(int argc, char **argv) {
                             current->avg / 1000.0,
                             loss);
                     } else {
-                        json = json_value_get_object(current->json_root);
-                        json_object_set_number(json, "timestamp", wall_clock.tv_sec);
-
                         /* print the filehandle in hex */
                         print_fhandle3(current->json_root, current->client_sock, current->path, mountres->mountres3_u.mountinfo.fhandle, usec, wall_clock);
                     }

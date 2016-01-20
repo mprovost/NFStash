@@ -233,7 +233,7 @@ int print_fhandle3(JSON_Value *json_root, struct sockaddr_in *host, const char *
     /* this escapes / to \/ */
     json_object_set_string(json, "path", path);
     json_object_set_number(json, "usec", usec);
-    //json_object_set_number(json, "timestamp", wall_clock.tv_sec);
+    json_object_set_number(json, "timestamp", wall_clock.tv_sec);
 
     /* walk through the NFS filehandle, print each byte as two hex characters */
     for (i = 0; i < file_handle.fhandle3_len; i++) {
