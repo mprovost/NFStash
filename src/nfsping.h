@@ -97,7 +97,8 @@ enum outputs {
     fping,
     graphite,
     statsd,
-    unixtime
+    unixtime,
+    json
 };
 
 /* for NULL procedure function pointers */

@@ -14,6 +14,7 @@ static exports get_exports(CLIENT *, char *);
 static mountres3 *get_root_filehandle(CLIENT *, char *, char *, unsigned long *);
 static int print_exports(char *, struct exportnode *);
 static targets_t *make_exports(targets_t *, const uint16_t);
+void print_output(enum outputs, const int, targets_t *, const fhandle3, const struct timespec, unsigned long);
 
 /* globals */
 extern volatile sig_atomic_t quitting;
@@ -236,6 +237,34 @@ targets_t *make_exports(targets_t *target, const uint16_t port) {
 }
 
 
+/* print output to stdout in different formats */
+void print_output(enum outputs format, const int width, targets_t *target, const fhandle3 file_handle, const struct timespec wall_clock, unsigned long usec) {
+    double loss = (target->sent - target->received) / (double)target->sent * 100;
+
+    switch(format) {
+        /* print "ping" style output */
+        case human:
+            printf("%s:%-*s : [%u], %03.2f ms (%03.2f avg, %.0f%% loss)\n",
+                target->name,
+                /* have to cast size_t to int for compiler warning */
+                /* printf only accepts ints for field widths with * */
+                width - (int)strlen(target->name),
+                target->path,
+                target->sent - 1,
+                usec / 1000.0,
+                target->avg / 1000.0,
+                loss);
+            break;
+        /* print the filehandle as JSON */
+        case json:
+            print_fhandle3(target, file_handle, usec, wall_clock);
+            break;
+        default:
+            fatalx(3, "Unsupported format\n");
+    }
+}
+
+
 int main(int argc, char **argv) {
     mountres3 *mountres;
     struct addrinfo hints = {
@@ -255,6 +284,8 @@ int main(int argc, char **argv) {
     unsigned int exports_count = 0, exports_ok = 0;
     int ch;
     /* command line options */
+    /* default to json output unless looping */
+    enum outputs format = json;
     uint16_t port = 0; /* 0 = use portmapper */
     int dns = 0, ip = 0;
     int loop = 0;
@@ -268,7 +299,6 @@ int main(int argc, char **argv) {
         .sin_addr = 0
     };
     unsigned long usec;
-    double loss;
     struct timespec wall_clock;
     /* for output alignment */
     /* printf requires an int for %*s formats */
@@ -287,6 +317,7 @@ int main(int argc, char **argv) {
                 break;
             case 'l':
                 loop = 1;
+                format = human;
                 break;
             /* use multiple IP addresses if found */
             /* TODO in this case do we also want to default to showing IP addresses instead of names? */
@@ -442,24 +473,9 @@ int main(int argc, char **argv) {
                     if (usec > current->max) current->max = usec;
                     /* calculate the average time */
                     current->avg = (current->avg * (current->received - 1) + usec) / current->received;
-                    loss = (current->sent - current->received) / (double)current->sent * 100;
 
-                    if (loop) {
-                        /* print "ping" style output */
-                        printf("%s:%-*s : [%u], %03.2f ms (%03.2f avg, %.0f%% loss)\n",
-                            current->name,
-                            /* have to cast size_t to int for compiler warning */
-                            /* printf only accepts ints for field widths with * */
-                            width - (int)strlen(current->name),
-                            current->path,
-                            current->sent - 1,
-                            usec / 1000.0,
-                            current->avg / 1000.0,
-                            loss);
-                    } else {
-                        /* print the filehandle in hex */
-                        print_fhandle3(current, mountres->mountres3_u.mountinfo.fhandle, usec, wall_clock);
-                    }
+                    //void print_output(enum outputs format, char *prefix, targets_t *target, const fhandle3 file_handle, u_long version, const struct timespec wall_clock, unsigned long usec) {
+                    print_output(format, width, current, mountres->mountres3_u.mountinfo.fhandle, wall_clock, usec);
                 }
             }
 
