@@ -55,6 +55,10 @@
 /* polling interval */
 #define NFS_SLEEP { 1, 0 };
 
+/* maximum number of digits that can fit in a 64 bit time_t seconds (long long int) for use with strftime() */
+/* 9223372036854775807 is LLONG_MAX, add one for a '-' (just in case!) and another for a terminating NUL */
+#define TIME_T_MAX_DIGITS 21
+
 /* for shifting */
 enum byte_prefix {
     NONE  = -1,

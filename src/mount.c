@@ -23,6 +23,7 @@ int verbose = 0;
 
 void usage() {
     printf("Usage: nfsmount [options] host[:mountpoint]\n\
+    -D       print timestamp (unix time) before each line\n\
     -e       print exports (like showmount -e)\n\
     -h       display this help and exit\n\
     -l       loop forever\n\
@@ -239,9 +240,17 @@ targets_t *make_exports(targets_t *target, const uint16_t port) {
 
 /* print output to stdout in different formats */
 void print_output(enum outputs format, const int width, targets_t *target, const fhandle3 file_handle, const struct timespec wall_clock, unsigned long usec) {
-    double loss = (target->sent - target->received) / (double)target->sent * 100;
+    double loss = (target->sent - target->received) / target->sent * 100.0;
+    char epoch[TIME_T_MAX_DIGITS]; /* the largest time_t seconds value, plus a terminating NUL */
+    struct tm *secs;
 
     switch(format) {
+        case unixtime:
+            //printf("[%ld.%06ld] ", (long)wall_clock.tv_sec, (long)wall_clock.tv_nsec / 1000);
+            secs = localtime(&wall_clock.tv_sec);
+            strftime(epoch, sizeof(epoch), "%s", secs);
+            printf("[%s.%06li] ", epoch, wall_clock.tv_nsec / 1000);
+            /* fall through to human output, this just prepends the current time */
         /* print "ping" style output */
         case human:
             printf("%s:%-*s : [%u], %03.2f ms (%03.2f avg, %.0f%% loss)\n",
@@ -309,8 +318,12 @@ int main(int argc, char **argv) {
     if (argc == 1)
         usage();
 
-    while ((ch = getopt(argc, argv, "ehlmp:S:Tv")) != -1) {
+    while ((ch = getopt(argc, argv, "Dehlmp:S:Tv")) != -1) {
         switch(ch) {
+            /* unixtime ping output */
+            case 'D':
+                format = unixtime;
+                break;
             /* output like showmount -e */
             case 'e':
                 showmount = 1;
