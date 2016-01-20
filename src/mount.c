@@ -13,8 +13,9 @@ static void mount_perror(mountstat3);
 static exports get_exports(CLIENT *, char *);
 static mountres3 *get_root_filehandle(CLIENT *, char *, char *, unsigned long *);
 static int print_exports(char *, struct exportnode *);
-static targets_t *make_exports(targets_t *, const uint16_t);
+static targets_t *make_exports(targets_t *, const uint16_t, unsigned long, enum outputs);
 void print_output(enum outputs, const int, targets_t *, const fhandle3, const struct timespec, unsigned long);
+void print_fping_summary(targets_t *, const int);
 
 /* globals */
 extern volatile sig_atomic_t quitting;
@@ -23,6 +24,8 @@ int verbose = 0;
 
 void usage() {
     printf("Usage: nfsmount [options] host[:mountpoint]\n\
+    -c n     count of mount requests to send to target\n\
+    -C n     same as -c, output parseable format\n\
     -D       print timestamp (unix time) before each line\n\
     -e       print exports (like showmount -e)\n\
     -h       display this help and exit\n\
@@ -207,7 +210,7 @@ int print_exports(char *host, struct exportnode *ex) {
 
 
 /* make a target list by querying the server for a list of exports */
-targets_t *make_exports(targets_t *target, const uint16_t port) {
+targets_t *make_exports(targets_t *target, const uint16_t port, unsigned long count, enum outputs format) {
     exports ex;
     targets_t dummy;
     targets_t *current = &dummy;
@@ -219,7 +222,7 @@ targets_t *make_exports(targets_t *target, const uint16_t port) {
 
         while (ex) {
             /* allocate a new entry */
-            current->next = init_target(target->name, port);
+            current->next = init_target(target->name, port, count, format);
             current = current->next;
             /* copy the hostname from the mount result into the target */
             current->path = calloc(1, MNTPATHLEN);
@@ -238,7 +241,7 @@ targets_t *make_exports(targets_t *target, const uint16_t port) {
 }
 
 
-/* print output to stdout in different formats */
+/* print output to stdout in different formats for each mount result */
 void print_output(enum outputs format, const int width, targets_t *target, const fhandle3 file_handle, const struct timespec wall_clock, unsigned long usec) {
     double loss = (target->sent - target->received) / target->sent * 100.0;
     char epoch[TIME_T_MAX_DIGITS]; /* the largest time_t seconds value, plus a terminating NUL */
@@ -255,6 +258,7 @@ void print_output(enum outputs format, const int width, targets_t *target, const
             /* fall through to human output, this just prepends the current time */
         /* print "ping" style output */
         case human:
+        case fping: /* fping is only different in the summary at the end */
             printf("%s:%-*s : [%u], %03.2f ms (%03.2f avg, %.0f%% loss)\n",
                 target->name,
                 /* have to cast size_t to int for compiler warning */
@@ -272,6 +276,28 @@ void print_output(enum outputs format, const int width, targets_t *target, const
             break;
         default:
             fatalx(3, "Unsupported format\n");
+    }
+}
+
+
+/* print a parseable summary string to stderr when finished in fping-compatible format */
+void print_fping_summary(targets_t *targets, const int width) {
+    targets_t *current = targets;
+    unsigned long i;
+
+    while (current) {
+        fprintf(stderr, "%s:%-*s :",
+            current->name,
+            width - (int)strlen(current->name),
+            current->path);
+        for (i = 0; i < current->sent; i++) {
+            if (current->results[i])
+                fprintf(stderr, " %.2f", current->results[i] / 1000.0);
+            else
+            fprintf(stderr, " -");
+       }
+       fprintf(stderr, "\n");
+       current = current->next;
     }
 }
 
@@ -321,9 +347,18 @@ int main(int argc, char **argv) {
     if (argc == 1)
         usage();
 
-    while ((ch = getopt(argc, argv, "c:Dehlmp:S:Tv")) != -1) {
+    while ((ch = getopt(argc, argv, "c:C:Dehlmp:S:Tv")) != -1) {
         switch(ch) {
+            /* ping output with a count */
             case 'c':
+                format = human;
+                count = strtoul(optarg, NULL, 10);
+                if (count == 0 || count == ULONG_MAX) {
+                    fatal("Zero count, nothing to do!\n");
+                }
+                break;
+            case 'C':
+                format = fping;
                 count = strtoul(optarg, NULL, 10);
                 if (count == 0 || count == ULONG_MAX) {
                     fatal("Zero count, nothing to do!\n");
@@ -397,7 +432,7 @@ int main(int argc, char **argv) {
         }
 
         /* make possibly multiple new targets */
-        new_targets = make_target(host, &hints, port, dns, ip, multiple);
+        new_targets = make_target(host, &hints, port, dns, ip, multiple, count, format);
 
         /* go through this argument's list of possibly multiple dns responses/targets */
         current = new_targets;
@@ -417,7 +452,7 @@ int main(int argc, char **argv) {
                     exports_count = print_exports(host, ex);
                 } else {
                     /* look up the export list on the server and create a target for each */
-                    append_target(&exports_dummy_ptr, make_exports(current, port));
+                    append_target(&exports_dummy_ptr, make_exports(current, port, count, format));
                 }
             }
 
@@ -497,6 +532,10 @@ int main(int argc, char **argv) {
                         if (usec > current->max) current->max = usec;
                         /* calculate the average time */
                         current->avg = (current->avg * (current->received - 1) + usec) / current->received;
+
+                        if (format == fping) {
+                            current->results[current->sent - 1] = usec;
+                        }
                     }
 
                     //void print_output(enum outputs format, char *prefix, targets_t *target, const fhandle3 file_handle, u_long version, const struct timespec wall_clock, unsigned long usec) {
@@ -508,6 +547,11 @@ int main(int argc, char **argv) {
 
         } /* while(current) */
 
+        /* ctrl-c */
+        if (quitting) {
+            break;
+        }
+
         if ((count && targets->sent < count) || loop) {
             /* sleep between rounds */
             nanosleep(&sleep_time, NULL);
@@ -515,11 +559,12 @@ int main(int argc, char **argv) {
             break;
         }
 
-        /* ctrl-c */
-        if (quitting) {
-            break;
-        }
     } /* while(1) */
+
+    if (format == fping) {
+        fprintf(stderr, "\n");
+        print_fping_summary(targets, width);
+    }
 
     if (exports_count && exports_count == exports_ok) {
         return EXIT_SUCCESS;
