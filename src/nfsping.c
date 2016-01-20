@@ -493,25 +493,12 @@ int main(int argc, char **argv) {
 
     /* process the targets from the command line */
     for (index = optind; index < argc; index++) {
-        target->next = make_target(argv[index], &hints, port, dns, ip, multiple);
+        target->next = make_target(argv[index], &hints, port, dns, ip, multiple, count, format);
         target = target->next;
     }
 
     /* skip the first dummy entry */
     targets = targets->next;
-
-    /* allocate space for printing out a summary of all ping times at the end */
-    if (format == fping) {
-        target = targets;
-        while (target) {
-            target->results = calloc(count, sizeof(unsigned long));
-            if (target->results == NULL) {
-                fprintf(stderr, "nfsping: couldn't allocate memory for results!\n");
-                exit(3);
-            }
-            target = target->next;
-        }
-    }
 
 
     /* the main loop */
