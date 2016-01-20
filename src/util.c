@@ -340,10 +340,11 @@ targets_t *init_target(char *target_name, uint16_t port) {
     target->client_sock->sin_family = AF_INET;
     target->client_sock->sin_port = port;
 
-    /* json value for output */
+    /* create a JSON value for output */
     target->json_root = json_value_init_object();
-    /* get an object */
+    /* get a handle to the object */
     json = json_value_get_object(target->json_root);
+    /* add the hostname */
     json_object_set_string(json, "host", target_name);
 
     return target;
@@ -410,6 +411,9 @@ targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t
                 }
 
                 /* multiple results */
+                /* with glibc, this can return 127.0.0.1 twice when using "localhost" if there is an IPv6 entry in /etc/hosts
+                   as documented here: https://bugzilla.redhat.com/show_bug.cgi?id=496300 */
+                /* TODO detect this and skip the second duplicate entry? */
                 if (addr->ai_next) {
                     if (multiple) {
                         /* make the next target */
