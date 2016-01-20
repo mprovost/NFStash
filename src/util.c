@@ -327,6 +327,7 @@ char* reverse_fqdn(char *fqdn) {
 /* allocate and initialise a target struct */
 targets_t *init_target(char *target_name, uint16_t port) {
     targets_t *target;
+    JSON_Object *json;
     
     target = calloc(1, sizeof(targets_t));
     target->next = NULL;
@@ -339,8 +340,11 @@ targets_t *init_target(char *target_name, uint16_t port) {
     target->client_sock->sin_family = AF_INET;
     target->client_sock->sin_port = port;
 
-    /* json object for output */
+    /* json value for output */
     target->json_root = json_value_init_object();
+    /* get an object */
+    json = json_value_get_object(target->json_root);
+    json_object_set_string(json, "host", target_name);
 
     return target;
 }
