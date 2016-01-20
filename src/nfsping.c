@@ -224,7 +224,7 @@ int main(int argc, char **argv) {
 
     /* listen for ctrl-c */
     quitting = 0;
-    signal(SIGINT, int_handler);
+    signal(SIGINT, sigint_handler);
 
     /* don't quit on (TCP) broken pipes */
     signal(SIGPIPE, SIG_IGN);

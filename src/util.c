@@ -7,7 +7,7 @@ volatile sig_atomic_t quitting;
 
 
 /* handle control-c */
-void int_handler(int sig) {
+void sigint_handler(int sig) {
     if (sig == SIGINT) {
             quitting = 1;
     }

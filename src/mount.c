@@ -383,15 +383,17 @@ int main(int argc, char **argv) {
 
     /* listen for ctrl-c */
     quitting = 0;
-    signal(SIGINT, int_handler);
+    signal(SIGINT, sigint_handler);
 
-    /* skip the first dummy entry */
     if (showmount) {
         targets = NULL;
     } else {
+        /* skip the first dummy entry */
         targets = targets->next;
     }
 
+
+    /* now we have a target list, loop through and query the server(s) */
     while(1) {
         /* reset to head of list */
         current = targets;
@@ -411,6 +413,7 @@ int main(int argc, char **argv) {
                 /* get the current timestamp */
                 clock_gettime(CLOCK_REALTIME, &wall_clock);
 
+                /* the RPC call */
                 mountres = get_root_filehandle(current->client, current->name, current->path, &usec);
 
                 current->sent++;
