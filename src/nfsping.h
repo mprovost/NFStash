@@ -97,7 +97,7 @@ typedef struct nfs_fh_list {
 
 /* TODO capitalise? */
 enum outputs {
-    human,
+    human, /* classic ping */
     fping,
     graphite,
     statsd,
