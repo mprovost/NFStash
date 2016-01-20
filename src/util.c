@@ -327,7 +327,7 @@ char* reverse_fqdn(char *fqdn) {
 
 
 /* allocate and initialise a target struct */
-targets_t *init_target(char *target_name, uint16_t port) {
+targets_t *init_target(char *target_name, uint16_t port, unsigned long count, enum outputs format) {
     targets_t *target;
     JSON_Object *json_obj;
     
@@ -337,6 +337,14 @@ targets_t *init_target(char *target_name, uint16_t port) {
 
     /* set this so that the first comparison will always be smaller */
     target->min = ULONG_MAX;
+
+    /* allocate space for printing out a summary of all ping times at the end */
+    if (format == fping) {
+        target->results = calloc(count, sizeof(unsigned long));
+        if (target->results == NULL) {
+            fatalx(3, "Couldn't allocate memory for results!\n");
+        }
+    }
 
     target->client_sock = calloc(1, sizeof(struct sockaddr_in));
     target->client_sock->sin_family = AF_INET;
@@ -355,14 +363,14 @@ targets_t *init_target(char *target_name, uint16_t port) {
 
 /* make a new target, or list of targets if there are multiple DNS entries */
 /* return the head of the list */
-targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t port, int dns, int ip, int multiple) {
+targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t port, int dns, int ip, int multiple, unsigned long count, enum outputs format) {
     targets_t *target, *first;
     struct addrinfo *addr;
     int getaddr;
     char ip_address[INET_ADDRSTRLEN]; /* for warning when multiple addresses found */
 
 
-    target = init_target(target_name, port);
+    target = init_target(target_name, port, count, format);
 
     /* save the head of the list in case of multiple DNS responses */
     first = target;
@@ -419,7 +427,7 @@ targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t
                 if (addr->ai_next) {
                     if (multiple) {
                         /* make the next target */
-                        target->next = init_target(target_name, port);
+                        target->next = init_target(target_name, port, count, format);
                         target = target->next;
                     } else {
                         /* we have to look up the IP address for the warning */
