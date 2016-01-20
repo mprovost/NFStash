@@ -372,8 +372,11 @@ int main(int argc, char **argv) {
         } else {
             /* TODO showmount */
             /* skip the dummy entry */
-            append_target(&targets, exports_dummy.next);
+            append_target(&targets, exports_dummy_ptr->next);
         }
+
+        /* reset the exports list to reuse on the next loop */
+        exports_dummy_ptr->next = NULL;
 
         optind++;
     }
