@@ -89,7 +89,9 @@ exports get_exports(CLIENT *client, char *hostname) {
         timespecsub(&call_end, &call_start, &call_elapsed);
         usec = ts2us(call_elapsed);
 
-        printf("%s (%s): mountproc_export_3=%03.2f ms\n", hostname, ip_address, usec / 1000.0);
+        /* print timing to stderr so it doesn't get piped to other commands */
+        /* TODO unless we're doing graphite output */
+        fprintf(stderr, "%s (%s): mountproc_export_3=%03.2f ms\n", hostname, ip_address, usec / 1000.0);
     }
 
     /* export call doesn't return errors */
