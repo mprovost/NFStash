@@ -15,7 +15,7 @@ static mountres3 *get_root_filehandle(CLIENT *, char *, char *, unsigned long *)
 static int print_exports(char *, struct exportnode *);
 static targets_t *make_exports(targets_t *, const uint16_t, unsigned long, enum outputs);
 void print_output(enum outputs, const int, targets_t *, const fhandle3, const struct timespec, unsigned long);
-void print_fping_summary(targets_t *, const int);
+void print_summary(targets_t *, enum outputs, const int);
 
 /* globals */
 extern volatile sig_atomic_t quitting;
@@ -280,24 +280,56 @@ void print_output(enum outputs format, const int width, targets_t *target, const
 }
 
 
-/* print a parseable summary string to stderr when finished in fping-compatible format */
-void print_fping_summary(targets_t *targets, const int width) {
+/* print a summary to stderr */
+void print_summary(targets_t *targets, enum outputs format, const int width) {
     targets_t *current = targets;
+    double loss;
     unsigned long i;
 
+    /* print a newline between the results and the summary */
+    if (format == human || unixtime || fping) {
+        fprintf(stderr, "\n");
+    }
+
     while (current) {
+        /* first print the aligned host and path */
         fprintf(stderr, "%s:%-*s :",
             current->name,
             width - (int)strlen(current->name),
             current->path);
-        for (i = 0; i < current->sent; i++) {
-            if (current->results[i])
-                fprintf(stderr, " %.2f", current->results[i] / 1000.0);
-            else
-            fprintf(stderr, " -");
-       }
-       fprintf(stderr, "\n");
-       current = current->next;
+
+        /* check if this is still set to the default value */
+        /* that means we never saw any responses */
+        if (current->min == ULONG_MAX) {
+            current->min = 0;
+        }
+
+        switch (format) {
+            case human:
+            case unixtime:
+                loss = (current->sent - current->received) / current->sent * 100.0;
+                fprintf(stderr, " xmt/rcv/%%loss = %u/%u/%.0f%%",
+                    current->sent, current->received, loss);
+                /* only print times if we got any responses */
+                if (current->received) {
+                    fprintf(stderr, ", min/avg/max = %.2f/%.2f/%.2f",
+                        current->min / 1000.0, current->avg / 1000.0, current->max / 1000.0);
+                }
+                break;
+            case fping:
+                for (i = 0; i < current->sent; i++) {
+                    if (current->results[i]) {
+                        fprintf(stderr, " %.2f", current->results[i] / 1000.0);
+                    } else {
+                        fprintf(stderr, " -");
+                    }
+                }
+                break;
+        }
+
+        fprintf(stderr, "\n");
+
+        current = current->next;
     }
 }
 
@@ -538,7 +570,6 @@ int main(int argc, char **argv) {
                         }
                     }
 
-                    //void print_output(enum outputs format, char *prefix, targets_t *target, const fhandle3 file_handle, u_long version, const struct timespec wall_clock, unsigned long usec) {
                     print_output(format, width, current, mountres->mountres3_u.mountinfo.fhandle, wall_clock, usec);
                 }
             }
@@ -561,9 +592,9 @@ int main(int argc, char **argv) {
 
     } /* while(1) */
 
-    if (format == fping) {
-        fprintf(stderr, "\n");
-        print_fping_summary(targets, width);
+    /* only print summary if looping */
+    if (count || loop) {
+        print_summary(targets, format, width);
     }
 
     if (exports_count && exports_count == exports_ok) {
