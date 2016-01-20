@@ -223,25 +223,25 @@ int print_fhandle3(struct targets *target, const fhandle3 file_handle, const uns
     char ip[INET_ADDRSTRLEN];
     /* two chars for each byte (FF in hex) plus terminating NULL */
     char fh_string[NFS3_FHSIZE * 2 + 1];
-    JSON_Object *json;
+    JSON_Object *json_obj;
     char *my_json_string;
 
     /* get the IP address as a string */
     inet_ntop(AF_INET, &((struct sockaddr_in *)target->client_sock)->sin_addr, ip, INET_ADDRSTRLEN);
 
-    json = json_value_get_object(target->json_root);
-    json_object_set_string(json, "ip", ip);
+    json_obj = json_value_get_object(target->json_root);
+    json_object_set_string(json_obj, "ip", ip);
     /* this escapes / to \/ */
-    json_object_set_string(json, "path", target->path);
-    json_object_set_number(json, "usec", usec);
-    json_object_set_number(json, "timestamp", wall_clock.tv_sec);
+    json_object_set_string(json_obj, "path", target->path);
+    json_object_set_number(json_obj, "usec", usec);
+    json_object_set_number(json_obj, "timestamp", wall_clock.tv_sec);
 
     /* walk through the NFS filehandle, print each byte as two hex characters */
     for (i = 0; i < file_handle.fhandle3_len; i++) {
         sprintf(&fh_string[i * 2], "%02hhx", file_handle.fhandle3_val[i]);
     }
 
-    json_object_set_string(json, "filehandle", fh_string);
+    json_object_set_string(json_obj, "filehandle", fh_string);
 
     my_json_string = json_serialize_to_string(target->json_root);
     printf("%s\n", my_json_string);
@@ -329,7 +329,7 @@ char* reverse_fqdn(char *fqdn) {
 /* allocate and initialise a target struct */
 targets_t *init_target(char *target_name, uint16_t port) {
     targets_t *target;
-    JSON_Object *json;
+    JSON_Object *json_obj;
     
     target = calloc(1, sizeof(targets_t));
     target->next = NULL;
@@ -345,9 +345,9 @@ targets_t *init_target(char *target_name, uint16_t port) {
     /* create a JSON value for output */
     target->json_root = json_value_init_object();
     /* get a handle to the object */
-    json = json_value_get_object(target->json_root);
+    json_obj = json_value_get_object(target->json_root);
     /* add the hostname */
-    json_object_set_string(json, "host", target_name);
+    json_object_set_string(json_obj, "host", target_name);
 
     return target;
 }
