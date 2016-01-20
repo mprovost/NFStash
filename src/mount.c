@@ -246,7 +246,9 @@ void print_output(enum outputs format, const int width, targets_t *target, const
 
     switch(format) {
         case unixtime:
-            //printf("[%ld.%06ld] ", (long)wall_clock.tv_sec, (long)wall_clock.tv_nsec / 1000);
+            /* get the epoch time in seconds in the local timezone */
+            /* TODO should we be doing everything in UTC? */
+            /* strftime needs a struct tm so use localtime to convert from time_t */
             secs = localtime(&wall_clock.tv_sec);
             strftime(epoch, sizeof(epoch), "%s", secs);
             printf("[%s.%06li] ", epoch, wall_clock.tv_nsec / 1000);
@@ -295,6 +297,7 @@ int main(int argc, char **argv) {
     /* command line options */
     /* default to json output unless looping */
     enum outputs format = json;
+    unsigned long count = 0;
     uint16_t port = 0; /* 0 = use portmapper */
     int dns = 0, ip = 0;
     int loop = 0;
@@ -318,8 +321,14 @@ int main(int argc, char **argv) {
     if (argc == 1)
         usage();
 
-    while ((ch = getopt(argc, argv, "Dehlmp:S:Tv")) != -1) {
+    while ((ch = getopt(argc, argv, "c:Dehlmp:S:Tv")) != -1) {
         switch(ch) {
+            case 'c':
+                count = strtoul(optarg, NULL, 10);
+                if (count == 0 || count == ULONG_MAX) {
+                    fatal("Zero count, nothing to do!\n");
+                }
+                break;
             /* unixtime ping output */
             case 'D':
                 format = unixtime;
@@ -482,10 +491,13 @@ int main(int argc, char **argv) {
                     current->received++;
                     exports_ok++;
 
-                    if (usec < current->min) current->min = usec;
-                    if (usec > current->max) current->max = usec;
-                    /* calculate the average time */
-                    current->avg = (current->avg * (current->received - 1) + usec) / current->received;
+                    /* only calculate these if we're looping */
+                    if (count || loop) {
+                        if (usec < current->min) current->min = usec;
+                        if (usec > current->max) current->max = usec;
+                        /* calculate the average time */
+                        current->avg = (current->avg * (current->received - 1) + usec) / current->received;
+                    }
 
                     //void print_output(enum outputs format, char *prefix, targets_t *target, const fhandle3 file_handle, u_long version, const struct timespec wall_clock, unsigned long usec) {
                     print_output(format, width, current, mountres->mountres3_u.mountinfo.fhandle, wall_clock, usec);
@@ -496,7 +508,7 @@ int main(int argc, char **argv) {
 
         } /* while(current) */
 
-        if (loop) {
+        if ((count && targets->sent < count) || loop) {
             /* sleep between rounds */
             nanosleep(&sleep_time, NULL);
         } else {
