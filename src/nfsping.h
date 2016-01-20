@@ -72,6 +72,7 @@ typedef struct targets {
     char *path;
     struct sockaddr_in *client_sock;
     CLIENT *client;
+    /* for fping output when we need to store the individual results for the summary */
     unsigned long *results;
     unsigned int sent, received;
     unsigned long min, max;
