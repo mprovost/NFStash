@@ -458,7 +458,7 @@ int main(int argc, char **argv) {
                             loss);
                     } else {
                         /* print the filehandle in hex */
-                        print_fhandle3(current->json_root, current->client_sock, current->path, mountres->mountres3_u.mountinfo.fhandle, usec, wall_clock);
+                        print_fhandle3(current, mountres->mountres3_u.mountinfo.fhandle, usec, wall_clock);
                     }
                 }
             }

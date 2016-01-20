@@ -217,7 +217,8 @@ nfs_fh_list *parse_fh(char *input) {
 /* this format has to be parsed again so take structs instead of strings to keep random data from being used as inputs */
 /* TODO accept path as struct? */
 /* print the IP address of the host in case there are multiple DNS results for a hostname */
-int print_fhandle3(JSON_Value *json_root, struct sockaddr_in *host, const char *path, const fhandle3 file_handle, const unsigned long usec, const struct timespec wall_clock) {
+int print_fhandle3(struct targets *target, const fhandle3 file_handle, const unsigned long usec, const struct timespec wall_clock) {
+//current->json_root, current->client_sock, current->path
     unsigned int i;
     char ip[INET_ADDRSTRLEN];
     /* two chars for each byte (FF in hex) plus terminating NULL */
@@ -226,12 +227,12 @@ int print_fhandle3(JSON_Value *json_root, struct sockaddr_in *host, const char *
     char *my_json_string;
 
     /* get the IP address as a string */
-    inet_ntop(AF_INET, &((struct sockaddr_in *)host)->sin_addr, ip, INET_ADDRSTRLEN);
+    inet_ntop(AF_INET, &((struct sockaddr_in *)target->client_sock)->sin_addr, ip, INET_ADDRSTRLEN);
 
-    json = json_value_get_object(json_root);
+    json = json_value_get_object(target->json_root);
     json_object_set_string(json, "ip", ip);
     /* this escapes / to \/ */
-    json_object_set_string(json, "path", path);
+    json_object_set_string(json, "path", target->path);
     json_object_set_number(json, "usec", usec);
     json_object_set_number(json, "timestamp", wall_clock.tv_sec);
 
@@ -242,8 +243,9 @@ int print_fhandle3(JSON_Value *json_root, struct sockaddr_in *host, const char *
 
     json_object_set_string(json, "filehandle", fh_string);
 
-    my_json_string = json_serialize_to_string(json_root);
+    my_json_string = json_serialize_to_string(target->json_root);
     printf("%s\n", my_json_string);
+    json_free_serialized_string(my_json_string);
 
     return i;
 }
