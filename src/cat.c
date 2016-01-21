@@ -71,7 +71,7 @@ READ3res *do_read(CLIENT *client, nfs_fh_list *dir, offset3 offset, const unsign
 void print_output(enum outputs format, char *prefix, char* host, char* path, count3 count, unsigned long min, unsigned long max, double avg, unsigned long sent, unsigned long received,  const struct timespec now, unsigned long us) {
     double loss;
  
-   if (format == human) {
+   if (format == ping) {
         loss = (sent - received) / (double)sent * 100;
 
         fprintf(stderr, "%s:%s: [%lu] %lu bytes %03.2f ms (xmt/rcv/%%loss = %lu/%lu/%.0f%%, min/avg/max = %.2f/%.2f/%.2f)\n",
@@ -119,7 +119,7 @@ int main(int argc, char **argv) {
     struct timespec sleep_time = NFS_SLEEP;
     struct timeval timeout = NFS_TIMEOUT;
     unsigned long us;
-    enum outputs format = human;
+    enum outputs format = ping;
     char *prefix = "nfscat";
     unsigned long sent = 0, received = 0;
     unsigned long min = ULONG_MAX, max = 0;

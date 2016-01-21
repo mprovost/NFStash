@@ -150,7 +150,7 @@ void print_output(enum outputs format, char *prefix, targets_t *target, unsigned
         printf("[%ld.%06ld] ", (long)now.tv_sec, (long)now.tv_nsec / 1000);
     }
 
-    if (format == human || format == fping || format == unixtime) {
+    if (format == ping || format == fping || format == unixtime) {
         loss = (target->sent - target->received) / (double)target->sent * 100;
         printf("%s : [%u], %03.2f ms (%03.2f avg, %.0f%% loss)\n", target->name, target->sent - 1, us / 1000.0, target->avg / 1000.0, loss);
     } else if (format == graphite || format == statsd) {
@@ -201,7 +201,7 @@ int main(int argc, char **argv) {
     };
     struct rpc_err clnt_err;
     unsigned long us;
-    enum outputs format = human;
+    enum outputs format = ping;
     char prefix[255] = "nfsping";
     targets_t *targets;
     targets_t *target;
@@ -475,7 +475,7 @@ int main(int argc, char **argv) {
     }
 
     /* output formatting doesn't make sense for the simple check */
-    if (count == 0 && loop == 0 && format != human) {
+    if (count == 0 && loop == 0 && format != ping) {
         fatal("Can't specify output format without ping count!\n");
     }
 
@@ -656,12 +656,12 @@ int main(int argc, char **argv) {
     /* only print summary if looping */
     if (count || loop) {
         /* these print to stderr */
-        if (!quiet && (format == human || format == fping || format == unixtime))
+        if (!quiet && (format == ping || format == fping || format == unixtime))
             fprintf(stderr, "\n");
         /* don't print summary for formatted output */
         if (format == fping)
             print_fping_summary(*targets);
-        else if (format == human || format == unixtime)
+        else if (format == ping || format == unixtime)
             print_summary(*targets);
     }
 
