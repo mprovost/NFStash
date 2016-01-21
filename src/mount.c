@@ -256,10 +256,10 @@ void print_output(enum outputs format, const int width, targets_t *target, const
             secs = localtime(&wall_clock.tv_sec);
             strftime(epoch, sizeof(epoch), "%s", secs);
             printf("[%s.%06li] ", epoch, wall_clock.tv_nsec / 1000);
-            /* fall through to human output, this just prepends the current time */
+            /* fall through to ping output, this just prepends the current time */
             /*FALLTHROUGH*/
         /* print "ping" style output */
-        case human:
+        case ping:
         case fping: /* fping is only different in the summary at the end */
             printf("%s:%-*s : [%u], %03.2f ms (%03.2f avg, %.0f%% loss)\n",
                 target->name,
@@ -299,8 +299,9 @@ void print_summary(targets_t *targets, enum outputs format, const int width) {
             current->path);
 
         switch (format) {
-            case human:
+            case ping:
             case unixtime:
+            case json: /* not sure if this makes sense? */
                 loss = (current->sent - current->received) / current->sent * 100.0;
                 fprintf(stderr, " xmt/rcv/%%loss = %u/%u/%.0f%%",
                     current->sent, current->received, loss);
@@ -340,6 +341,7 @@ int main(int argc, char **argv) {
     char *host;
     char *path;
     exports ex;
+    /* target lists */
     targets_t target_dummy = {0};
     /* pointer to head of list */
     targets_t *current = &target_dummy;
@@ -350,21 +352,23 @@ int main(int argc, char **argv) {
     /* temporary target list for looking up exports on server */
     targets_t exports_dummy = {0};
     targets_t *exports_dummy_ptr = &exports_dummy;
-    unsigned int exports_count = 0, exports_ok = 0;
+    /* counters for results */
+    unsigned int exports_count = 0;
+    unsigned int exports_ok    = 0;
     /* getopt */
     int ch;
     /* command line options */
-    /* default to human (ping) output */
-    enum outputs format = human;
+    /* default to unset so we can check in getopt */
+    enum outputs format = unset;
     unsigned long count = 0;
-    uint16_t port = 0; /* 0 = use portmapper */
-    int dns = 0;
-    int ip = 0;
-    int loop = 0;
-    int multiple = 0;
-    int showmount = 0;
-    u_long version = 3;
-    struct timeval timeout = NFS_TIMEOUT;
+    uint16_t port       = 0; /* 0 = use portmapper */
+    int dns             = 0;
+    int ip              = 0;
+    int loop            = 0;
+    int multiple        = 0;
+    int showmount       = 0;
+    u_long version      = 3;
+    struct timeval timeout     = NFS_TIMEOUT;
     struct timespec sleep_time = NFS_SLEEP;
     /* source ip address for packets */
     struct sockaddr_in src_ip = {
@@ -376,7 +380,7 @@ int main(int argc, char **argv) {
     struct timespec wall_clock;
     /* for output alignment */
     /* printf requires an int for %*s formats */
-    int width = 0;
+    int width    = 0;
     int tmpwidth = 0;
 
     /* no arguments passed */
@@ -387,14 +391,33 @@ int main(int argc, char **argv) {
         switch(ch) {
             /* ping output with a count */
             case 'c':
-                format = human;
+                if (loop) {
+                    fatal("Can't specify both -l and -c!\n");
+                }
+                if (format == unset) {
+                    format = ping;
+                } else if (format == fping) {
+                    fatal("Can't specify both -C and -c!\n");
+                } /* -D and -J are ok */
                 count = strtoul(optarg, NULL, 10);
                 if (count == 0 || count == ULONG_MAX) {
                     fatal("Zero count, nothing to do!\n");
                 }
                 break;
             case 'C':
-                format = fping;
+                if (loop) {
+                    fatal("Can't specify both -l and -C!\n");
+                }
+                if (format == unset) {
+                    format = fping;
+                } else if (format == unixtime) {
+                    fatal("Can't specify both -D and -C!\n");
+                } else if (format == ping) {
+                    fatal("Can't specify both -c and -C!\n");
+                } else if (format == json) {
+                    /* JSON doesn't have a summary */
+                    fatal("Can't specify both -J and -C, use -c instead!\n");
+                }
                 count = strtoul(optarg, NULL, 10);
                 if (count == 0 || count == ULONG_MAX) {
                     fatal("Zero count, nothing to do!\n");
@@ -402,6 +425,11 @@ int main(int argc, char **argv) {
                 break;
             /* unixtime ping output */
             case 'D':
+                if (format == fping) {
+                    fatal("Can't specify both -C and -D!\n");
+                } else if (format == json) {
+                    fatal("Can't specify both -J and -D!\n");
+                }
                 format = unixtime;
                 break;
             /* output like showmount -e */
@@ -409,11 +437,23 @@ int main(int argc, char **argv) {
                 showmount = 1;
                 break;
             case 'J':
+                if (format == unixtime) {
+                    fatal("Can't specify both -J and -D!\n");
+                } else if (format == fping) {
+                    fatal("Can't specify both -J and -C, use -c instead!\n");
+                } /* -c is ok */
                 format = json;
                 break;
             case 'l':
+                if (format == unset) {
+                    format = ping;
+                } else if (format == ping) {
+                    fatal("Can't specify both -l and -c!\n");
+                } else if (format == fping) {
+                    fatal("Can't specify both -l and -C!\n");
+                } /* other formats are ok */
+
                 loop = 1;
-                format = human;
                 break;
             /* use multiple IP addresses if found */
             /* TODO in this case do we also want to default to showing IP addresses instead of names? */
