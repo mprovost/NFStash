@@ -29,6 +29,7 @@ void usage() {
     -D       print timestamp (unix time) before each line\n\
     -e       print exports (like showmount -e)\n\
     -h       display this help and exit\n\
+    -J       force JSON output\n\
     -l       loop forever\n\
     -m       use multiple target IP addresses if found\n\
     -p n     polling interval, check targets every n ms (default 1000)\n\
@@ -256,6 +257,7 @@ void print_output(enum outputs format, const int width, targets_t *target, const
             strftime(epoch, sizeof(epoch), "%s", secs);
             printf("[%s.%06li] ", epoch, wall_clock.tv_nsec / 1000);
             /* fall through to human output, this just prepends the current time */
+            /*FALLTHROUGH*/
         /* print "ping" style output */
         case human:
         case fping: /* fping is only different in the summary at the end */
@@ -338,22 +340,29 @@ int main(int argc, char **argv) {
     char *host;
     char *path;
     exports ex;
-    targets_t *targets;
-    targets_t *current;
     targets_t target_dummy = {0};
+    /* pointer to head of list */
+    targets_t *current = &target_dummy;
+    /* global target list */
+    targets_t *targets = current;
+    /* temporary target list for building new targets from arguments */
     targets_t *new_targets;
+    /* temporary target list for looking up exports on server */
     targets_t exports_dummy = {0};
     targets_t *exports_dummy_ptr = &exports_dummy;
     unsigned int exports_count = 0, exports_ok = 0;
+    /* getopt */
     int ch;
     /* command line options */
-    /* default to json output unless looping */
-    enum outputs format = json;
+    /* default to human (ping) output */
+    enum outputs format = human;
     unsigned long count = 0;
     uint16_t port = 0; /* 0 = use portmapper */
-    int dns = 0, ip = 0;
+    int dns = 0;
+    int ip = 0;
     int loop = 0;
-    int multiple = 0, showmount = 0;
+    int multiple = 0;
+    int showmount = 0;
     u_long version = 3;
     struct timeval timeout = NFS_TIMEOUT;
     struct timespec sleep_time = NFS_SLEEP;
@@ -362,6 +371,7 @@ int main(int argc, char **argv) {
         .sin_family = AF_INET,
         .sin_addr = 0
     };
+    /* response time in microseconds */
     unsigned long usec;
     struct timespec wall_clock;
     /* for output alignment */
@@ -373,7 +383,7 @@ int main(int argc, char **argv) {
     if (argc == 1)
         usage();
 
-    while ((ch = getopt(argc, argv, "c:C:Dehlmp:S:Tv")) != -1) {
+    while ((ch = getopt(argc, argv, "c:C:DehJlmp:S:Tv")) != -1) {
         switch(ch) {
             /* ping output with a count */
             case 'c':
@@ -397,6 +407,9 @@ int main(int argc, char **argv) {
             /* output like showmount -e */
             case 'e':
                 showmount = 1;
+                break;
+            case 'J':
+                format = json;
                 break;
             case 'l':
                 loop = 1;
@@ -433,9 +446,10 @@ int main(int argc, char **argv) {
         }
     }
 
-    /* pointer to head of list */
-    current = &target_dummy;
-    targets = current;
+    /* if not looping, default to JSON output to pipe to other commands */
+    if (count + loop == 0) {
+        format = json;
+    }
 
     /* loop through arguments and create targets */
     /* TODO accept from stdin? */
@@ -504,22 +518,23 @@ int main(int argc, char **argv) {
     quitting = 0;
     signal(SIGINT, sigint_handler);
 
+    /* don't need to do the target loop for showmount */
     if (showmount) {
         targets = NULL;
     } else {
         /* skip the first dummy entry */
         targets = targets->next;
-    }
 
-    /* calculate the maximum width for aligned printing */
-    current = targets;
-    while (current) {
-        tmpwidth = strlen(current->name) + strlen(current->path);
-        if (tmpwidth > width) {
-            width = tmpwidth;
+        /* calculate the maximum width for aligned printing */
+        current = targets;
+        while (current) {
+            tmpwidth = strlen(current->name) + strlen(current->path);
+            if (tmpwidth > width) {
+                width = tmpwidth;
+            }
+
+            current = current->next;
         }
-
-        current = current->next;
     }
 
 
