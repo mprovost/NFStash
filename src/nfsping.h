@@ -97,11 +97,12 @@ typedef struct nfs_fh_list {
 
 /* TODO capitalise? */
 enum outputs {
-    human, /* classic ping */
+    unset, /* use as a default for getopt checks */
+    ping, /* classic ping */
     fping,
+    unixtime,
     graphite,
     statsd,
-    unixtime,
     json
 };
 
