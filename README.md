@@ -6,7 +6,7 @@ The suite consists of these tools:
 
 - [`nfsping`](md/nfsping.md): send RPC NULL requests to NFS servers
 - [`nfsmount`](https://rawgit.com/mprovost/NFSping/master/man/nfsmount.8.html): lookup NFS filesystem root filehandles
-- [`nfsdf`](https://rawgit.com/mprovost/NFSping/master/man/nfsdf.html): report NFS server disk space usage
+- [`nfsdf`](https://rawgit.com/mprovost/NFSping/master/man/nfsdf.8.html): report NFS server disk space usage
 - [`nfsls`](https://rawgit.com/mprovost/NFSping/master/man/nfsls.8.html): list directory contents on an NFS server
 - [`nfscat`](https://rawgit.com/mprovost/NFSping/master/man/nfscat.8.html): read a file over NFS and print to stdout
 - [`nfslock`](https://rawgit.com/mprovost/NFSping/master/man/nfslock.8.html): test getting an NFS lock on a filehandle
