@@ -3,22 +3,37 @@ nfsmount(8) -- lookup NFS filesystem root filehandles
 
 ## SYNOPSIS
 
-`nfsmount` [`-ehmTv`] [`-S` <source>] <server[:path]...>
+`nfsmount` [`-DehJlmTv`] [`-c` <count>] [`-C` <count>] [`-p` <pause>] [`-S` <source>] <server[:path]...>
 
 ## DESCRIPTION
 
-`nfsmount` sends a MOUNT protocol version 3 RPC request to an NFS server to look up exported filesystems and their root filehandles. Specific filesystems can be queried with an argument in the format `hostname:path`. If the path is absent then a separate request will be sent to list all available filesystems which will then be looked up individually. The result(s) are returned as a series of JSON objects (one per line) with the keys "ip", "path", and "filehandle", where the value of the "filehandle" key is the hex representation of the filesystem's root NFS filehandle. If the NFS server requires "secure" ports (<1024), `nfsmount` will have to be run as root.
+`nfsmount` sends MOUNT protocol version 3 RPC requests to NFS servers to look up exported filesystems and their root filehandles. Specific filesystems can be queried with an argument in the format `hostname:path`. If the path is absent then a separate EXPORT request is sent to list all available filesystems which will then be looked up individually with MNT RPC requests. The result(s) are returned as a series of JSON objects (one per line) with the keys "host", "ip", "path", "usec", "timestamp" and "filehandle", where the value of the "filehandle" key is the hex representation of the filesystem's root NFS filehandle. If the NFS server requires "secure" ports (<1024), `nfsmount` must be run as root.
 
 ## OPTIONS
 
+* `-c` <count>:
+  Count of mount (MNT) requests to send to target(s) before exiting. Print a line of output after each response is received. A summary of all responses is printed when the count is reached or the program is interrupted.
+
+* `-C` <count>:
+  Count of mount (MNT) requests to send to target(s), outputs `fping(8)` compatible parseable summary when the count is reached or the program is interrupted.
+
+* `-D`:
+  Print timestamp (Unix time) before each line of output when counting or looping.
+
 * `-e`:
-  Display available filesystems and their export policies in a human readable format, like `showmount -e`. This does not look up filehandles.
+  Display available filesystems and their export policies in a human readable format, like `showmount -e`. This sends a single EXPORT RPC per target server and does not look up filehandles.
 
 * `-h`:
   Display a help message and exit.
 
+* `-l`:
+  Loop forever sending mount (MNT) requests. Exit loop with Ctrl-c.
+
 * `-m`:
   Use multiple target IP addresses if found. This can be useful for clustered file servers.
+
+* `-p` <pause>:
+  The polling interval. `nfsmount` will pause up to this amount of milliseconds between requests to each target. Default = 1000 (one second). 
 
 * `-S` <source>:
   Use the specified source IP address for request packets.

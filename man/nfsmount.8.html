@@ -75,18 +75,23 @@
 
 <h2 id="SYNOPSIS">SYNOPSIS</h2>
 
-<p><code>nfsmount</code> [<code>-ehmTv</code>] [<code>-S</code> <var>source</var>] &lt;server[:path]...></p>
+<p><code>nfsmount</code> [<code>-DehJlmTv</code>] [<code>-c</code> <var>count</var>] [<code>-C</code> <var>count</var>] [<code>-p</code> <var>pause</var>] [<code>-S</code> <var>source</var>] &lt;server[:path]...></p>
 
 <h2 id="DESCRIPTION">DESCRIPTION</h2>
 
-<p><code>nfsmount</code> sends a MOUNT protocol version 3 RPC request to an NFS server to look up exported filesystems and their root filehandles. Specific filesystems can be queried with an argument in the format <code>hostname:path</code>. If the path is absent then a separate request will be sent to list all available filesystems which will then be looked up individually. The result(s) are returned as a series of JSON objects (one per line) with the keys "ip", "path", and "filehandle", where the value of the "filehandle" key is the hex representation of the filesystem's root NFS filehandle. If the NFS server requires "secure" ports (&lt;1024), <code>nfsmount</code> will have to be run as root.</p>
+<p><code>nfsmount</code> sends MOUNT protocol version 3 RPC requests to NFS servers to look up exported filesystems and their root filehandles. Specific filesystems can be queried with an argument in the format <code>hostname:path</code>. If the path is absent then a separate EXPORT request is sent to list all available filesystems which will then be looked up individually with MNT RPC requests. The result(s) are returned as a series of JSON objects (one per line) with the keys "host", "ip", "path", "usec", "timestamp" and "filehandle", where the value of the "filehandle" key is the hex representation of the filesystem's root NFS filehandle. If the NFS server requires "secure" ports (&lt;1024), <code>nfsmount</code> must be run as root.</p>
 
 <h2 id="OPTIONS">OPTIONS</h2>
 
 <dl>
-<dt class="flush"><code>-e</code></dt><dd><p>Display available filesystems and their export policies in a human readable format, like <code>showmount -e</code>. This does not look up filehandles.</p></dd>
+<dt><code>-c</code> <var>count</var></dt><dd><p>Count of mount (MNT) requests to send to target(s) before exiting. Print a line of output after each response is received. A summary of all responses is printed when the count is reached or the program is interrupted.</p></dd>
+<dt><code>-C</code> <var>count</var></dt><dd><p>Count of mount (MNT) requests to send to target(s), outputs <code>fping(8)</code> compatible parseable summary when the count is reached or the program is interrupted.</p></dd>
+<dt class="flush"><code>-D</code></dt><dd><p>Print timestamp (Unix time) before each line of output when counting or looping.</p></dd>
+<dt class="flush"><code>-e</code></dt><dd><p>Display available filesystems and their export policies in a human readable format, like <code>showmount -e</code>. This sends a single EXPORT RPC per target server and does not look up filehandles.</p></dd>
 <dt class="flush"><code>-h</code></dt><dd><p>Display a help message and exit.</p></dd>
+<dt class="flush"><code>-l</code></dt><dd><p>Loop forever sending mount (MNT) requests. Exit loop with Ctrl-c.</p></dd>
 <dt class="flush"><code>-m</code></dt><dd><p>Use multiple target IP addresses if found. This can be useful for clustered file servers.</p></dd>
+<dt><code>-p</code> <var>pause</var></dt><dd><p>The polling interval. <code>nfsmount</code> will pause up to this amount of milliseconds between requests to each target. Default = 1000 (one second).</p></dd>
 <dt><code>-S</code> <var>source</var></dt><dd><p>Use the specified source IP address for request packets.</p></dd>
 <dt class="flush"><code>-T</code></dt><dd><p>Use TCP to connect to server. Default = UDP.</p></dd>
 <dt class="flush"><code>-v</code></dt><dd><p>Display debug output on <code>stderr</code>.</p></dd>
