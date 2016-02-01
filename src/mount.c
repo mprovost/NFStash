@@ -445,12 +445,16 @@ int main(int argc, char **argv) {
                 format = json;
                 break;
             case 'l':
-                if (format == unset) {
+                /* Can't count and loop */
+                if (count) {
+                    //if (format == ping||unixtime) {
+                    if (format == ping || format == unixtime) {
+                        fatal("Can't specify both -c and -l!\n");
+                    } else if (format == fping) {
+                        fatal("Can't specify both -C and -l!\n");
+                    }
+                } else if (format == unset) {
                     format = ping;
-                } else if (format == ping) {
-                    fatal("Can't specify both -l and -c!\n");
-                } else if (format == fping) {
-                    fatal("Can't specify both -l and -C!\n");
                 } /* other formats are ok */
 
                 loop = 1;
