@@ -40,7 +40,7 @@ rpcgen: $(addprefix rpcsrc/, nfs_prot.h mount.h pmap_prot.h nlm_prot.h nfsv4_pro
 # use git log to get the last commit date of the source file, use this for the date in the output
 # otherwise ronn uses the mtime of the file which will change if you switch branches etc
 %.8 %.html: %.8.ronn
-	ronn --date `git log -n1 --pretty=format:%ci -- $< | cut -f1 -d" "` $<
+	ronn --date `git log -n1 --pretty=format:%ci -- $< | cut -f1 -d" "` --style=toc $<
 
 # pattern rule for installing binaries
 $(prefix)/bin/%: bin/%
