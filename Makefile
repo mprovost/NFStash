@@ -85,10 +85,10 @@ nfsping_objs = $(addprefix obj/, $(addsuffix .o, nfsping nfs_prot_clnt nfs_prot_
 bin/nfsping: config/clock_gettime.opt $(nfsping_objs) | bin
 	gcc ${CFLAGS} @config/clock_gettime.opt $(nfsping_objs) -o $@
 
-# TODO addsuffix .o
 nfsmount: bin/nfsmount
-bin/nfsmount: $(addprefix obj/, mount.o mount_clnt.o mount_xdr.o pmap_prot_clnt.o $(common_objs)) | bin
-	gcc ${CFLAGS} $^ -o $@
+nfsmount_objs = $(addprefix obj/, $(addsuffix .o, mount mount_clnt mount_xdr) $(common_objs))
+bin/nfsmount: config/clock_gettime.opt $(nfsmount_objs) | bin
+	gcc ${CFLAGS} @config/clock_gettime.opt $(nfsmount_objs) -o $@
 
 nfsdf: bin/nfsdf
 bin/nfsdf: $(addprefix obj/, df.o nfs_prot_clnt.o nfs_prot_xdr.o $(common_objs)) | bin

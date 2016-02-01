@@ -3,16 +3,15 @@
 #include "rpc.h"
 
 /* local prototypes */
-static void int_handler(int);
 static void usage(void);
 static void print_summary(targets_t);
 static void print_fping_summary(targets_t);
 static void print_output(enum outputs, char *, targets_t *, unsigned long, u_long, const struct timespec, unsigned long);
 static void print_lost(enum outputs, char *, targets_t *, unsigned long, u_long, const struct timespec);
-static targets_t *make_target(char *, uint16_t);
+
 
 /* Globals! */
-volatile sig_atomic_t quitting;
+extern volatile sig_atomic_t quitting;
 int verbose = 0;
 
 /* dispatch table for null function calls, this saves us from a bunch of if statements */
@@ -52,14 +51,6 @@ static const struct null_procs null_dispatch[][5] = {
     /* Only one version of RQUOTA protocol. Even for NFSv4! */
     [RQUOTAPROG - 100000]     [2 ... 4] = { .proc = rquotaproc_null_1, .name = "rquotaproc_null_1", .protocol = "rquotaproc_null_1", .version = 1},
 };
-
-
-/* handle control-c */
-void int_handler(int sig) {
-    if (sig == SIGINT) {
-        quitting = 1;
-    }
-}
 
 
 void usage() {
@@ -159,7 +150,7 @@ void print_output(enum outputs format, char *prefix, targets_t *target, unsigned
         printf("[%ld.%06ld] ", (long)now.tv_sec, (long)now.tv_nsec / 1000);
     }
 
-    if (format == human || format == fping || format == unixtime) {
+    if (format == ping || format == fping || format == unixtime) {
         loss = (target->sent - target->received) / (double)target->sent * 100;
         printf("%s : [%u], %03.2f ms (%03.2f avg, %.0f%% loss)\n", target->name, target->sent - 1, us / 1000.0, target->avg / 1000.0, loss);
     } else if (format == graphite || format == statsd) {
@@ -194,25 +185,6 @@ void print_lost(enum outputs format, char *prefix, targets_t *target, unsigned l
 }
 
 
-/* make a new target */
-targets_t *make_target(char *target_name, uint16_t port) {
-    targets_t *target;
-
-    target = calloc(1, sizeof(targets_t));
-    target->next = NULL;
-    target->name = target_name;
-
-    target->client_sock = calloc(1, sizeof(struct sockaddr_in));
-    target->client_sock->sin_family = AF_INET;
-    target->client_sock->sin_port = port;
-
-    /* set this so that the first comparison will always be smaller */
-    target->min = ULONG_MAX;
-
-    return target;
-}
-
-
 int main(int argc, char **argv) {
     void *status;
     struct timeval timeout = NFS_TIMEOUT;
@@ -222,16 +194,18 @@ int main(int argc, char **argv) {
     uint16_t port = htons(NFS_PORT);
     unsigned long prognum = NFS_PROGRAM;
     unsigned long prognum_offset = NFS_PROGRAM - 100000;
-    struct addrinfo hints = {0}, *addr;
+    struct addrinfo hints = {
+        .ai_family = AF_INET,
+        /* default to UDP */
+        .ai_socktype = SOCK_DGRAM,
+    };
     struct rpc_err clnt_err;
-    int getaddr;
     unsigned long us;
-    enum outputs format = human;
+    enum outputs format = ping;
     char prefix[255] = "nfsping";
     targets_t *targets;
     targets_t *target;
     targets_t target_dummy;
-    char ip_address[INET_ADDRSTRLEN]; /* for warning when multiple addresses found */
     int ch;
     unsigned long count = 0;
     /* default to reconnecting to server each round */
@@ -247,20 +221,18 @@ int main(int argc, char **argv) {
         .sin_addr = INADDR_ANY
     };
 
+
     /* listen for ctrl-c */
     quitting = 0;
-    signal(SIGINT, int_handler);
+    signal(SIGINT, sigint_handler);
 
     /* don't quit on (TCP) broken pipes */
     signal(SIGPIPE, SIG_IGN);
 
-    hints.ai_family = AF_INET;
-    /* default to UDP */
-    hints.ai_socktype = SOCK_DGRAM;
-
     /* no arguments passed */
     if (argc == 1)
         usage();
+
 
     while ((ch = getopt(argc, argv, "aAc:C:dDEg:Ghi:KlLmMnNp:P:qQRsS:t:TvV:")) != -1) {
         switch(ch) {
@@ -475,6 +447,7 @@ int main(int argc, char **argv) {
         }
     }
 
+
     /* calculate this once */
     prognum_offset = prognum - 100000;
 
@@ -502,7 +475,7 @@ int main(int argc, char **argv) {
     }
 
     /* output formatting doesn't make sense for the simple check */
-    if (count == 0 && loop == 0 && format != human) {
+    if (count == 0 && loop == 0 && format != ping) {
         fatal("Can't specify output format without ping count!\n");
     }
 
@@ -520,92 +493,13 @@ int main(int argc, char **argv) {
 
     /* process the targets from the command line */
     for (index = optind; index < argc; index++) {
-        target->next = make_target(argv[index], port);
+        target->next = make_target(argv[index], &hints, port, dns, ip, multiple, count, format);
         target = target->next;
-
-        /* first try treating the hostname as an IP address */
-        if (inet_pton(AF_INET, target->name, &((struct sockaddr_in *)target->client_sock)->sin_addr)) {
-            /* reverse dns */
-            if (dns) {
-                target->name = calloc(1, NI_MAXHOST);
-                getaddr = getnameinfo((struct sockaddr *)target->client_sock, sizeof(struct sockaddr_in), target->name, NI_MAXHOST, NULL, 0, NI_NAMEREQD);
-                if (getaddr != 0) { /* failure! */
-                    fprintf(stderr, "%s: %s\n", argv[index], gai_strerror(getaddr));
-                    exit(2); /* ping and fping return 2 for name resolution failures */
-                }
-                target->ndqf = reverse_fqdn(target->name);
-            } else {
-                /* don't reverse IP addresses */
-                target->ndqf = target->name;
-            }
-        /* not an IP address, do a DNS lookup */
-        } else {
-            /* we don't call freeaddrinfo because we keep a pointer to the sin_addr in the target */
-            getaddr = getaddrinfo(target->name, "nfs", &hints, &addr);
-            if (getaddr == 0) { /* success! */
-                /* loop through possibly multiple DNS responses */
-                while (addr) {
-                    target->client_sock->sin_addr = ((struct sockaddr_in *)addr->ai_addr)->sin_addr;
-
-                    /* if we're using IP addresses */
-                    if (ip) {
-                        target->name = calloc(1, INET_ADDRSTRLEN);
-                        inet_ntop(AF_INET, &((struct sockaddr_in *)addr->ai_addr)->sin_addr, target->name, INET_ADDRSTRLEN);
-                        /* don't reverse an IP address */
-                        target->ndqf = target->name;
-                    /* if we have reverse lookups enabled */
-                    } else if (dns) {
-                        target->name = calloc(1, NI_MAXHOST);
-                        /* it's an error if we've asked to do reverse DNS lookups and it can't find one */
-                        getaddr = getnameinfo((struct sockaddr *)target->client_sock, sizeof(struct sockaddr_in), target->name, NI_MAXHOST, NULL, 0, NI_NAMEREQD);
-                        if (getaddr != 0) { /* failure! */
-                            fprintf(stderr, "%s: %s\n", argv[index], gai_strerror(getaddr));
-                            exit(2); /* ping and fping return 2 for name resolution failures */
-                        }
-                        target->ndqf = reverse_fqdn(target->name);
-                    /* default */
-                    } else {
-                        target->ndqf = reverse_fqdn(target->name);
-                    }
-
-                    /* multiple results */
-                    if (addr->ai_next) {
-                        if (multiple) {
-                            /* create the next target */
-                            target->next = make_target(argv[index], port);
-                            target = target->next;
-                        } else {
-                            /* we have to look up the IP address for the warning */
-                            inet_ntop(AF_INET, &((struct sockaddr_in *)addr->ai_addr)->sin_addr, ip_address, INET_ADDRSTRLEN);
-                            fprintf(stderr, "Multiple addresses found for %s, using %s\n", argv[index], ip_address);
-                            break;
-                        }
-                    }
-
-                    addr = addr->ai_next;
-                }
-            } else {
-                fprintf(stderr, "getaddrinfo error (%s): %s\n", target->name, gai_strerror(getaddr));
-                exit(2); /* ping and fping return 2 for name resolution failures */
-            }
-        }
     }
 
     /* skip the first dummy entry */
     targets = targets->next;
 
-    /* allocate space for printing out a summary of all ping times at the end */
-    if (format == fping) {
-        target = targets;
-        while (target) {
-            target->results = calloc(count, sizeof(unsigned long));
-            if (target->results == NULL) {
-                fprintf(stderr, "nfsping: couldn't allocate memory for results!\n");
-                exit(3);
-            }
-            target = target->next;
-        }
-    }
 
     /* the main loop */
     while(1) {
@@ -762,12 +656,12 @@ int main(int argc, char **argv) {
     /* only print summary if looping */
     if (count || loop) {
         /* these print to stderr */
-        if (!quiet && (format == human || format == fping || format == unixtime))
+        if (!quiet && (format == ping || format == fping || format == unixtime))
             fprintf(stderr, "\n");
         /* don't print summary for formatted output */
         if (format == fping)
             print_fping_summary(*targets);
-        else if (format == human || format == unixtime)
+        else if (format == ping || format == unixtime)
             print_summary(*targets);
     }
 

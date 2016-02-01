@@ -1,6 +1,18 @@
 #include "util.h"
 #include "nfsping.h"
-#include "parson/parson.h"
+
+
+/* globals */
+volatile sig_atomic_t quitting;
+
+
+/* handle control-c */
+void sigint_handler(int sig) {
+    if (sig == SIGINT) {
+            quitting = 1;
+    }
+}
+
 
 /* print a string message for each NFS status code */
 /* returns that original status unless there was illegal input and then -1 */
@@ -205,18 +217,35 @@ nfs_fh_list *parse_fh(char *input) {
 /* this format has to be parsed again so take structs instead of strings to keep random data from being used as inputs */
 /* TODO accept path as struct? */
 /* print the IP address of the host in case there are multiple DNS results for a hostname */
-int print_fhandle3(struct sockaddr *host, char *path, fhandle3 file_handle) {
+int print_fhandle3(struct targets *target, const fhandle3 file_handle, const unsigned long usec, const struct timespec wall_clock) {
+//current->json_root, current->client_sock, current->path
     unsigned int i;
     char ip[INET_ADDRSTRLEN];
+    /* two chars for each byte (FF in hex) plus terminating NULL */
+    char fh_string[NFS3_FHSIZE * 2 + 1];
+    JSON_Object *json_obj;
+    char *my_json_string;
 
     /* get the IP address as a string */
-    inet_ntop(AF_INET, &((struct sockaddr_in *)host)->sin_addr, ip, INET_ADDRSTRLEN);
+    inet_ntop(AF_INET, &((struct sockaddr_in *)target->client_sock)->sin_addr, ip, INET_ADDRSTRLEN);
 
-    printf("{ \"ip\": \"%s\", \"path\": \"%s\", \"filehandle\": \"", ip, path);
+    json_obj = json_value_get_object(target->json_root);
+    json_object_set_string(json_obj, "ip", ip);
+    /* this escapes / to \/ */
+    json_object_set_string(json_obj, "path", target->path);
+    json_object_set_number(json_obj, "usec", usec);
+    json_object_set_number(json_obj, "timestamp", wall_clock.tv_sec);
+
+    /* walk through the NFS filehandle, print each byte as two hex characters */
     for (i = 0; i < file_handle.fhandle3_len; i++) {
-        printf("%02hhx", file_handle.fhandle3_val[i]);
+        sprintf(&fh_string[i * 2], "%02hhx", file_handle.fhandle3_val[i]);
     }
-    printf("\" }\n");
+
+    json_object_set_string(json_obj, "filehandle", fh_string);
+
+    my_json_string = json_serialize_to_string(target->json_root);
+    printf("%s\n", my_json_string);
+    json_free_serialized_string(my_json_string);
 
     return i;
 }
@@ -294,6 +323,156 @@ char* reverse_fqdn(char *fqdn) {
     }
 
     return ndqf;
+}
+
+
+/* allocate and initialise a target struct */
+targets_t *init_target(char *target_name, uint16_t port, unsigned long count, enum outputs format) {
+    targets_t *target;
+    JSON_Object *json_obj;
+    
+    target = calloc(1, sizeof(targets_t));
+    target->next = NULL;
+    target->name = target_name;
+
+    /* set this so that the first comparison will always be smaller */
+    target->min = ULONG_MAX;
+
+    /* allocate space for printing out a summary of all ping times at the end */
+    if (format == fping) {
+        target->results = calloc(count, sizeof(unsigned long));
+        if (target->results == NULL) {
+            fatalx(3, "Couldn't allocate memory for results!\n");
+        }
+    }
+
+    target->client_sock = calloc(1, sizeof(struct sockaddr_in));
+    target->client_sock->sin_family = AF_INET;
+    target->client_sock->sin_port = port;
+
+    /* create a JSON value for output */
+    target->json_root = json_value_init_object();
+    /* get a handle to the object */
+    json_obj = json_value_get_object(target->json_root);
+    /* add the hostname */
+    json_object_set_string(json_obj, "host", target_name);
+
+    return target;
+}
+
+
+/* make a new target, or list of targets if there are multiple DNS entries */
+/* return the head of the list */
+targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t port, int dns, int ip, int multiple, unsigned long count, enum outputs format) {
+    targets_t *target, *first;
+    struct addrinfo *addr;
+    int getaddr;
+    char ip_address[INET_ADDRSTRLEN]; /* for warning when multiple addresses found */
+
+
+    target = init_target(target_name, port, count, format);
+
+    /* save the head of the list in case of multiple DNS responses */
+    first = target;
+
+    /* first try treating the hostname as an IP address */
+    if (inet_pton(AF_INET, target->name, &((struct sockaddr_in *)target->client_sock)->sin_addr)) {
+        /* reverse dns */
+        if (dns) {
+            target->name = calloc(1, NI_MAXHOST);
+            getaddr = getnameinfo((struct sockaddr *)target->client_sock, sizeof(struct sockaddr_in), target->name, NI_MAXHOST, NULL, 0, NI_NAMEREQD);
+            if (getaddr != 0) { /* failure! */
+                fprintf(stderr, "%s: %s\n", target_name, gai_strerror(getaddr));
+                exit(2); /* ping and fping return 2 for name resolution failures */
+            }
+            target->ndqf = reverse_fqdn(target->name);
+        } else {
+            /* don't reverse IP addresses */
+            target->ndqf = target->name;
+        }
+    /* not an IP address, do a DNS lookup */
+    } else {
+        /* we don't call freeaddrinfo because we keep a pointer to the sin_addr in the target */
+        getaddr = getaddrinfo(target->name, "nfs", hints, &addr);
+        if (getaddr == 0) { /* success! */
+            /* loop through possibly multiple DNS responses */
+            while (addr) {
+                target->client_sock->sin_addr = ((struct sockaddr_in *)addr->ai_addr)->sin_addr;
+
+                /* if we're using IP addresses */
+                if (ip) {
+                    target->name = calloc(1, INET_ADDRSTRLEN);
+                    inet_ntop(AF_INET, &((struct sockaddr_in *)addr->ai_addr)->sin_addr, target->name, INET_ADDRSTRLEN);
+                    /* don't reverse an IP address */
+                    target->ndqf = target->name;
+                /* if we have reverse lookups enabled */
+                } else if (dns) {
+                    target->name = calloc(1, NI_MAXHOST);
+                    /* it's an error if we've asked to do reverse DNS lookups and it can't find one */
+                    getaddr = getnameinfo((struct sockaddr *)target->client_sock, sizeof(struct sockaddr_in), target->name, NI_MAXHOST, NULL, 0, NI_NAMEREQD);
+                    if (getaddr != 0) { /* failure! */
+                        fprintf(stderr, "%s: %s\n", target_name, gai_strerror(getaddr));
+                        exit(2); /* ping and fping return 2 for name resolution failures */
+                    }
+                    target->ndqf = reverse_fqdn(target->name);
+                /* default */
+                } else {
+                    target->ndqf = reverse_fqdn(target->name);
+                }
+
+                /* multiple results */
+                /* with glibc, this can return 127.0.0.1 twice when using "localhost" if there is an IPv6 entry in /etc/hosts
+                   as documented here: https://bugzilla.redhat.com/show_bug.cgi?id=496300 */
+                /* TODO detect this and skip the second duplicate entry? */
+                if (addr->ai_next) {
+                    if (multiple) {
+                        /* make the next target */
+                        target->next = init_target(target_name, port, count, format);
+                        target = target->next;
+                    } else {
+                        /* we have to look up the IP address for the warning */
+                        inet_ntop(AF_INET, &((struct sockaddr_in *)addr->ai_addr)->sin_addr, ip_address, INET_ADDRSTRLEN);
+                        fprintf(stderr, "Multiple addresses found for %s, using %s\n", target_name, ip_address);
+                        break;
+                    }
+                }
+
+                addr = addr->ai_next;
+            }
+        } else {
+            fprintf(stderr, "getaddrinfo error (%s): %s\n", target->name, gai_strerror(getaddr));
+            exit(2); /* ping and fping return 2 for name resolution failures */
+        }
+    } /* end of DNS */
+
+    /* only return the head of the list */
+    return first;
+}
+
+
+/* append a target (or target list) to the end of a target list */
+/* return a pointer to the last element in the newly extended list */
+targets_t *append_target(targets_t **head, targets_t *new_target) {
+    targets_t *current = *head;
+
+    if (current) {
+        /* find the last target in the list */
+        while (current->next) {
+            current = current->next;
+        }
+        /* append */
+        current->next = new_target;
+    /* empty list */
+    } else {
+        *head = new_target;
+    }
+
+    /* go to the end of the list */
+    while (current->next) {
+        current = current->next;
+    }
+
+    return current;
 }
 
 

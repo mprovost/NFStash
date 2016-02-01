@@ -223,7 +223,7 @@ int main(int argc, char **argv) {
     int ch;
     int inodes = 0;
     enum byte_prefix prefix = NONE;
-    enum outputs format = human;
+    enum outputs format = ping;
     char output_prefix[255] = "nfs";
     int width  = 0;
     char *input_fh = NULL;
@@ -401,7 +401,7 @@ int main(int argc, char **argv) {
         }
     }
 
-    if (format == human) {
+    if (format == ping) {
         /* header */
         /* Print the header before sending any RPCs, this means we have to guess about the size of the results
            but it lets the user know that the program is running. Then we can print the results as they come in

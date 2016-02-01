@@ -38,6 +38,9 @@
 /* BSD timespec functions */
 #include "src/timespec.h"
 
+/* Parson JSON */
+#include "parson/parson.h"
+
 #define fatal(x...) do { fflush(stdout); fprintf(stderr,x); fflush(stderr); usage(); } while (0)
 #define fatalx(x, y...) do { fflush(stdout); fprintf(stderr,y); fflush(stderr); exit(x); } while (0)
 #define debug(x...) do { if (verbose) { fflush(stdout); fprintf(stderr,x); fflush(stderr); } } while (0)
@@ -51,6 +54,10 @@
 /* struct timespec */
 /* polling interval */
 #define NFS_SLEEP { 1, 0 };
+
+/* maximum number of digits that can fit in a 64 bit time_t seconds (long long int) for use with strftime() */
+/* 9223372036854775807 is LLONG_MAX, add one for a '-' (just in case!) and another for a terminating NUL */
+#define TIME_T_MAX_DIGITS 21
 
 /* for shifting */
 enum byte_prefix {
@@ -66,12 +73,16 @@ enum byte_prefix {
 typedef struct targets {
     char *name;
     char *ndqf; /* reversed name */
+    char *path;
     struct sockaddr_in *client_sock;
     CLIENT *client;
+    /* for fping output when we need to store the individual results for the summary */
     unsigned long *results;
     unsigned int sent, received;
     unsigned long min, max;
     float avg;
+    /* the JSON object for output */
+    JSON_Value *json_root;
     struct targets *next;
 } targets_t;
 
@@ -86,11 +97,13 @@ typedef struct nfs_fh_list {
 
 /* TODO capitalise? */
 enum outputs {
-    human,
+    unset, /* use as a default for getopt checks */
+    ping, /* classic ping */
     fping,
+    unixtime,
     graphite,
     statsd,
-    unixtime
+    json
 };
 
 /* for NULL procedure function pointers */
