@@ -51,6 +51,7 @@ NFStash is under active development and heading towards an initial stable releas
 - [ ] Multithreaded so slow responses don't block other requests?
 - [ ] A simplified version of NFSping for Nagios-compatible monitoring checks
 - [ ] Simplify output formats and move output conversion to a utility
+- [ ] Privilege separation to drop root privileges after binding to reserved ports for "secure" NFS servers
 
 ## Contributing
 Patches and bug reports are welcome. If someone is interested in contributing code to the project, sponsorship for a development environment in Google Cloud Engine or Amazon Web Services is available. Please contact the author for more details.
