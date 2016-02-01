@@ -294,7 +294,7 @@ int main(int argc, char **argv) {
                 dns = 1;
                 break;
             case 'D':
-                if (format == unset||ping) {
+                if (format == unset || format == ping) {
                     format = unixtime;
                 /* TODO this should probably work, maybe a format=fpingunix? */
                 } else if (format == fping) {
@@ -347,7 +347,7 @@ int main(int argc, char **argv) {
             /* loop forever */
             case 'l':
                 if (count) {
-                    if (format == ping||unixtime) {
+                    if (format == ping || format == unixtime) {
                         fatal("Can't specify both -c and -l!\n");
                     } else if (format == fping) {
                         fatal("Can't specify both -C and -l!\n");
