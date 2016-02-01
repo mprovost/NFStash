@@ -201,7 +201,8 @@ int main(int argc, char **argv) {
     };
     struct rpc_err clnt_err;
     unsigned long us;
-    enum outputs format = ping;
+    /* default to unset so we can check in getopt */
+    enum outputs format = unset;
     char prefix[255] = "nfsping";
     targets_t *targets;
     targets_t *target;
@@ -250,18 +251,39 @@ int main(int argc, char **argv) {
                 break;
             /* number of pings per target, parseable summary */
             case 'C':
-                if (format == unixtime) {
+                if (loop) {
+                    fatal("Can't specify both -l and -C!\n");
+                } else if (format == unset) {
+                    format = fping;
+                } else if (format == ping) {
+                    fatal("Can't specify both -c and -C!\n");
+                }else if (format == unixtime) {
                     fatal("Can't specify both -D and -C!\n");
                 } else if (format == statsd) {
                     fatal("Can't specify both -E and -C!\n");
                 } else if (format == graphite) {
                     fatal("Can't specify both -G and -C!\n");
-                }
+                } /* TODO catch all else? */
 
-                format = fping;
-                /* fall through to regular count */
+                count = strtoul(optarg, NULL, 10);
+                if (count == 0 || count == ULONG_MAX) {
+                    fatal("Zero count, nothing to do!\n");
+                }
+                break;
             /* number of pings per target */
             case 'c':
+                if (loop) {
+                    fatal("Can't specify both -l and -c!\n");
+                } else if (format == unset) {
+                    format = ping;
+                } else if (format == fping) {
+                    fatal("Can't specify both -C and -c!\n");
+                } else if (format == statsd) {
+                    fatal("Can't specify both -E and -c!\n");
+                } else if (format == graphite) {
+                    fatal("Can't specify both -G and -c!\n");
+                } /* unixtime is ok */
+
                 count = strtoul(optarg, NULL, 10);
                 if (count == 0 || count == ULONG_MAX) {
                     fatal("Zero count, nothing to do!\n");
@@ -272,28 +294,28 @@ int main(int argc, char **argv) {
                 dns = 1;
                 break;
             case 'D':
+                if (format == unset||ping) {
+                    format = unixtime;
                 /* TODO this should probably work, maybe a format=fpingunix? */
-                if (format == fping) {
+                } else if (format == fping) {
                     fatal("Can't specify both -C and -D!\n");
                 } else if (format == statsd) {
                     fatal("Can't specify both -E and -D!\n");
                 } else if (format == graphite) {
                     fatal("Can't specify both -G and -D!\n");
                 }
-
-                format = unixtime;
                 break;
             /* [E]tsy's StatsD output */
             case 'E':
-                if (format == fping) {
+                if (format == unset) {
+                    format = statsd;
+                } else if (format == fping) {
                     fatal("Can't specify both -C and -E!\n");
                 } else if (format == unixtime) {
                     fatal("Can't specify both -D and -E!\n");
                 } else if (format == graphite) {
                     fatal("Can't specify both -G and -E!\n");
                 }
-
-                format = statsd;
                 break;
             /* prefix to use for graphite metrics */
             case 'g':
@@ -301,15 +323,15 @@ int main(int argc, char **argv) {
                 break;
             /* Graphite output */
             case 'G':
-                if (format == fping) {
+                if (format == unset) {
+                    format = graphite;
+                } else if (format == fping) {
                     fatal("Can't specify both -C and -G!\n");
                 } else if (format == unixtime) {
                     fatal("Can't specify both -D and -G!\n");
                 } else if (format == statsd) {
                     fatal("Can't specify both -E and -G!\n");
                 }
-
-                format = graphite;
                 break;
             /* interval between targets */
             case 'i':
@@ -324,7 +346,15 @@ int main(int argc, char **argv) {
                 break;
             /* loop forever */
             case 'l':
-                loop = 1;
+                if (count) {
+                    if (format == ping||unixtime) {
+                        fatal("Can't specify both -c and -l!\n");
+                    } else if (format == fping) {
+                        fatal("Can't specify both -C and -l!\n");
+                    } /* TODO catch all else? */
+                } else {
+                    loop = 1;
+                }
                 break;
             /* check network lock manager protocol */
             case 'L':
@@ -436,6 +466,7 @@ int main(int argc, char **argv) {
             /* specify NFS version */
             case 'V':
                 version = strtoul(optarg, NULL, 10);
+                /* TODO check version <5 */
                 if (version == 0 || version == ULONG_MAX) {
                     fatal("Illegal version %lu\n", version);
                 }
@@ -447,6 +478,10 @@ int main(int argc, char **argv) {
         }
     }
 
+    /* default */
+    if (format == unset) {
+        format = ping;
+    }
 
     /* calculate this once */
     prognum_offset = prognum - 100000;
