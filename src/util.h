@@ -6,12 +6,12 @@
 
 void sigint_handler(int);
 int nfs_perror(nfsstat3);
-nfs_fh_list *parse_fh(char *);
 int print_fhandle3(struct targets *, const fhandle3, const unsigned long, const struct timespec);
 int nfs_fh3_to_string(char *, nfs_fh3);
 int print_nfs_fh3(struct sockaddr *, char *, char *, nfs_fh3);
 char* reverse_fqdn(char *);
 targets_t *make_target(char *, const struct addrinfo *, uint16_t, int, int, int, unsigned long, enum outputs);
+targets_t *make_target_from_json(char *, const struct addrinfo *, uint16_t, int, int, int, unsigned long, enum outputs);
 targets_t *init_target(char *, uint16_t, unsigned long, enum outputs);
 targets_t *append_target(targets_t **, targets_t *);
 unsigned long tv2us(struct timeval);
