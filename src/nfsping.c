@@ -365,7 +365,7 @@ int main(int argc, char **argv) {
                 }
                 break;
             /* use multiple IP addresses if found */
-            /* TODO in this case do we also want to default to showing IP addresses instead of names? */
+            /* in this case we also want to default to showing IP addresses instead of names */
             case 'm':
                 multiple = 1;
                 /* implies -A to use IP addresses so output isn't ambiguous */
