@@ -4,7 +4,7 @@
 
 /* local prototypes */
 static void usage(void);
-static READ3res *do_read(CLIENT *, nfs_fh_list *, offset3, const unsigned long, unsigned long *);
+static READ3res *do_read(CLIENT *, targets_t *, offset3, const unsigned long, unsigned long *);
 static void print_output(enum outputs format, char *prefix, char* host, char* path, count3 count, unsigned long min, unsigned long max, double avg, unsigned long sent, unsigned long received,  const struct timespec now, unsigned long us);
  
 
@@ -33,7 +33,7 @@ void usage() {
 /* the NFS READ call */
 /* read a file from offset with a size of blocksize */
 /* returns the RPC result, updates us with the time that the call took */
-READ3res *do_read(CLIENT *client, nfs_fh_list *dir, offset3 offset, const unsigned long blocksize, unsigned long *us) {
+READ3res *do_read(CLIENT *client, targets_t *dir, offset3 offset, const unsigned long blocksize, unsigned long *us) {
     READ3res *res;
     READ3args args = {
         .file = dir->nfs_fh,
@@ -103,7 +103,7 @@ int main(int argc, char **argv) {
     char *input_fh;
     size_t n = 0; /* for getline() */
     CLIENT *client = NULL;
-    nfs_fh_list *current;
+    targets_t *current;
     READ3res *res;
     struct addrinfo hints = {
         .ai_family = AF_INET,
@@ -121,6 +121,10 @@ int main(int argc, char **argv) {
     unsigned long us;
     enum outputs format = ping;
     char *prefix = "nfscat";
+    uint16_t port = htons(NFS_PORT);
+    int dns      = 0;
+    int ip       = 0;
+    int multiple = 0;
     unsigned long sent = 0, received = 0;
     unsigned long min = ULONG_MAX, max = 0;
     double avg = 0;
@@ -200,7 +204,7 @@ int main(int argc, char **argv) {
 
     while (input_fh) {
 
-        current = parse_fh(input_fh);
+        current = make_target_from_json(input_fh, &hints, port, dns, ip, multiple, count, format);
 
         /* check if we can use the same client connection as the previous target */
         if (client) {
@@ -216,7 +220,7 @@ int main(int argc, char **argv) {
         /* no client connection */
         if (client == NULL) {
             current->client_sock->sin_family = AF_INET;
-            current->client_sock->sin_port = htons(NFS_PORT);
+            current->client_sock->sin_port = port;
             /* connect to server */
             client = create_rpc_client(current->client_sock, &hints, NFS_PROGRAM, version, timeout, src_ip);
             /* don't use default AUTH_NONE */
@@ -254,7 +258,7 @@ int main(int argc, char **argv) {
 
                     if (count) {
 
-                        print_output(format, prefix, current->host, current->path, res->READ3res_u.resok.count, min, max, avg, sent, received, wall_clock, us);
+                        print_output(format, prefix, current->name, current->path, res->READ3res_u.resok.count, min, max, avg, sent, received, wall_clock, us);
 
                     } else {
                         /* write to stdout */
