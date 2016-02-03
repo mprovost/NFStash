@@ -24,6 +24,7 @@ int verbose = 0;
 
 void usage() {
     printf("Usage: nfsmount [options] host[:mountpoint]\n\
+    -A       show IP addresses\n\
     -c n     count of mount requests to send to target\n\
     -C n     same as -c, output parseable format\n\
     -D       print timestamp (unix time) before each line\n\
@@ -31,7 +32,7 @@ void usage() {
     -h       display this help and exit\n\
     -J       force JSON output\n\
     -l       loop forever\n\
-    -m       use multiple target IP addresses if found\n\
+    -m       use multiple target IP addresses if found (implies -A)\n\
     -p n     polling interval, check targets every n ms (default 1000)\n\
     -S addr  set source address\n\
     -T       use TCP (default UDP)\n\
@@ -387,8 +388,12 @@ int main(int argc, char **argv) {
     if (argc == 1)
         usage();
 
-    while ((ch = getopt(argc, argv, "c:C:DehJlmp:S:Tv")) != -1) {
+    while ((ch = getopt(argc, argv, "Ac:C:DehJlmp:S:Tv")) != -1) {
         switch(ch) {
+            /* show IP addresses instead of hostnames */
+            case 'A':
+                ip = 1;
+                break;
             /* ping output with a count */
             case 'c':
                 if (loop) {
@@ -460,9 +465,11 @@ int main(int argc, char **argv) {
                 loop = 1;
                 break;
             /* use multiple IP addresses if found */
-            /* TODO in this case do we also want to default to showing IP addresses instead of names? */
+            /* in this case we also want to default to showing IP addresses instead of names */
             case 'm':
                 multiple = 1;
+                /* implies -A to use IP addresses so output isn't ambiguous */
+                ip = 1;
                 break;
             /* time between pings to target */
             case 'p':

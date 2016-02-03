@@ -3,13 +3,16 @@ nfsmount(8) -- lookup NFS filesystem root filehandles
 
 ## SYNOPSIS
 
-`nfsmount` [`-DehJlmTv`] [`-c` <count>] [`-C` <count>] [`-p` <pause>] [`-S` <source>] <server[:path]...>
+`nfsmount` [`-ADehJlmTv`] [`-c` <count>] [`-C` <count>] [`-p` <pause>] [`-S` <source>] <server[:path]...>
 
 ## DESCRIPTION
 
 `nfsmount` sends MOUNT protocol version 3 RPC requests to NFS servers to look up exported filesystems and their root filehandles. Specific filesystems can be queried with an argument in the format `hostname:path`. If the path is absent then a separate EXPORT request is sent to list all available filesystems which will then be looked up individually with MNT RPC requests. The result(s) are returned as a series of JSON objects (one per line) with the keys "host", "ip", "path", "usec", "timestamp" and "filehandle", where the value of the "filehandle" key is the hex representation of the filesystem's root NFS filehandle. If the NFS server requires "secure" ports (<1024), `nfsmount` must be run as root.
 
 ## OPTIONS
+
+* `-A`:
+  Display IP addresses instead of hostnames.
 
 * `-c` <count>:
   Count of mount (MNT) requests to send to target(s) before exiting. Print a line of output after each response is received. A summary of all responses is printed when the count is reached or the program is interrupted.
@@ -30,7 +33,7 @@ nfsmount(8) -- lookup NFS filesystem root filehandles
   Loop forever sending mount (MNT) requests. Exit loop with Ctrl-c.
 
 * `-m`:
-  Use multiple target IP addresses if found. This can be useful for clustered file servers.
+  Use multiple target IP addresses if found. This can be useful for clustered file servers. Implies -A (shows IP address instead of hostnames) so output isn't ambiguous.
 
 * `-p` <pause>:
   The polling interval. `nfsmount` will pause up to this amount of milliseconds between requests to each target. Default = 1000 (one second). 
