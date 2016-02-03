@@ -76,6 +76,9 @@ typedef struct targets {
     char *path;
     struct sockaddr_in *client_sock;
     CLIENT *client;
+    /* store an NFS filehandle */
+    /* TODO make this a pointer? */
+    nfs_fh3 nfs_fh; /* generic name so we can include v2/v4 later */
     /* for fping output when we need to store the individual results for the summary */
     unsigned long *results;
     unsigned int sent, received;
@@ -86,14 +89,6 @@ typedef struct targets {
     struct targets *next;
 } targets_t;
 
-/* a singly linked list of nfs filehandles */
-typedef struct nfs_fh_list {
-    char *host;
-    struct sockaddr_in *client_sock;
-    char *path;
-    nfs_fh3 nfs_fh; /* generic name so we can include v2/v4 later */
-    struct nfs_fh_list *next;
-} nfs_fh_list;
 
 /* TODO capitalise? */
 enum outputs {
