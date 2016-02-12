@@ -220,17 +220,13 @@ nfs_fh_list *parse_fh(char *input) {
 int print_fhandle3(struct targets *target, const fhandle3 file_handle, const unsigned long usec, const struct timespec wall_clock) {
 //current->json_root, current->client_sock, current->path
     unsigned int i;
-    char ip[INET_ADDRSTRLEN];
     /* two chars for each byte (FF in hex) plus terminating NULL */
     char fh_string[NFS3_FHSIZE * 2 + 1];
     JSON_Object *json_obj;
     char *my_json_string;
 
-    /* get the IP address as a string */
-    inet_ntop(AF_INET, &((struct sockaddr_in *)target->client_sock)->sin_addr, ip, INET_ADDRSTRLEN);
-
     json_obj = json_value_get_object(target->json_root);
-    json_object_set_string(json_obj, "ip", ip);
+    json_object_set_string(json_obj, "ip", target->ip_address);
     /* this escapes / to \/ */
     json_object_set_string(json_obj, "path", target->path);
     json_object_set_number(json_obj, "usec", usec);
@@ -369,7 +365,7 @@ targets_t *init_target(char *target_name, uint16_t port, unsigned long count, en
  Don't worry about it in this function.
  Always store the original hostname in target->name, maybe with the exception of doing reverse DNS lookups.
  */
-targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t port, int dns, int ip, int multiple, unsigned long count, enum outputs format) {
+targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t port, int dns, int multiple, unsigned long count, enum outputs format) {
     targets_t *target, *first;
     struct addrinfo *addr;
     int getaddr;
@@ -413,14 +409,8 @@ targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t
                 target->ip_address = calloc(1, INET_ADDRSTRLEN);
                 inet_ntop(AF_INET, &((struct sockaddr_in *)addr->ai_addr)->sin_addr, target->ip_address, INET_ADDRSTRLEN);
 
-                /* if we're using IP addresses */
-                /* this can also be set with -m (multiple) */
-                if (ip) {
-                    target->name = target->ip_address;
-                    /* don't reverse an IP address */
-                    target->ndqf = target->name;
                 /* if we have reverse lookups enabled */
-                } else if (dns) {
+                if (dns) {
                     target->name = calloc(1, NI_MAXHOST);
                     /* it's an error if we've asked to do reverse DNS lookups and it can't find one */
                     getaddr = getnameinfo((struct sockaddr *)target->client_sock, sizeof(struct sockaddr_in), target->name, NI_MAXHOST, NULL, 0, NI_NAMEREQD);
@@ -428,11 +418,9 @@ targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t
                         fprintf(stderr, "%s: %s\n", target_name, gai_strerror(getaddr));
                         exit(2); /* ping and fping return 2 for name resolution failures */
                     }
-                    target->ndqf = reverse_fqdn(target->name);
-                /* default */
-                } else {
-                    target->ndqf = reverse_fqdn(target->name);
                 }
+
+                target->ndqf = reverse_fqdn(target->name);
 
                 /* multiple results */
                 /* with glibc, this can return 127.0.0.1 twice when using "localhost" if there is an IPv6 entry in /etc/hosts
@@ -459,6 +447,30 @@ targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t
 
     /* only return the head of the list */
     return first;
+}
+
+
+/* copy a target struct safely */
+/* TODO const */
+targets_t *copy_target(targets_t *target) {
+    struct targets *new_target = NULL;
+
+    new_target = calloc(1, sizeof(struct targets));
+    /* copy */
+    *new_target = *target;
+
+    /* allocate a blank results array */
+    if (target->results) {
+        new_target->results = calloc(1, sizeof(target->results));
+        if (new_target->results == NULL) {
+            fatalx(3, "Couldn't allocate memory for results!\n");
+        }
+    }
+
+    /* copy the JSON object */
+    new_target->json_root = json_value_deep_copy(target->json_root);
+
+    return new_target;
 }
 
 
