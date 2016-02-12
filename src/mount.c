@@ -10,10 +10,10 @@
 /* local prototypes */
 static void usage(void);
 static void mount_perror(mountstat3);
-static exports get_exports(CLIENT *, char *);
+static exports get_exports(struct targets *);
 static mountres3 *get_root_filehandle(CLIENT *, char *, char *, unsigned long *);
 static int print_exports(char *, struct exportnode *);
-static targets_t *make_exports(targets_t *, const uint16_t, unsigned long, enum outputs);
+static targets_t *make_exports(targets_t *);
 void print_output(enum outputs, const int, targets_t *, const fhandle3, const struct timespec, unsigned long);
 void print_summary(targets_t *, enum outputs, const int);
 
@@ -62,15 +62,13 @@ void mount_perror(mountstat3 fhs_status) {
 
 
 /* get the list of exports from a server */
-exports get_exports(CLIENT *client, char *hostname) {
+exports get_exports(struct targets *target) {
     struct rpc_err clnt_err;
     exports ex = NULL;
     unsigned long usec;
-    struct sockaddr_in clnt_info;
-    char ip_address[INET_ADDRSTRLEN];
     struct timespec call_start, call_end, call_elapsed;
 
-    if (client) {
+    if (target->client) {
         /* first time marker */
 #ifdef CLOCK_MONOTONIC_RAW
         clock_gettime(CLOCK_MONOTONIC_RAW, &call_start);
@@ -79,7 +77,7 @@ exports get_exports(CLIENT *client, char *hostname) {
 #endif
 
         /* the actual RPC call */
-        ex = *mountproc_export_3(NULL, client);
+        ex = *mountproc_export_3(NULL, target->client);
 
         /* second time marker */
 #ifdef CLOCK_MONOTONIC_RAW
@@ -88,27 +86,23 @@ exports get_exports(CLIENT *client, char *hostname) {
         clock_gettime(CLOCK_MONOTONIC, &call_end);
 #endif
 
-        /* get the client's IP address as a string for output */
-        clnt_control(client, CLGET_SERVER_ADDR, (char *)&clnt_info);
-        inet_ntop(AF_INET, &(((struct sockaddr_in *)&clnt_info)->sin_addr), ip_address, INET_ADDRSTRLEN);
-
         /* calculate elapsed microseconds */
         timespecsub(&call_end, &call_start, &call_elapsed);
         usec = ts2us(call_elapsed);
 
         /* print timing to stderr so it doesn't get piped to other commands */
         /* TODO unless we're doing graphite output */
-        fprintf(stderr, "%s (%s): mountproc_export_3=%03.2f ms\n", hostname, ip_address, usec / 1000.0);
+        fprintf(stderr, "%s (%s): mountproc_export_3=%03.2f ms\n", target->name, target->ip_address, usec / 1000.0);
     }
 
     /* export call doesn't return errors */
     /* it also doesn't usually require a privileged port */
     if (ex == NULL) {
         /* RPC error */
-        clnt_geterr(client, &clnt_err);
+        clnt_geterr(target->client, &clnt_err);
         if  (clnt_err.re_status) {
-            fprintf(stderr, "%s: ", hostname);
-            clnt_perror(client, "mountproc_export_3");
+            fprintf(stderr, "%s: ", target->name);
+            clnt_perror(target->client, "mountproc_export_3");
         }
     }
 
@@ -212,34 +206,34 @@ int print_exports(char *host, struct exportnode *ex) {
 
 
 /* make a target list by querying the server for a list of exports */
-targets_t *make_exports(targets_t *target, const uint16_t port, unsigned long count, enum outputs format) {
+targets_t *make_exports(targets_t *target) {
     exports ex;
     targets_t dummy;
     targets_t *current = &dummy;
-    targets_t *head = current;
+
+    dummy.next = NULL;
 
     if (target->client) {
         /* get the list of exports from the server */
-        ex = get_exports(target->client, target->name);
+        ex = get_exports(target);
 
         while (ex) {
-            /* allocate a new entry */
-            current->next = init_target(target->name, port, count, format);
+            /* copy the target don't make a new one */
+            current->next = copy_target(target);
             current = current->next;
+            /* terminate the list */
+            current->next = NULL;
+
             /* copy the hostname from the mount result into the target */
             current->path = calloc(1, MNTPATHLEN);
             strncpy(current->path, ex->ex_dir, MNTPATHLEN);
-            /* reuse the same client connection for each export */
-            current->client = target->client;
-            /* and the same client_sock */
-            current->client_sock = target->client_sock;
 
             ex = ex->ex_next;
         }
     }
 
     /* skip the dummy entry */
-    return head->next;
+    return dummy.next;
 }
 
 
@@ -523,7 +517,7 @@ int main(int argc, char **argv) {
         }
 
         /* make possibly multiple new targets */
-        new_targets = make_target(host, &hints, port, dns, ip, multiple, count, format);
+        new_targets = make_target(host, &hints, port, dns, multiple, count, format);
 
         /* go through this argument's list of possibly multiple dns responses/targets */
         current = new_targets;
@@ -539,11 +533,11 @@ int main(int argc, char **argv) {
                 current->client = create_rpc_client(current->client_sock, &hints, MOUNTPROG, version, timeout, src_ip);
 
                 if (showmount) {
-                    ex = get_exports(current->client, host);
+                    ex = get_exports(current);
                     exports_count = print_exports(host, ex);
                 } else {
                     /* look up the export list on the server and create a target for each */
-                    append_target(&exports_dummy_ptr, make_exports(current, port, count, format));
+                    append_target(&exports_dummy_ptr, make_exports(current));
                 }
             }
 
