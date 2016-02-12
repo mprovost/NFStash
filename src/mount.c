@@ -90,9 +90,9 @@ exports get_exports(struct targets *target) {
         timespecsub(&call_end, &call_start, &call_elapsed);
         usec = ts2us(call_elapsed);
 
-        /* print timing to stderr so it doesn't get piped to other commands */
+        /* only print timing to stderr if verbose is enabled */
         /* TODO unless we're doing graphite output */
-        fprintf(stderr, "%s (%s): mountproc_export_3=%03.2f ms\n", target->name, target->ip_address, usec / 1000.0);
+        debug("%s (%s): mountproc_export_3=%03.2f ms\n", target->name, target->ip_address, usec / 1000.0);
     }
 
     /* export call doesn't return errors */
