@@ -52,8 +52,8 @@
 /* time to wait between pings */
 #define NFS_WAIT { 0, 25000000 };
 /* struct timespec */
-/* polling interval */
-#define NFS_SLEEP { 1, 0 };
+/* polling frequency */
+#define NFS_HERTZ 1
 
 /* maximum number of digits that can fit in a 64 bit time_t seconds (long long int) for use with strftime() */
 /* 9223372036854775807 is LLONG_MAX, add one for a '-' (just in case!) and another for a terminating NUL */
