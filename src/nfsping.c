@@ -307,7 +307,7 @@ int main(int argc, char **argv) {
                 break;
             /* [E]tsy's StatsD output */
             case 'E':
-                if (format == unset) {
+                if (format == unset || format == ping) {
                     format = statsd;
                 } else if (format == fping) {
                     fatal("Can't specify both -C and -E!\n");
@@ -323,7 +323,7 @@ int main(int argc, char **argv) {
                 break;
             /* Graphite output */
             case 'G':
-                if (format == unset) {
+                if (format == unset || format == ping) {
                     format = graphite;
                 } else if (format == fping) {
                     fatal("Can't specify both -C and -G!\n");
