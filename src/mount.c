@@ -34,6 +34,7 @@ void usage() {
     -l       loop forever\n\
     -m       use multiple target IP addresses if found (implies -A)\n\
     -p n     polling interval, check targets every n ms (default 1000)\n\
+    -q       quiet, only print summary\n\
     -S addr  set source address\n\
     -T       use TCP (default UDP)\n\
     -v       verbose output\n");
@@ -378,6 +379,7 @@ int main(int argc, char **argv) {
     int loop            = 0;
     int multiple        = 0;
     int showmount       = 0;
+    int quiet           = 0;
     u_long version      = 3;
     struct timeval timeout     = NFS_TIMEOUT;
     struct timespec sleep_time = NFS_SLEEP;
@@ -398,7 +400,7 @@ int main(int argc, char **argv) {
     if (argc == 1)
         usage();
 
-    while ((ch = getopt(argc, argv, "Ac:C:DehJlmp:S:Tv")) != -1) {
+    while ((ch = getopt(argc, argv, "Ac:C:DehJlmp:qS:Tv")) != -1) {
         switch(ch) {
             /* show IP addresses instead of hostnames */
             case 'A':
@@ -484,6 +486,9 @@ int main(int argc, char **argv) {
             case 'p':
                 /* TODO check for reasonable values */
                 ms2ts(&sleep_time, strtoul(optarg, NULL, 10));
+                break;
+            case 'q':
+                quiet = 1;
                 break;
             /* specify source address */
             case 'S':
@@ -645,7 +650,9 @@ int main(int argc, char **argv) {
                         }
                     }
 
-                    print_output(format, width, ip, current, mountres->mountres3_u.mountinfo.fhandle, wall_clock, usec);
+                    if (quiet == 0) {
+                        print_output(format, width, ip, current, mountres->mountres3_u.mountinfo.fhandle, wall_clock, usec);
+                    }
                 }
             }
 
