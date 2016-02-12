@@ -56,7 +56,6 @@ static const struct null_procs null_dispatch[][5] = {
 void usage() {
     struct timeval  timeout    = NFS_TIMEOUT;
     struct timespec wait_time  = NFS_WAIT;
-    struct timespec sleep_time = NFS_SLEEP;
 
     printf("Usage: nfsping [options] [targets...]\n\
     -a         check the NFS ACL protocol (default NFS)\n\
@@ -69,6 +68,7 @@ void usage() {
     -g string  prefix for Graphite/StatsD metric names (default \"nfsping\")\n\
     -G         Graphite format output (default human readable)\n\
     -h         display this help and exit\n\
+    -H n       frequency in Hertz (pings per second, default %i)\n\
     -i n       interval between sending packets (in ms, default %lu)\n\
     -K         check the kernel lock manager (KLM) protocol (default NFS)\n\
     -l         loop forever\n\
@@ -77,7 +77,6 @@ void usage() {
     -M         use the portmapper (default: NFS/ACL no, mount/NLM/NSM/rquota yes)\n\
     -n         check the mount protocol (default NFS)\n\
     -N         check the portmap protocol (default NFS)\n\
-    -p n       polling interval, check targets every n ms (default %lu)\n\
     -P n       specify port (default: NFS %i, portmap %i)\n\
     -q         quiet, only print summary\n\
     -Q         check the rquota protocol (default NFS)\n\
@@ -88,7 +87,7 @@ void usage() {
     -T         use TCP (default UDP)\n\
     -v         verbose output\n\
     -V n       specify NFS version (2/3/4, default 3)\n",
-    ts2ms(wait_time), ts2ms(sleep_time), NFS_PORT, PMAPPORT, tv2ms(timeout));
+    NFS_HERTZ, ts2ms(wait_time), NFS_PORT, PMAPPORT, tv2ms(timeout));
 
     exit(3);
 }
@@ -188,8 +187,9 @@ void print_lost(enum outputs format, char *prefix, targets_t *target, unsigned l
 int main(int argc, char **argv) {
     void *status;
     struct timeval timeout = NFS_TIMEOUT;
-    struct timespec wall_clock, call_start, call_end, call_elapsed, loop_start, loop_end, loop_elapsed, sleepy;
-    struct timespec sleep_time = NFS_SLEEP;
+    struct timespec wall_clock, call_start, call_end, call_elapsed, loop_start, loop_end, loop_elapsed, sleep_time, sleepy;
+    /* polling frequency */
+    unsigned long hertz = NFS_HERTZ;
     struct timespec wait_time = NFS_WAIT;
     uint16_t port = htons(NFS_PORT);
     unsigned long prognum = NFS_PROGRAM;
@@ -235,7 +235,7 @@ int main(int argc, char **argv) {
         usage();
 
 
-    while ((ch = getopt(argc, argv, "aAc:C:dDEg:Ghi:KlLmMnNp:P:qQRsS:t:TvV:")) != -1) {
+    while ((ch = getopt(argc, argv, "aAc:C:dDEg:GhH:i:KlLmMnNP:qQRsS:t:TvV:")) != -1) {
         switch(ch) {
             /* NFS ACL protocol */
             case 'a':
@@ -333,6 +333,11 @@ int main(int argc, char **argv) {
                     fatal("Can't specify both -E and -G!\n");
                 }
                 break;
+            /* polling frequency */
+            case 'H':
+                /* TODO check for reasonable values */
+                hertz = strtoul(optarg, NULL, 10);
+                break;
             /* interval between targets */
             case 'i':
                 ms2ts(&wait_time, strtoul(optarg, NULL, 10));
@@ -405,11 +410,6 @@ int main(int argc, char **argv) {
                     fatal("Only one protocol!\n");
                 }
                 break;
-            /* time between pings to target */
-            case 'p':
-                /* TODO check for reasonable values */
-                ms2ts(&sleep_time, strtoul(optarg, NULL, 10));
-                break;
             /* specify port */
             case 'P':
                 /* check if we've set -M */
@@ -481,6 +481,18 @@ int main(int argc, char **argv) {
     /* default */
     if (format == unset) {
         format = ping;
+    }
+
+    /* calculate the sleep_time based on the frequency */
+    /* check for a frequency of 1, that's a simple case */
+    /* this doesn't support frequencies lower than 1Hz */
+    if (hertz == 1) {
+        sleep_time.tv_sec = 1;
+        sleep_time.tv_nsec = 0;
+    } else {
+        sleep_time.tv_sec = 0;
+        /* nanoseconds */
+        sleep_time.tv_nsec = 1000000000 / hertz;
     }
 
     /* calculate this once */
