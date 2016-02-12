@@ -3,13 +3,15 @@ nfsping(8) -- send RPC NULL requests to NFS servers
 
 ## SYNOPSIS
 
-`nfsping` [`-aAdDEGhKlLmMnNqQRsTv`] [`-c` <count>] [`-C` <count>] [`-g` <prefix>] [`-i` <interval>] [`-p` <pause>] [`-P` <port>] [`-S` <source>] [`-t` <timeout>] [`-V` <version>] <servers...>
+`nfsping` [`-aAdDEGhKlLmMnNqQRsTv`] [`-c` <count>] [`-C` <count>] [`-g` <prefix>] [`-H` <hertz>] [`-i` <interval>] [`-P` <port>] [`-S` <source>] [`-t` <timeout>] [`-V` <version>] <servers...>
 
 ## DESCRIPTION
 
-`nfsping` sends RPC NULL requests to an NFS server to determine if it is responding and to measure the response time. It supports the network file system (NFS), mount (`-n`), portmap/rpcbind (`-N`), network lock manager (NLM) (`-L`), NFS ACL (`-a`), network status monitor (NSM) (`-s`), rquota (`-Q`)and kernel lock manager (KLM) (`-K`) protocols. The default protocol is NFS version 3. Use TCP with `-T`, and specify a port with `-P`. The portmapper is used by default with most protocols but can be forced with `-M` for NFS. Without any options `nfsping` will send a single NFS version 3 NULL request over UDP to port 2049 on the specified server and report whether it is alive or dead based on whether it receives a response or not.
+`nfsping` sends RPC NULL requests to an NFS server to determine if it is responding and to measure the response time. It supports the network file system (NFS), mount (`-n`), portmap/rpcbind (`-N`), network lock manager (NLM) (`-L`), NFS ACL (`-a`), network status monitor (NSM) (`-s`), rquota (`-Q`) and kernel lock manager (KLM) (`-K`) protocols. The default protocol is NFS version 3. Use TCP with `-T`, and specify a port with `-P`. The portmapper is used by default with most protocols but can be forced with `-M` for NFS. Without any options `nfsping` will send a single NFS version 3 NULL request over UDP to port 2049 on the specified server and report whether it is alive or dead based on whether it receives a response or not.
 
 With the `-l` option `nfsping` will loop forever, sending packets every second by default like `ping`. It is designed to be compatible with `fping` for use in scripts. With the `-c` option it will send the specified number of requests to each target server and then exit. The `-C` option behaves the same but outputs in `fping`-compatible format for easy parsing.
+
+In the looping and counting modes, `nfsping` sends one ping per second to each target. The frequency can be increased with the `-H` option.
 
 If a server's hostname resolves to multiple IP addresses, for example with clustered NFS servers, a warning is printed to `stderr`. Use the `-m` option to send requests to all of the IP addresses. In this mode, `nfsping` defaults to printing IP addresses instead of the hostname to differentiate the responses. `-d` can be used to perform reverse DNS lookups on the addresses.
 
@@ -47,6 +49,9 @@ If a server's hostname resolves to multiple IP addresses, for example with clust
 * `-h`:
   Display a help message and exit.
 
+* `-H`:
+  The polling frequency in Hertz. This is the number of pings sent to each target per second. Default = 1.
+
 * `-i` <interval>:
   The interval (delay) between sending packets, in milliseconds. Default = 25.
 
@@ -73,9 +78,6 @@ If a server's hostname resolves to multiple IP addresses, for example with clust
 
 * `-o` <format>:
   Specify output format for input to another program. Currently supported are [`G`]raphite and [`S`]tatsd.
-
-* `-p` <pause>:
-  The polling interval. `nfsping` will pause up to this amount of milliseconds between requests to each target. Default = 1000 (one second).
 
 * `-P` <port>:
   The port on the server. Default = 2049 for NFS and NFS ACL, 111 for portmap. The portmapper on the server is queried for other protocols.

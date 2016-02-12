@@ -82,13 +82,15 @@
 
 <h2 id="SYNOPSIS">SYNOPSIS</h2>
 
-<p><code>nfsping</code> [<code>-aAdDEGhKlLmMnNqQRsTv</code>] [<code>-c</code> <var>count</var>] [<code>-C</code> <var>count</var>] [<code>-g</code> <var>prefix</var>] [<code>-i</code> <var>interval</var>] [<code>-p</code> <var>pause</var>] [<code>-P</code> <var>port</var>] [<code>-S</code> <var>source</var>] [<code>-t</code> <var>timeout</var>] [<code>-V</code> <var>version</var>] &lt;servers...></p>
+<p><code>nfsping</code> [<code>-aAdDEGhKlLmMnNqQRsTv</code>] [<code>-c</code> <var>count</var>] [<code>-C</code> <var>count</var>] [<code>-g</code> <var>prefix</var>] [<code>-H</code> <var>hertz</var>] [<code>-i</code> <var>interval</var>] [<code>-P</code> <var>port</var>] [<code>-S</code> <var>source</var>] [<code>-t</code> <var>timeout</var>] [<code>-V</code> <var>version</var>] &lt;servers...></p>
 
 <h2 id="DESCRIPTION">DESCRIPTION</h2>
 
-<p><code>nfsping</code> sends RPC NULL requests to an NFS server to determine if it is responding and to measure the response time. It supports the network file system (NFS), mount (<code>-n</code>), portmap/rpcbind (<code>-N</code>), network lock manager (NLM) (<code>-L</code>), NFS ACL (<code>-a</code>), network status monitor (NSM) (<code>-s</code>), rquota (<code>-Q</code>)and kernel lock manager (KLM) (<code>-K</code>) protocols. The default protocol is NFS version 3. Use TCP with <code>-T</code>, and specify a port with <code>-P</code>. The portmapper is used by default with most protocols but can be forced with <code>-M</code> for NFS. Without any options <code>nfsping</code> will send a single NFS version 3 NULL request over UDP to port 2049 on the specified server and report whether it is alive or dead based on whether it receives a response or not.</p>
+<p><code>nfsping</code> sends RPC NULL requests to an NFS server to determine if it is responding and to measure the response time. It supports the network file system (NFS), mount (<code>-n</code>), portmap/rpcbind (<code>-N</code>), network lock manager (NLM) (<code>-L</code>), NFS ACL (<code>-a</code>), network status monitor (NSM) (<code>-s</code>), rquota (<code>-Q</code>) and kernel lock manager (KLM) (<code>-K</code>) protocols. The default protocol is NFS version 3. Use TCP with <code>-T</code>, and specify a port with <code>-P</code>. The portmapper is used by default with most protocols but can be forced with <code>-M</code> for NFS. Without any options <code>nfsping</code> will send a single NFS version 3 NULL request over UDP to port 2049 on the specified server and report whether it is alive or dead based on whether it receives a response or not.</p>
 
 <p>With the <code>-l</code> option <code>nfsping</code> will loop forever, sending packets every second by default like <code>ping</code>. It is designed to be compatible with <code>fping</code> for use in scripts. With the <code>-c</code> option it will send the specified number of requests to each target server and then exit. The <code>-C</code> option behaves the same but outputs in <code>fping</code>-compatible format for easy parsing.</p>
+
+<p>In the looping and counting modes, <code>nfsping</code> sends one ping per second to each target. The frequency can be increased with the <code>-H</code> option.</p>
 
 <p>If a server's hostname resolves to multiple IP addresses, for example with clustered NFS servers, a warning is printed to <code>stderr</code>. Use the <code>-m</code> option to send requests to all of the IP addresses. In this mode, <code>nfsping</code> defaults to printing IP addresses instead of the hostname to differentiate the responses. <code>-d</code> can be used to perform reverse DNS lookups on the addresses.</p>
 
@@ -107,6 +109,7 @@
 <dt><code>-g</code> <var>prefix</var></dt><dd><p>Specify string prefix for Graphite or StatsD metric names. Default = "nfsping".</p></dd>
 <dt class="flush"><code>-G</code></dt><dd><p>Print output in Graphite format ($prefix.$hostname.$protocol.usec <var>usec</var> <var>timestamp</var>). Use <code>-g</code> to change the prefix from the default "nfsping".</p></dd>
 <dt class="flush"><code>-h</code></dt><dd><p>Display a help message and exit.</p></dd>
+<dt class="flush"><code>-H</code></dt><dd><p>The polling frequency in Hertz. This is the number of pings sent to each target per second. Default = 1.</p></dd>
 <dt><code>-i</code> <var>interval</var></dt><dd><p>The interval (delay) between sending packets, in milliseconds. Default = 25.</p></dd>
 <dt class="flush"><code>-K</code></dt><dd><p>Send kernel lock manager (KLM) protocol NULL requests. Implies <code>-M</code>.</p></dd>
 <dt class="flush"><code>-l</code></dt><dd><p>Loop forever. Like traditional ICMP <code>ping(8)</code>. Exit loop with Ctrl-c.</p></dd>
@@ -116,7 +119,6 @@
 <dt class="flush"><code>-n</code></dt><dd><p>Send mount protocol NULL requests. Implies <code>-M</code>.</p></dd>
 <dt class="flush"><code>-N</code></dt><dd><p>Send portmap protocol NULL requests.</p></dd>
 <dt><code>-o</code> <var>format</var></dt><dd><p>Specify output format for input to another program. Currently supported are [<code>G</code>]raphite and [<code>S</code>]tatsd.</p></dd>
-<dt><code>-p</code> <var>pause</var></dt><dd><p>The polling interval. <code>nfsping</code> will pause up to this amount of milliseconds between requests to each target. Default = 1000 (one second).</p></dd>
 <dt class="flush"><code>-P</code> <var>port</var></dt><dd><p>The port on the server. Default = 2049 for NFS and NFS ACL, 111 for portmap. The portmapper on the server is queried for other protocols.</p></dd>
 <dt class="flush"><code>-q</code></dt><dd><p>Quiet. Only print a summary.</p></dd>
 <dt class="flush"><code>-Q</code></dt><dd><p>Send rquota protocol NULL requests. Implies <code>-M</code>.</p></dd>
