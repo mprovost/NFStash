@@ -44,7 +44,7 @@ NFSping supports several different output formats which makes it ideal for sendi
     - [Etsy's StatsD](https://github.com/etsy/statsd) compatible (`-E`)
 - [Hash-Cast](#hash-cast) avoidance
 
-NFSping attempts to ping each target regularly - that is, the delay between pings should be constant, like a metronome. By default it will send a ping to each target every second. This can be changed with the `-p` option (in milliseconds). Instead of sleeping for one second in between pings, the program will pause for the poll time (one second by default) minus the time it took for all of the current responses to come in. This keeps each poll on a regular schedule, which helps when sending data to monitoring systems that expect updates on a regular basis. If the responses take longer than the poll time, it will not pause at all and will continue with the next round of pings.
+NFSping sends pings to each target regularly at a specific frequency, once per second by default. This can be changed with the `-H` option to specify a higher frequency (in Hertz), so for example `-H 10` will send 10 pings per second (every 100ms). Polling on a fixed frequency allows NFSping to send data to monitoring systems that expect updates on a regular basis.
 
 NFSping supports versions 2, 3 and 4 of NFS, and the corresponding versions of the other RPC protocols. With no arguments it will send NFS version 3 NULL requests using UDP. By default it doesn't use the RPC portmapper for NFS pings and connects to port 2049, which is the standard port for NFS. Specify the `-T` option to use TCP, `-M` to query the portmapper for the server's NFS port, or `-P` to specify a port number. The `-V` option can be used to select another version of the protocol (2 or 4).
 
@@ -76,6 +76,8 @@ NFSping uses the `AUTH_NONE` authentication flavour which doesn't send any user 
 
 ## Usage
 
+The manual page for NFSping is available [here](https://rawgit.com/mprovost/NFStash/master/man/nfsping.8.html).
+
 ```console
 Usage: nfsping [options] [targets...]
     -a         check the NFS ACL protocol (default NFS)
@@ -88,6 +90,7 @@ Usage: nfsping [options] [targets...]
     -g string  prefix for Graphite/StatsD metric names (default "nfsping")
     -G         Graphite format output (default human readable)
     -h         display this help and exit
+    -H n       frequency in Hertz (pings per second, default 1)
     -i n       interval between sending packets (in ms, default 25)
     -K         check the kernel lock manager (KLM) protocol (default NFS)
     -l         loop forever
@@ -96,7 +99,6 @@ Usage: nfsping [options] [targets...]
     -M         use the portmapper (default: NFS/ACL no, mount/NLM/NSM/rquota yes)
     -n         check the mount protocol (default NFS)
     -N         check the portmap protocol (default NFS)
-    -p n       polling interval, check targets every n ms (default 1000)
     -P n       specify port (default: NFS 2049, portmap 111)
     -q         quiet, only print summary
     -Q         check the rquota protocol (default NFS)
