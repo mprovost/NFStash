@@ -81,7 +81,7 @@
 
 <h2 id="SYNOPSIS">SYNOPSIS</h2>
 
-<p><code>nfsmount</code> [<code>-ADehJlmTv</code>] [<code>-c</code> <var>count</var>] [<code>-C</code> <var>count</var>] [<code>-p</code> <var>pause</var>] [<code>-S</code> <var>source</var>] &lt;server[:path]...></p>
+<p><code>nfsmount</code> [<code>-ADehJlmqTv</code>] [<code>-c</code> <var>count</var>] [<code>-C</code> <var>count</var>] [<code>-p</code> <var>pause</var>] [<code>-S</code> <var>source</var>] &lt;server[:path]...></p>
 
 <h2 id="DESCRIPTION">DESCRIPTION</h2>
 
@@ -96,9 +96,11 @@
 <dt class="flush"><code>-D</code></dt><dd><p>Print timestamp (Unix time) before each line of output when counting or looping.</p></dd>
 <dt class="flush"><code>-e</code></dt><dd><p>Display available filesystems and their export policies in a human readable format, like <code>showmount -e</code>. This sends a single EXPORT RPC per target server and does not look up filehandles.</p></dd>
 <dt class="flush"><code>-h</code></dt><dd><p>Display a help message and exit.</p></dd>
+<dt class="flush"><code>-J</code></dt><dd><p>Force JSON output, even in counting and looping modes.</p></dd>
 <dt class="flush"><code>-l</code></dt><dd><p>Loop forever sending mount (MNT) requests. Exit loop with Ctrl-c.</p></dd>
 <dt class="flush"><code>-m</code></dt><dd><p>Use multiple target IP addresses if found. This can be useful for clustered file servers. Implies -A (shows IP address instead of hostnames) so output isn't ambiguous.</p></dd>
 <dt><code>-p</code> <var>pause</var></dt><dd><p>The polling interval. <code>nfsmount</code> will pause up to this amount of milliseconds between requests to each target. Default = 1000 (one second).</p></dd>
+<dt class="flush"><code>-q</code></dt><dd><p>Quiet. Only print a summary.</p></dd>
 <dt><code>-S</code> <var>source</var></dt><dd><p>Use the specified source IP address for request packets.</p></dd>
 <dt class="flush"><code>-T</code></dt><dd><p>Use TCP to connect to server. Default = UDP.</p></dd>
 <dt class="flush"><code>-v</code></dt><dd><p>Display debug output on <code>stderr</code>.</p></dd>

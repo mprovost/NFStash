@@ -3,7 +3,7 @@ nfsmount(8) -- lookup NFS filesystem root filehandles
 
 ## SYNOPSIS
 
-`nfsmount` [`-ADehJlmTv`] [`-c` <count>] [`-C` <count>] [`-p` <pause>] [`-S` <source>] <server[:path]...>
+`nfsmount` [`-ADehJlmqTv`] [`-c` <count>] [`-C` <count>] [`-p` <pause>] [`-S` <source>] <server[:path]...>
 
 ## DESCRIPTION
 
@@ -29,6 +29,9 @@ nfsmount(8) -- lookup NFS filesystem root filehandles
 * `-h`:
   Display a help message and exit.
 
+* `-J`:
+  Force JSON output, even in counting and looping modes.
+
 * `-l`:
   Loop forever sending mount (MNT) requests. Exit loop with Ctrl-c.
 
@@ -36,7 +39,10 @@ nfsmount(8) -- lookup NFS filesystem root filehandles
   Use multiple target IP addresses if found. This can be useful for clustered file servers. Implies -A (shows IP address instead of hostnames) so output isn't ambiguous.
 
 * `-p` <pause>:
-  The polling interval. `nfsmount` will pause up to this amount of milliseconds between requests to each target. Default = 1000 (one second). 
+  The polling interval. `nfsmount` will pause up to this amount of milliseconds between requests to each target. Default = 1000 (one second).
+
+* `-q`:
+  Quiet. Only print a summary.
 
 * `-S` <source>:
   Use the specified source IP address for request packets.
