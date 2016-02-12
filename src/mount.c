@@ -14,8 +14,8 @@ static exports get_exports(struct targets *);
 static mountres3 *get_root_filehandle(CLIENT *, char *, char *, unsigned long *);
 static int print_exports(char *, struct exportnode *);
 static targets_t *make_exports(targets_t *);
-void print_output(enum outputs, const int, targets_t *, const fhandle3, const struct timespec, unsigned long);
-void print_summary(targets_t *, enum outputs, const int);
+void print_output(enum outputs, const int, const int, targets_t *, const fhandle3, const struct timespec, unsigned long);
+void print_summary(targets_t *, enum outputs, const int, const int);
 
 /* globals */
 extern volatile sig_atomic_t quitting;
@@ -238,10 +238,18 @@ targets_t *make_exports(targets_t *target) {
 
 
 /* print output to stdout in different formats for each mount result */
-void print_output(enum outputs format, const int width, targets_t *target, const fhandle3 file_handle, const struct timespec wall_clock, unsigned long usec) {
+void print_output(enum outputs format, const int width, const int ip, targets_t *target, const fhandle3 file_handle, const struct timespec wall_clock, unsigned long usec) {
     double loss = (target->sent - target->received) / target->sent * 100.0;
     char epoch[TIME_T_MAX_DIGITS]; /* the largest time_t seconds value, plus a terminating NUL */
     struct tm *secs;
+    char *display_name;
+
+    /* whether to display IP address or hostname */
+    if (ip) {
+        display_name = target->ip_address;
+    } else {
+        display_name = target->name;
+    }
 
     switch(format) {
         case unixtime:
@@ -257,10 +265,10 @@ void print_output(enum outputs format, const int width, targets_t *target, const
         case ping:
         case fping: /* fping is only different in the summary at the end */
             printf("%s:%-*s : [%u], %03.2f ms (%03.2f avg, %.0f%% loss)\n",
-                target->name,
+                display_name,
                 /* have to cast size_t to int for compiler warning */
                 /* printf only accepts ints for field widths with * */
-                width - (int)strlen(target->name),
+                width - (int)strlen(display_name),
                 target->path,
                 target->sent - 1,
                 usec / 1000.0,
@@ -278,19 +286,27 @@ void print_output(enum outputs format, const int width, targets_t *target, const
 
 
 /* print a summary to stderr */
-void print_summary(targets_t *targets, enum outputs format, const int width) {
+void print_summary(targets_t *targets, enum outputs format, const int width, const int ip) {
     targets_t *current = targets;
     double loss;
     unsigned long i;
+    char *display_name;
 
     /* print a newline between the results and the summary */
     fprintf(stderr, "\n");
 
     while (current) {
+        /* whether to display IP address or hostname */
+        if (ip) {
+            display_name = current->ip_address;
+        } else {
+            display_name = current->name;
+        }
+
         /* first print the aligned host and path */
         fprintf(stderr, "%s:%-*s :",
-            current->name,
-            width - (int)strlen(current->name),
+            display_name,
+            width - (int)strlen(display_name),
             current->path);
 
         switch (format) {
@@ -446,7 +462,6 @@ int main(int argc, char **argv) {
             case 'l':
                 /* Can't count and loop */
                 if (count) {
-                    //if (format == ping||unixtime) {
                     if (format == ping || format == unixtime) {
                         fatal("Can't specify both -c and -l!\n");
                     } else if (format == fping) {
@@ -573,7 +588,13 @@ int main(int argc, char **argv) {
         /* calculate the maximum width for aligned printing */
         current = targets;
         while (current) {
-            tmpwidth = strlen(current->name) + strlen(current->path);
+            /* depends whether we're displaying IP addresses or not */
+            if (ip) {
+                tmpwidth = strlen(current->ip_address) + strlen(current->path);
+            } else {
+                tmpwidth = strlen(current->name) + strlen(current->path);
+            }
+
             if (tmpwidth > width) {
                 width = tmpwidth;
             }
@@ -624,7 +645,7 @@ int main(int argc, char **argv) {
                         }
                     }
 
-                    print_output(format, width, current, mountres->mountres3_u.mountinfo.fhandle, wall_clock, usec);
+                    print_output(format, width, ip, current, mountres->mountres3_u.mountinfo.fhandle, wall_clock, usec);
                 }
             }
 
@@ -648,7 +669,7 @@ int main(int argc, char **argv) {
 
     /* only print summary if looping */
     if (count || loop) {
-        print_summary(targets, format, width);
+        print_summary(targets, format, width, ip);
     }
 
     if (exports_count && exports_count == exports_ok) {
