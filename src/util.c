@@ -363,13 +363,18 @@ targets_t *init_target(char *target_name, uint16_t port, unsigned long count, en
 
 /* make a new target, or list of targets if there are multiple DNS entries */
 /* return the head of the list */
+/*
+ Always store the ip address string in target->ip_address.
+ Move the "ip" handling logic to the display side of things where it can decide whether to show the original hostname or the IP (in case of -m etc).
+ Don't worry about it in this function.
+ Always store the original hostname in target->name, maybe with the exception of doing reverse DNS lookups.
+ */
 targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t port, int dns, int ip, int multiple, unsigned long count, enum outputs format) {
     targets_t *target, *first;
     struct addrinfo *addr;
     int getaddr;
-    char ip_address[INET_ADDRSTRLEN]; /* for warning when multiple addresses found */
 
-
+    /* first build a blank target */
     target = init_target(target_name, port, count, format);
 
     /* save the head of the list in case of multiple DNS responses */
@@ -377,10 +382,15 @@ targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t
 
     /* first try treating the hostname as an IP address */
     if (inet_pton(AF_INET, target->name, &((struct sockaddr_in *)target->client_sock)->sin_addr)) {
+        /* the name is already an IP address if inet_pton succeeded */
+        target->ip_address = target->name;
+
         /* reverse dns */
         if (dns) {
+            /* don't free the old name because we're using it as the ip_address */
             target->name = calloc(1, NI_MAXHOST);
             getaddr = getnameinfo((struct sockaddr *)target->client_sock, sizeof(struct sockaddr_in), target->name, NI_MAXHOST, NULL, 0, NI_NAMEREQD);
+
             if (getaddr != 0) { /* failure! */
                 fprintf(stderr, "%s: %s\n", target_name, gai_strerror(getaddr));
                 exit(2); /* ping and fping return 2 for name resolution failures */
@@ -399,10 +409,14 @@ targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t
             while (addr) {
                 target->client_sock->sin_addr = ((struct sockaddr_in *)addr->ai_addr)->sin_addr;
 
+                /* save the IP address as a string */
+                target->ip_address = calloc(1, INET_ADDRSTRLEN);
+                inet_ntop(AF_INET, &((struct sockaddr_in *)addr->ai_addr)->sin_addr, target->ip_address, INET_ADDRSTRLEN);
+
                 /* if we're using IP addresses */
+                /* this can also be set with -m (multiple) */
                 if (ip) {
-                    target->name = calloc(1, INET_ADDRSTRLEN);
-                    inet_ntop(AF_INET, &((struct sockaddr_in *)addr->ai_addr)->sin_addr, target->name, INET_ADDRSTRLEN);
+                    target->name = target->ip_address;
                     /* don't reverse an IP address */
                     target->ndqf = target->name;
                 /* if we have reverse lookups enabled */
@@ -430,9 +444,7 @@ targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t
                         target->next = init_target(target_name, port, count, format);
                         target = target->next;
                     } else {
-                        /* we have to look up the IP address for the warning */
-                        inet_ntop(AF_INET, &((struct sockaddr_in *)addr->ai_addr)->sin_addr, ip_address, INET_ADDRSTRLEN);
-                        fprintf(stderr, "Multiple addresses found for %s, using %s\n", target_name, ip_address);
+                        fprintf(stderr, "Multiple addresses found for %s, using %s\n", target->name, target->ip_address);
                         break;
                     }
                 }
