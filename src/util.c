@@ -218,7 +218,6 @@ nfs_fh_list *parse_fh(char *input) {
 /* TODO accept path as struct? */
 /* print the IP address of the host in case there are multiple DNS results for a hostname */
 int print_fhandle3(struct targets *target, const fhandle3 file_handle, const unsigned long usec, const struct timespec wall_clock) {
-//current->json_root, current->client_sock, current->path
     unsigned int i;
     /* two chars for each byte (FF in hex) plus terminating NULL */
     char fh_string[NFS3_FHSIZE * 2 + 1];
