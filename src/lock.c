@@ -14,9 +14,11 @@ void usage() {
     printf("Usage: nfslock [options] [filehandle...]\n\
     -c n     count of lock requests to send to target\n\
     -h       display this help and exit\n\
+    -H n     frequency in Hertz (requests per second, default %i)\n\
     -l       loop forever\n\
     -T       use TCP (default UDP)\n\
-    -v       verbose output\n"); 
+    -v       verbose output\n",
+    NFS_HERTZ); 
 
     exit(3);
 }
@@ -120,7 +122,8 @@ int main(int argc, char **argv) {
     unsigned long count = 0;
     int loop = 0;
     unsigned int sent = 0;
-    struct timespec sleep_time = NFS_SLEEP;
+    struct timespec sleep_time;
+    unsigned long hertz = NFS_HERTZ;
     struct timeval timeout = NFS_TIMEOUT;
     /* source ip address for packets */
     struct sockaddr_in src_ip = {
@@ -132,7 +135,7 @@ int main(int argc, char **argv) {
     int getaddr;
     char nodename[NI_MAXHOST];
 
-    while ((ch = getopt(argc, argv, "c:hlTv")) != -1) {
+    while ((ch = getopt(argc, argv, "c:hH:lTv")) != -1) {
         switch(ch) {
             /* number of locks per target */
             case 'c':
@@ -143,6 +146,11 @@ int main(int argc, char **argv) {
                 if (count == 0 || count == ULONG_MAX) {
                     fatal("Zero count, nothing to do!\n");
                 }
+                break;
+            /* polling frequency */
+            case 'H':
+                /* TODO check for reasonable values */
+                hertz = strtoul(optarg, NULL, 10);
                 break;
             /* loop forever */
             case 'l':
@@ -163,6 +171,18 @@ int main(int argc, char **argv) {
             default:
                 usage();
         }
+    }
+
+    /* calculate the sleep_time based on the frequency */
+    /* check for a frequency of 1, that's a simple case */
+    /* this doesn't support frequencies lower than 1Hz */
+    if (hertz == 1) {
+        sleep_time.tv_sec = 1;
+        sleep_time.tv_nsec = 0;
+    } else {
+        sleep_time.tv_sec = 0;
+        /* nanoseconds */
+        sleep_time.tv_nsec = 1000000000 / hertz;
     }
 
     /* no arguments, use stdin */
