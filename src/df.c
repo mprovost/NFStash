@@ -128,7 +128,7 @@ int print_df(int offset, int width, char *host, char *path, FSSTAT3res *fsstatre
 
 
 /* TODO human readable output ie 4M, use the -h flag */
-/* base 10 vs base 2? (should this be an option for bytes as well?) */
+/* base 10 (SI units) vs base 2? (should this be an option for bytes as well?) */
 void print_inodes(int offset, int width, char *host, char *path, FSSTAT3res *fsstatres) {
     double capacity;
 
