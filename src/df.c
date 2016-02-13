@@ -18,7 +18,7 @@ int verbose = 0;
 void usage() {
     printf("Usage: nfsdf [options] [filehandle...]\n\
     -g         display sizes in gigabytes\n\
-    -H         display this help and exit\n\
+    -H         frequency in Hertz (requests per second, default 1)\n\
     -h         display human readable sizes (default)\n\
     -i         display inodes\n\
     -k         display sizes in kilobytes\n\
@@ -223,7 +223,7 @@ int main(int argc, char **argv) {
     int ch;
     int inodes = 0;
     enum byte_prefix prefix = NONE;
-    enum outputs format = ping;
+    enum outputs format = unset;
     char output_prefix[255] = "nfs";
     int width  = 0;
     char *input_fh = NULL;
@@ -235,7 +235,8 @@ int main(int argc, char **argv) {
     CLIENT *client = NULL;
     struct sockaddr_in clnt_info;
     unsigned long version = 3;
-    struct timespec sleep_time = NFS_SLEEP;
+    struct timespec sleep_time;
+    unsigned long hertz = NFS_HERTZ;
     struct timeval timeout = NFS_TIMEOUT;
     struct timeval call_start, call_end;
     struct addrinfo hints = {
@@ -266,7 +267,7 @@ int main(int argc, char **argv) {
     };
 
 
-    while ((ch = getopt(argc, argv, "gHhiklmo:p:S:tTv")) != -1) {
+    while ((ch = getopt(argc, argv, "ghH:iklmo:p:S:tTv")) != -1) {
         switch(ch) {
             /* display gigabytes */
             case 'g':
@@ -283,6 +284,11 @@ int main(int argc, char **argv) {
                 } else {
                     prefix = HUMAN;
                 }
+                break;
+            /* polling frequency */
+            case 'H':
+                /* TODO check for reasonable values */
+                hertz = strtoul(optarg, NULL, 10);
                 break;
             /* display inodes */
             case 'i':
@@ -347,7 +353,6 @@ int main(int argc, char **argv) {
                 verbose = 1;
                 break;
             /* have to keep -h available for human readable output */
-            case 'H':
             case '?':
             default:
                 usage();
@@ -355,8 +360,21 @@ int main(int argc, char **argv) {
     }
 
     /* default to human readable */
-    if (prefix == NONE)
+    if (prefix == NONE) {
         prefix = HUMAN;
+    }
+
+    /* calculate the sleep_time based on the frequency */
+    /* check for a frequency of 1, that's a simple case */
+    /* this doesn't support frequencies lower than 1Hz */
+    if (hertz == 1) {
+        sleep_time.tv_sec = 1;
+        sleep_time.tv_nsec = 0;
+    } else {
+        sleep_time.tv_sec = 0;
+        /* nanoseconds */
+        sleep_time.tv_nsec = 1000000000 / hertz;
+    }
 
     current = &fh_dummy;
     filehandles = current;
