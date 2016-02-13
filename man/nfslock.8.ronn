@@ -9,7 +9,7 @@ nfslock(8) -- test getting an NFS lock on a filehandle
 
 `nfslock` sends an NLM version 4 NLM_TEST RPC request to an NFS server for each filehandle argument. Filehandles can either be specified as arguments or accepted on `stdin`. The program outputs whether the request was "granted" or "failed" to `stderr` and prints the response time in Graphite format to `stdout`.
 
-Note that this `nfslock` does not actually take out a lock on the server, it only tests whether a lock call would succeed.
+Note that `nfslock` does not actually take out a lock on the server, it only tests whether a lock call for a specific filehandle would succeed.
 
 Input filehandles are specified as JSON objects with the keys "host", "ip", "path", and "filehandle", where the value of the "filehandle" key is the hex representation of the target file's NFS filehandle. As command line arguments they will need to be escaped from the shell with single quotes. When passed on `stdin`, there should be one object per line.
 
