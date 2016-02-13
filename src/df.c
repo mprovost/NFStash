@@ -18,13 +18,13 @@ int verbose = 0;
 void usage() {
     printf("Usage: nfsdf [options] [filehandle...]\n\
     -g         display sizes in gigabytes\n\
-    -H         frequency in Hertz (requests per second, default 1)\n\
+    -G         Graphite format output (default human readable)\n\
     -h         display human readable sizes (default)\n\
+    -H         frequency in Hertz (requests per second, default 1)\n\
     -i         display inodes\n\
     -k         display sizes in kilobytes\n\
     -l         loop forever\n\
     -m         display sizes in megabytes\n\
-    -o format  output format ([G]raphite, default human readable)\n\
     -p string  prefix for graphite metric names\n\
     -t         display sizes in terabytes\n\
     -S addr    set source address\n\
@@ -214,7 +214,7 @@ void print_format(enum outputs format, char *prefix, char *host, char *path, FSS
             printf("%s.%s.df.%s.ffiles %" PRIu64 " %li\n", prefix, ndqf, path, fsstatres->FSSTAT3res_u.resok.ffiles, now.tv_sec);
             break;
         default:
-            fprintf(stderr, "Unsupported format\n");
+            fatal("Unsupported format\n");
     }
 }
 
@@ -267,7 +267,7 @@ int main(int argc, char **argv) {
     };
 
 
-    while ((ch = getopt(argc, argv, "ghH:iklmo:p:S:tTv")) != -1) {
+    while ((ch = getopt(argc, argv, "gGhH:iklmp:S:tTv")) != -1) {
         switch(ch) {
             /* display gigabytes */
             case 'g':
@@ -275,6 +275,14 @@ int main(int argc, char **argv) {
                     fatal("Can't specify multiple units!\n");
                 } else {
                     prefix = GIGA;
+                }
+                break;
+            /* Graphite output */
+            case 'G':
+                if (prefix != NONE) {
+                    fatal("Can't specify units and -G!\n");
+                } else {
+                    format = graphite;
                 }
                 break;
             /* display human readable (default, set below) */
@@ -305,6 +313,9 @@ int main(int argc, char **argv) {
             /* loop forever */
             case 'l':
                 loop = 1;
+                if (format == unset) {
+                    format = ping;
+                }
                 break;
             /* display megabytes */
             case 'm':
@@ -317,18 +328,6 @@ int main(int argc, char **argv) {
             /* prefix to use for graphite metrics */
             case 'p':
                 strncpy(output_prefix, optarg, sizeof(output_prefix));
-                break;
-            /* output format */
-            case 'o':
-                if (prefix != NONE) {
-                    fatal("Can't specify units and output format!\n");
-                } else {
-                    if (strcmp(optarg, "G") == 0) {
-                        format = graphite;
-                    } else {
-                        fatal("Unknown output format \"%s\"!\n", optarg);
-                    }
-                }
                 break;
             /* specify source address */
             case 'S':
@@ -362,6 +361,11 @@ int main(int argc, char **argv) {
     /* default to human readable */
     if (prefix == NONE) {
         prefix = HUMAN;
+    }
+
+    /* default output */
+    if (format == unset) {
+        format = ping;
     }
 
     /* calculate the sleep_time based on the frequency */
@@ -477,13 +481,14 @@ int main(int argc, char **argv) {
             gettimeofday(&call_end, NULL);
 
             if (fsstatres && fsstatres->status == NFS3_OK) {
-                if (format) {
-                    print_format(format, output_prefix, current->host, current->path, fsstatres, call_end);
-                } else {
-                    if (inodes)
+                if (format == ping) {
+                    if (inodes) {
                         print_inodes(maxpath, width, current->host, current->path, fsstatres);
-                    else
+                    } else {
                         print_df(maxpath, width, current->host, current->path, fsstatres, prefix);
+                    }
+                } else {
+                    print_format(format, output_prefix, current->host, current->path, fsstatres, call_end);
                 }
             }
 
