@@ -30,10 +30,10 @@ void usage() {
     -D       print timestamp (unix time) before each line\n\
     -e       print exports (like showmount -e)\n\
     -h       display this help and exit\n\
+    -H n     frequency in Hertz (requests per second, default 1)\n\
     -J       force JSON output\n\
     -l       loop forever\n\
     -m       use multiple target IP addresses if found (implies -A)\n\
-    -p n     polling interval, check targets every n ms (default 1000)\n\
     -q       quiet, only print summary\n\
     -S addr  set source address\n\
     -T       use TCP (default UDP)\n\
@@ -381,8 +381,9 @@ int main(int argc, char **argv) {
     int showmount       = 0;
     int quiet           = 0;
     u_long version      = 3;
-    struct timeval timeout     = NFS_TIMEOUT;
-    struct timespec sleep_time = NFS_SLEEP;
+    struct timeval timeout = NFS_TIMEOUT;
+    struct timespec sleep_time;
+    unsigned long hertz = NFS_HERTZ;
     /* source ip address for packets */
     struct sockaddr_in src_ip = {
         .sin_family = AF_INET,
@@ -400,7 +401,7 @@ int main(int argc, char **argv) {
     if (argc == 1)
         usage();
 
-    while ((ch = getopt(argc, argv, "Ac:C:DehJlmp:qS:Tv")) != -1) {
+    while ((ch = getopt(argc, argv, "Ac:C:DehH:JlmqS:Tv")) != -1) {
         switch(ch) {
             /* show IP addresses instead of hostnames */
             case 'A':
@@ -453,6 +454,11 @@ int main(int argc, char **argv) {
             case 'e':
                 showmount = 1;
                 break;
+            /* polling frequency */
+            case 'H':
+                /* TODO check for reasonable values */
+                hertz = strtoul(optarg, NULL, 10);
+                break;
             case 'J':
                 if (format == unixtime) {
                     fatal("Can't specify both -J and -D!\n");
@@ -482,11 +488,6 @@ int main(int argc, char **argv) {
                 /* implies -A to use IP addresses so output isn't ambiguous */
                 ip = 1;
                 break;
-            /* time between pings to target */
-            case 'p':
-                /* TODO check for reasonable values */
-                ms2ts(&sleep_time, strtoul(optarg, NULL, 10));
-                break;
             case 'q':
                 quiet = 1;
                 break;
@@ -514,6 +515,18 @@ int main(int argc, char **argv) {
     /* if not looping, default to JSON output to pipe to other commands */
     if (count + loop == 0) {
         format = json;
+    }
+
+    /* calculate the sleep_time based on the frequency */
+    /* check for a frequency of 1, that's a simple case */
+    /* this doesn't support frequencies lower than 1Hz */
+    if (hertz == 1) {
+        sleep_time.tv_sec = 1;
+        sleep_time.tv_nsec = 0;
+    } else {
+        sleep_time.tv_sec = 0;
+        /* nanoseconds */
+        sleep_time.tv_nsec = 1000000000 / hertz;
     }
 
     /* loop through arguments and create targets */
