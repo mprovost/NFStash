@@ -12,7 +12,6 @@ static void print_output(enum outputs format, char *prefix, char* host, char* pa
 int verbose = 0;
 
 void usage() {
-    struct timespec sleep_time = NFS_SLEEP;
     printf("Usage: nfscat [options] [targets...]\n\
     -b n      blocksize (in bytes, default 8192)\n\
     -c n      count of read requests to send to target\n\
@@ -20,11 +19,11 @@ void usage() {
     -g string prefix for Graphite/StatsD metric names (default \"nfsping\")\n\
     -G        Graphite format output (default human readable)\n\
     -h        display this help and exit\n\
-    -p n      polling interval, check target every n ms (default %lu)\n\
+    -H n      frequency in Hertz (requests per second, default %i)\n\
     -S addr   set source address\n\
     -T        use TCP (default UDP)\n\
     -v        verbose output\n",
-        ts2ms(sleep_time));
+    NFS_HERTZ);
 
     exit(3);
 }
@@ -116,7 +115,8 @@ int main(int argc, char **argv) {
     unsigned long blocksize = 8192;
     unsigned long count = 0;
     struct timespec wall_clock, loop_start, loop_end, loop_elapsed, sleepy;
-    struct timespec sleep_time = NFS_SLEEP;
+    struct timespec sleep_time;
+    unsigned long hertz = NFS_HERTZ;
     struct timeval timeout = NFS_TIMEOUT;
     unsigned long us;
     enum outputs format = ping;
@@ -130,7 +130,7 @@ int main(int argc, char **argv) {
         .sin_addr = 0
     };
 
-    while ((ch = getopt(argc, argv, "b:c:Eg:Ghp:S:Tv")) != -1) {
+    while ((ch = getopt(argc, argv, "b:c:Eg:GhH:S:Tv")) != -1) {
         switch(ch) {
             /* blocksize */
             case 'b':
@@ -163,10 +163,10 @@ int main(int argc, char **argv) {
             case 'G':
                 format = graphite;
                 break;
-            /* time between pings to target */
-            case 'p':
+            /* polling frequency */
+            case 'H':
                 /* TODO check for reasonable values */
-                ms2ts(&sleep_time, strtoul(optarg, NULL, 10));
+                hertz = strtoul(optarg, NULL, 10);
                 break;
             /* source ip address for packets */
             case 'S':
@@ -186,6 +186,18 @@ int main(int argc, char **argv) {
             default:
                 usage();
         }
+    }
+
+    /* calculate the sleep_time based on the frequency */
+    /* check for a frequency of 1, that's a simple case */
+    /* this doesn't support frequencies lower than 1Hz */
+    if (hertz == 1) {
+        sleep_time.tv_sec = 1;
+        sleep_time.tv_nsec = 0;
+    } else {
+        sleep_time.tv_sec = 0;
+        /* nanoseconds */
+        sleep_time.tv_nsec = 1000000000 / hertz;
     }
 
     /* no arguments, use stdin */
