@@ -3,7 +3,7 @@ nfsmount(8) -- lookup NFS filesystem root filehandles
 
 ## SYNOPSIS
 
-`nfsmount` [`-ADehJlmqTv`] [`-c` <count>] [`-C` <count>] [`-p` <pause>] [`-S` <source>] <server[:path]...>
+`nfsmount` [`-ADehJlmqTv`] [`-c` <count>] [`-C` <count>] [`-H` <hertz>] [`-S` <source>] <server[:path]...>
 
 ## DESCRIPTION
 
@@ -29,6 +29,9 @@ nfsmount(8) -- lookup NFS filesystem root filehandles
 * `-h`:
   Display a help message and exit.
 
+* `-H` <hertz>:
+  The polling frequency in Hertz. This is the number of requests sent to each target per second in looping and counting modes. Default = 1.
+
 * `-J`:
   Force JSON output, even in counting and looping modes.
 
@@ -37,9 +40,6 @@ nfsmount(8) -- lookup NFS filesystem root filehandles
 
 * `-m`:
   Use multiple target IP addresses if found. This can be useful for clustered file servers. Implies -A (shows IP address instead of hostnames) so output isn't ambiguous.
-
-* `-p` <pause>:
-  The polling interval. `nfsmount` will pause up to this amount of milliseconds between requests to each target. Default = 1000 (one second).
 
 * `-q`:
   Quiet. Only print a summary.

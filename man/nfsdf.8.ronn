@@ -3,13 +3,13 @@ nfsdf(8) -- report NFS server disk space usage
 
 ## SYNOPSIS
 
-`nfsdf` [`-ghiklmotTv`] [`-p` <prefix>] [`-S` <source>] <filehandle...>
+`nfsdf` [`-gGhiklmtTv`] [`-H` <hertz>] [`-p` <prefix>] [`-S` <source>] <filehandle...>
 
 ## DESCRIPTION
 
-`nfsdf` sends an NFS version 3 FSSTAT RPC request to an NFS server and reports the amount of disk space or inodes used on the filesystem specified in the filehandle argument(s). Filehandles can be passed on stdin, in this case `nfsdf` waits until the end of input (EOF) before sending any requests so that the correct width header can be printed. The default output is human readable, similar to `df`, other formats can be specified with the `-o` option. Any filehandle on the target filesystem can be used as an argument, including the root filehandle obtained from `nfsmount`.
+`nfsdf` sends an NFS version 3 FSSTAT RPC request to an NFS server and reports the amount of disk space or inodes used on the filesystem specified in the filehandle argument(s). Filehandles can be passed on stdin, in this case `nfsdf` waits until the end of input (EOF) before sending any requests so that the correct width header can be printed. The default output is human readable, similar to `df -h`, units can be specified with the `-g`, `-k`, `-m`, or `-t` options. Any filehandle on the target filesystem can be used as an argument, including the root filehandle obtained from `nfsmount`.
 
-Input filehandles are represented as a series of JSON objects (one per line) with the keys "ip", "path", and "filehandle", where the value of the "filehandle" key is the hex representation of the file's NFS filehandle. As command line arguments they will need to be escaped from the shell with single quotes.
+Input filehandles are represented as a series of JSON objects (one per line) with the keys "host", "ip", "path", and "filehandle", where the value of the "filehandle" key is the hex representation of the file's NFS filehandle. As command line arguments they will need to be escaped from the shell with single quotes.
 
 If the NFS server requires "secure" ports (<1024), `nfsdf` will have to be run as root.
 
@@ -18,8 +18,14 @@ If the NFS server requires "secure" ports (<1024), `nfsdf` will have to be run a
 * `-g`:
   Report disk space in gigabytes.
 
+* `-G`:
+  Graphite format output. Default is human readable (`-h`).
+
 * `-h`:
-  Report disk space in human readable format (default). This is whichever format is the most compact to display.
+  Report disk space in human readable format (default). This selects whichever unit is the most compact to display.
+
+* `-H` <hertz>:
+  The polling frequency in Hertz. This is the number of requests sent to each target per second. Default = 1.
 
 * `-i`:
   Report inodes (files) instead of disk space.
@@ -33,14 +39,14 @@ If the NFS server requires "secure" ports (<1024), `nfsdf` will have to be run a
 * `-m`:
   Report disk space in megabytes.
 
-* `-o` <format>:
-  Specify output format for input to another program. Currently supported is [`G`]raphite. Default is human readable (`-h`).
-
 * `-p` <prefix>:
   Specify string prefix for Graphite metric names. Default = "nfs".
 
 * `-S` <source>:
   Use the specified source IP address for request packets.
+
+* `-t`:
+  Report disk space in terabytes.
 
 * `-T`:
   Use TCP to connect to server. Default = UDP.

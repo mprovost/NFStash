@@ -81,13 +81,13 @@
 
 <h2 id="SYNOPSIS">SYNOPSIS</h2>
 
-<p><code>nfsdf</code> [<code>-ghiklmotTv</code>] [<code>-p</code> <var>prefix</var>] [<code>-S</code> <var>source</var>] &lt;filehandle...></p>
+<p><code>nfsdf</code> [<code>-gGhiklmtTv</code>] [<code>-H</code> <var>hertz</var>] [<code>-p</code> <var>prefix</var>] [<code>-S</code> <var>source</var>] &lt;filehandle...></p>
 
 <h2 id="DESCRIPTION">DESCRIPTION</h2>
 
-<p><code>nfsdf</code> sends an NFS version 3 FSSTAT RPC request to an NFS server and reports the amount of disk space or inodes used on the filesystem specified in the filehandle argument(s). Filehandles can be passed on stdin, in this case <code>nfsdf</code> waits until the end of input (EOF) before sending any requests so that the correct width header can be printed. The default output is human readable, similar to <code>df</code>, other formats can be specified with the <code>-o</code> option. Any filehandle on the target filesystem can be used as an argument, including the root filehandle obtained from <code>nfsmount</code>.</p>
+<p><code>nfsdf</code> sends an NFS version 3 FSSTAT RPC request to an NFS server and reports the amount of disk space or inodes used on the filesystem specified in the filehandle argument(s). Filehandles can be passed on stdin, in this case <code>nfsdf</code> waits until the end of input (EOF) before sending any requests so that the correct width header can be printed. The default output is human readable, similar to <code>df -h</code>, units can be specified with the <code>-g</code>, <code>-k</code>, <code>-m</code>, or <code>-t</code> options. Any filehandle on the target filesystem can be used as an argument, including the root filehandle obtained from <code>nfsmount</code>.</p>
 
-<p>Input filehandles are represented as a series of JSON objects (one per line) with the keys "ip", "path", and "filehandle", where the value of the "filehandle" key is the hex representation of the file's NFS filehandle. As command line arguments they will need to be escaped from the shell with single quotes.</p>
+<p>Input filehandles are represented as a series of JSON objects (one per line) with the keys "host", "ip", "path", and "filehandle", where the value of the "filehandle" key is the hex representation of the file's NFS filehandle. As command line arguments they will need to be escaped from the shell with single quotes.</p>
 
 <p>If the NFS server requires "secure" ports (&lt;1024), <code>nfsdf</code> will have to be run as root.</p>
 
@@ -95,14 +95,16 @@
 
 <dl>
 <dt class="flush"><code>-g</code></dt><dd><p>Report disk space in gigabytes.</p></dd>
-<dt class="flush"><code>-h</code></dt><dd><p>Report disk space in human readable format (default). This is whichever format is the most compact to display.</p></dd>
+<dt class="flush"><code>-G</code></dt><dd><p>Graphite format output. Default is human readable (<code>-h</code>).</p></dd>
+<dt class="flush"><code>-h</code></dt><dd><p>Report disk space in human readable format (default). This selects whichever unit is the most compact to display.</p></dd>
+<dt><code>-H</code> <var>hertz</var></dt><dd><p>The polling frequency in Hertz. This is the number of requests sent to each target per second. Default = 1.</p></dd>
 <dt class="flush"><code>-i</code></dt><dd><p>Report inodes (files) instead of disk space.</p></dd>
 <dt class="flush"><code>-k</code></dt><dd><p>Report disk space in kilobytes.</p></dd>
 <dt class="flush"><code>-l</code></dt><dd><p>Loop forever. Exit loop with Ctrl-c.</p></dd>
 <dt class="flush"><code>-m</code></dt><dd><p>Report disk space in megabytes.</p></dd>
-<dt><code>-o</code> <var>format</var></dt><dd><p>Specify output format for input to another program. Currently supported is [<code>G</code>]raphite. Default is human readable (<code>-h</code>).</p></dd>
 <dt><code>-p</code> <var>prefix</var></dt><dd><p>Specify string prefix for Graphite metric names. Default = "nfs".</p></dd>
 <dt><code>-S</code> <var>source</var></dt><dd><p>Use the specified source IP address for request packets.</p></dd>
+<dt class="flush"><code>-t</code></dt><dd><p>Report disk space in terabytes.</p></dd>
 <dt class="flush"><code>-T</code></dt><dd><p>Use TCP to connect to server. Default = UDP.</p></dd>
 <dt class="flush"><code>-v</code></dt><dd><p>Display debug output on <code>stderr</code>.</p></dd>
 </dl>

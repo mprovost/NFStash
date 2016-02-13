@@ -82,13 +82,13 @@
 
 <h2 id="SYNOPSIS">SYNOPSIS</h2>
 
-<p><code>nfscat</code> [<code>-hTv</code>] [<code>-b</code> <var>blocksize</var>] [<code>-c</code> <var>count</var>] [<code>-S</code> <var>source</var>] &lt;filehandle...></p>
+<p><code>nfscat</code> [<code>-hTv</code>] [<code>-b</code> <var>blocksize</var>] [<code>-c</code> <var>count</var>] [<code>-H</code> <var>hertz</var>] [<code>-S</code> <var>source</var>] &lt;filehandle...></p>
 
 <h2 id="DESCRIPTION">DESCRIPTION</h2>
 
 <p><code>nfscat</code> sends NFS version 3 READ RPC requests to an NFS server and prints the file contents in the responses to <code>stdout</code>. It starts at the beginning of the file and will read it until the end unless a number of requests is specified with the <code>-c</code> option. Filehandles can either be specified as arguments or accepted on <code>stdin</code>.</p>
 
-<p>Input filehandles are represented as a series of JSON objects (one per line) with the keys "ip", "path", and "filehandle", where the value of the "filehandle" key is the hex representation of the file's NFS filehandle. As command line arguments they will need to be escaped from the shell with single quotes.</p>
+<p>Input filehandles are represented as a series of JSON objects (one per line) with the keys "host", "ip", "path", and "filehandle", where the value of the "filehandle" key is the hex representation of the file's NFS filehandle. As command line arguments they will need to be escaped from the shell with single quotes.</p>
 
 <p>If the NFS server requires "secure" ports (&lt;1024), <code>nfscat</code> will have to be run as root.</p>
 
@@ -98,6 +98,7 @@
 <dt class="flush"><code>-b</code></dt><dd><p>Set the blocksize for requests in bytes. Default is 8192.</p></dd>
 <dt class="flush"><code>-c</code></dt><dd><p>Count of requests to send for each file before exiting. Instead of printing the file contents to <code>stdout</code>, print a summary line for each request with the response time.</p></dd>
 <dt class="flush"><code>-h</code></dt><dd><p>Display a help message and exit.</p></dd>
+<dt><code>-H</code> <var>hertz</var></dt><dd><p>The polling frequency in Hertz. This is the number of requests sent to each target per second. Default = 1.</p></dd>
 <dt><code>-S</code> <var>source</var></dt><dd><p>Use the specified source IP address for request packets.</p></dd>
 <dt class="flush"><code>-T</code></dt><dd><p>Use TCP to connect to server. Default = UDP.</p></dd>
 <dt class="flush"><code>-v</code></dt><dd><p>Display debug output on <code>stderr</code>.</p></dd>

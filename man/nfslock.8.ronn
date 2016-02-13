@@ -3,7 +3,7 @@ nfslock(8) -- test getting an NFS lock on a filehandle
 
 ## SYNOPSIS
 
-`nfslock` [`-hlTv`] <filehandle...>
+`nfslock` [`-hlTv`] [`-H` <hertz>] <filehandle...>
 
 ## DESCRIPTION
 
@@ -11,7 +11,7 @@ nfslock(8) -- test getting an NFS lock on a filehandle
 
 Note that this `nfslock` does not actually take out a lock on the server, it only tests whether a lock call would succeed.
 
-Input filehandles are specified as JSON objects with the keys "ip", "path", and "filehandle", where the value of the "filehandle" key is the hex representation of the target file's NFS filehandle. As command line arguments they will need to be escaped from the shell with single quotes. When passed on `stdin`, there should be one object per line.
+Input filehandles are specified as JSON objects with the keys "host", "ip", "path", and "filehandle", where the value of the "filehandle" key is the hex representation of the target file's NFS filehandle. As command line arguments they will need to be escaped from the shell with single quotes. When passed on `stdin`, there should be one object per line.
 
 If the NLM server requires "secure" ports (<1024), `nfslock` will have to be run as root. (On Linux this is controlled by the `insecure_locks` option in exports(5)).
 
@@ -20,8 +20,11 @@ If the NLM server requires "secure" ports (<1024), `nfslock` will have to be run
 * `-h`:
   Display a help message and exit.
 
+* `-H` <hertz>:
+  The polling frequency in Hertz. This is the number of requests sent to each target per second. Default = 1.
+
 * `-l`:
-  Loop forever. Send requests every second.
+  Loop forever. Exit with Ctrl-c.
 
 * `-T`:
   Use TCP to connect to server. Default = UDP.

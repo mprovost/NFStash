@@ -83,7 +83,7 @@
 
 <h2 id="SYNOPSIS">SYNOPSIS</h2>
 
-<p><code>nfslock</code> [<code>-hlTv</code>] &lt;filehandle...></p>
+<p><code>nfslock</code> [<code>-hlTv</code>] [<code>-H</code> <var>hertz</var>] &lt;filehandle...></p>
 
 <h2 id="DESCRIPTION">DESCRIPTION</h2>
 
@@ -91,7 +91,7 @@
 
 <p>Note that this <code>nfslock</code> does not actually take out a lock on the server, it only tests whether a lock call would succeed.</p>
 
-<p>Input filehandles are specified as JSON objects with the keys "ip", "path", and "filehandle", where the value of the "filehandle" key is the hex representation of the target file's NFS filehandle. As command line arguments they will need to be escaped from the shell with single quotes. When passed on <code>stdin</code>, there should be one object per line.</p>
+<p>Input filehandles are specified as JSON objects with the keys "host", "ip", "path", and "filehandle", where the value of the "filehandle" key is the hex representation of the target file's NFS filehandle. As command line arguments they will need to be escaped from the shell with single quotes. When passed on <code>stdin</code>, there should be one object per line.</p>
 
 <p>If the NLM server requires "secure" ports (&lt;1024), <code>nfslock</code> will have to be run as root. (On Linux this is controlled by the <code>insecure_locks</code> option in <span class="man-ref">exports<span class="s">(5)</span></span>).</p>
 
@@ -99,7 +99,8 @@
 
 <dl>
 <dt class="flush"><code>-h</code></dt><dd><p>Display a help message and exit.</p></dd>
-<dt class="flush"><code>-l</code></dt><dd><p>Loop forever. Send requests every second.</p></dd>
+<dt><code>-H</code> <var>hertz</var></dt><dd><p>The polling frequency in Hertz. This is the number of requests sent to each target per second. Default = 1.</p></dd>
+<dt class="flush"><code>-l</code></dt><dd><p>Loop forever. Exit with Ctrl-c.</p></dd>
 <dt class="flush"><code>-T</code></dt><dd><p>Use TCP to connect to server. Default = UDP.</p></dd>
 <dt class="flush"><code>-v</code></dt><dd><p>Display debug output on <code>stderr</code>.</p></dd>
 </dl>
