@@ -29,6 +29,7 @@ void usage() {
     -C n     same as -c, output parseable format\n\
     -D       print timestamp (unix time) before each line\n\
     -e       print exports (like showmount -e)\n\
+    -E       StatsD format output\n\
     -G       Graphite format output\n\
     -h       display this help and exit\n\
     -H n     frequency in Hertz (requests per second, default 1)\n\
@@ -284,12 +285,17 @@ void print_output(enum outputs format, const char *prefix, const int width, cons
             printf("%s.%s.%s.mountv3.usec %lu %li\n",
                 prefix, target->ndqf, target->path, usec, wall_clock.tv_sec);
             break;
+        case statsd:
+            printf("%s.%s.%s.mountv3:%03.2f|ms\n",
+                prefix, target->ndqf, target->path, usec / 1000.0);
+            break;
         /* print the filehandle as JSON */
         case json:
             print_fhandle3(target, file_handle, usec, wall_clock);
             break;
-        default:
-            fatalx(3, "Unsupported format\n");
+        case unset:
+            fatal("Need a format!\n");
+            break;
     }
 }
 
@@ -424,7 +430,7 @@ int main(int argc, char **argv) {
     if (argc == 1)
         usage();
 
-    while ((ch = getopt(argc, argv, "Ac:C:DeGhH:JlmqS:Tv")) != -1) {
+    while ((ch = getopt(argc, argv, "Ac:C:DeEGhH:JlmqS:Tv")) != -1) {
         switch(ch) {
             /* show IP addresses instead of hostnames */
             case 'A':
@@ -477,6 +483,29 @@ int main(int argc, char **argv) {
             case 'e':
                 showmount = 1;
                 break;
+            /* Etsy's StatsD format */
+            case 'E':
+                switch (format) {
+                    case unset:
+                    case statsd:
+                    case ping:
+                        format = statsd;
+                        break;
+                    case fping:
+                        fatal("Can't specify both -C and -E!\n");
+                        break;
+                    case unixtime:
+                        fatal("Can't specify both -D and -E!\n");
+                        break;
+                    case graphite:
+                        fatal("Can't specify both -G and -E!\n");
+                        break;
+                    case json:
+                        fatal("Can't specify both -J and -E!\n");
+                        break;
+                }
+                break;
+            /* Graphite */
             case 'G':
                 if (format == unset || format == ping) {
                     format = graphite;
