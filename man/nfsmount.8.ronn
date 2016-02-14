@@ -3,7 +3,7 @@ nfsmount(8) -- lookup NFS filesystem root filehandles
 
 ## SYNOPSIS
 
-`nfsmount` [`-ADehJlmqTv`] [`-c` <count>] [`-C` <count>] [`-H` <hertz>] [`-S` <source>] <server[:path]...>
+`nfsmount` [`-ADeEGhJlmqTv`] [`-c` <count>] [`-C` <count>] [`-H` <hertz>] [`-S` <source>] <server[:path]...>
 
 ## DESCRIPTION
 
@@ -25,6 +25,12 @@ nfsmount(8) -- lookup NFS filesystem root filehandles
 
 * `-e`:
   Display available filesystems and their export policies in a human readable format, like `showmount -e`. This sends a single EXPORT RPC per target server and does not look up filehandles.
+
+* `-E`:
+  Display output in Etsy's StatsD format (nfsmount.$hostname.$path.mountv3:<msec>|ms).
+
+* `-G`:
+  Print output in Graphite format (nfsmount.$hostname.$path.mountv3.usec <usec> <timestamp>).
 
 * `-h`:
   Display a help message and exit.
