@@ -14,7 +14,7 @@ static exports get_exports(struct targets *);
 static mountres3 *get_root_filehandle(CLIENT *, char *, char *, unsigned long *);
 static int print_exports(char *, struct exportnode *);
 static targets_t *make_exports(targets_t *);
-void print_output(enum outputs, const int, const int, targets_t *, const fhandle3, const struct timespec, unsigned long);
+void print_output(enum outputs, const char *, const int, const int, targets_t *, const fhandle3, const struct timespec, unsigned long);
 void print_summary(targets_t *, enum outputs, const int, const int);
 
 /* globals */
@@ -29,6 +29,7 @@ void usage() {
     -C n     same as -c, output parseable format\n\
     -D       print timestamp (unix time) before each line\n\
     -e       print exports (like showmount -e)\n\
+    -G       Graphite format output\n\
     -h       display this help and exit\n\
     -H n     frequency in Hertz (requests per second, default 1)\n\
     -J       force JSON output\n\
@@ -239,7 +240,7 @@ targets_t *make_exports(targets_t *target) {
 
 
 /* print output to stdout in different formats for each mount result */
-void print_output(enum outputs format, const int width, const int ip, targets_t *target, const fhandle3 file_handle, const struct timespec wall_clock, unsigned long usec) {
+void print_output(enum outputs format, const char *prefix, const int width, const int ip, targets_t *target, const fhandle3 file_handle, const struct timespec wall_clock, unsigned long usec) {
     double loss = (target->sent - target->received) / target->sent * 100.0;
     char epoch[TIME_T_MAX_DIGITS]; /* the largest time_t seconds value, plus a terminating NUL */
     struct tm *secs;
@@ -276,6 +277,13 @@ void print_output(enum outputs format, const int width, const int ip, targets_t 
                 target->avg / 1000.0,
                 loss);
             break;
+        /* Graphite output */
+        case graphite:
+            /* TODO versions  */
+            /* TODO use escape_char from df.c to escape paths */
+            printf("%s.%s.%s.mountv3.usec %lu %li\n",
+                prefix, target->ndqf, target->path, usec, wall_clock.tv_sec);
+            break;
         /* print the filehandle as JSON */
         case json:
             print_fhandle3(target, file_handle, usec, wall_clock);
@@ -293,52 +301,66 @@ void print_summary(targets_t *targets, enum outputs format, const int width, con
     unsigned long i;
     char *display_name;
 
-    /* print a newline between the results and the summary */
-    fprintf(stderr, "\n");
+    switch (format) {
+        /* print a summary for these formats */
+        case ping:
+        case unixtime:
+        case fping:
+            /* print a newline between the results and the summary */
+            fprintf(stderr, "\n");
 
-    while (current) {
-        /* whether to display IP address or hostname */
-        if (ip) {
-            display_name = current->ip_address;
-        } else {
-            display_name = current->name;
-        }
-
-        /* first print the aligned host and path */
-        fprintf(stderr, "%s:%-*s :",
-            display_name,
-            width - (int)strlen(display_name),
-            current->path);
-
-        switch (format) {
-            case ping:
-            case unixtime:
-            case json: /* not sure if this makes sense? */
-                loss = (current->sent - current->received) / current->sent * 100.0;
-                fprintf(stderr, " xmt/rcv/%%loss = %u/%u/%.0f%%",
-                    current->sent, current->received, loss);
-                /* only print times if we got any responses */
-                if (current->received) {
-                    fprintf(stderr, ", min/avg/max = %.2f/%.2f/%.2f",
-                        current->min / 1000.0, current->avg / 1000.0, current->max / 1000.0);
+            while (current) {
+                /* whether to display IP address or hostname */
+                if (ip) {
+                    display_name = current->ip_address;
+                } else {
+                    display_name = current->name;
                 }
-                break;
-            case fping:
-                for (i = 0; i < current->sent; i++) {
-                    if (current->results[i]) {
-                        fprintf(stderr, " %.2f", current->results[i] / 1000.0);
-                    } else {
-                        fprintf(stderr, " -");
-                    }
+
+                /* first print the aligned host and path */
+                fprintf(stderr, "%s:%-*s :",
+                    display_name,
+                    width - (int)strlen(display_name),
+                    current->path);
+
+                switch (format) {
+                    case ping:
+                    case unixtime:
+                    case json: /* not sure if this makes sense? */
+                        loss = (current->sent - current->received) / current->sent * 100.0;
+                        fprintf(stderr, " xmt/rcv/%%loss = %u/%u/%.0f%%",
+                            current->sent, current->received, loss);
+                        /* only print times if we got any responses */
+                        if (current->received) {
+                            fprintf(stderr, ", min/avg/max = %.2f/%.2f/%.2f",
+                                current->min / 1000.0, current->avg / 1000.0, current->max / 1000.0);
+                        }
+                        break;
+                    case fping:
+                        for (i = 0; i < current->sent; i++) {
+                            if (current->results[i]) {
+                                fprintf(stderr, " %.2f", current->results[i] / 1000.0);
+                            } else {
+                                fprintf(stderr, " -");
+                            }
+                        }
+                        break;
+                    default:
+                        fatalx(3, "There should be a summary here!");
                 }
-                break;
-            default:
-                fatalx(3, "There should be a summary here!");
-        }
 
-        fprintf(stderr, "\n");
+                fprintf(stderr, "\n");
 
-        current = current->next;
+                current = current->next;
+            } /* while (current) */
+
+            break;
+        /* skip the summary for these formats */
+        case unset: /* this shouldn't happen but keeps compiler quiet */
+        case json:
+        case graphite:
+        case statsd:
+            break;
     }
 }
 
@@ -372,6 +394,7 @@ int main(int argc, char **argv) {
     /* command line options */
     /* default to unset so we can check in getopt */
     enum outputs format = unset;
+    char *prefix        = "nfsmount";
     unsigned long count = 0;
     uint16_t port       = 0; /* 0 = use portmapper */
     int dns             = 0;
@@ -401,7 +424,7 @@ int main(int argc, char **argv) {
     if (argc == 1)
         usage();
 
-    while ((ch = getopt(argc, argv, "Ac:C:DehH:JlmqS:Tv")) != -1) {
+    while ((ch = getopt(argc, argv, "Ac:C:DeGhH:JlmqS:Tv")) != -1) {
         switch(ch) {
             /* show IP addresses instead of hostnames */
             case 'A':
@@ -453,6 +476,15 @@ int main(int argc, char **argv) {
             /* output like showmount -e */
             case 'e':
                 showmount = 1;
+                break;
+            case 'G':
+                if (format == unset || format == ping) {
+                    format = graphite;
+                } else if (format == fping) {
+                    fatal("Can't specify both -C and -G!\n");
+                } else if (format == unixtime) {
+                    fatal("Can't specify both -D and -G!\n");
+                }
                 break;
             /* polling frequency */
             case 'H':
@@ -664,7 +696,7 @@ int main(int argc, char **argv) {
                     }
 
                     if (quiet == 0) {
-                        print_output(format, width, ip, current, mountres->mountres3_u.mountinfo.fhandle, wall_clock, usec);
+                        print_output(format, prefix, width, ip, current, mountres->mountres3_u.mountinfo.fhandle, wall_clock, usec);
                     }
                 }
             }
