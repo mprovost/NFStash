@@ -441,11 +441,24 @@ int main(int argc, char **argv) {
                 if (loop) {
                     fatal("Can't specify both -l and -c!\n");
                 }
-                if (format == unset) {
-                    format = ping;
-                } else if (format == fping) {
-                    fatal("Can't specify both -C and -c!\n");
-                } /* -D and -J are ok */
+
+                /* check for conflicting format options */
+                switch (format) {
+                    case unset:
+                    case ping:
+                        format = ping;
+                        break;
+                    case fping:
+                        fatal("Can't specify both -C and -c!\n");
+                        break;
+                    /* -D/-J/-G/-E are ok */
+                    case unixtime:
+                    case json:
+                    case graphite:
+                    case statsd:
+                        break;
+                }
+
                 count = strtoul(optarg, NULL, 10);
                 if (count == 0 || count == ULONG_MAX) {
                     fatal("Zero count, nothing to do!\n");
@@ -455,16 +468,31 @@ int main(int argc, char **argv) {
                 if (loop) {
                     fatal("Can't specify both -l and -C!\n");
                 }
-                if (format == unset) {
-                    format = fping;
-                } else if (format == unixtime) {
-                    fatal("Can't specify both -D and -C!\n");
-                } else if (format == ping) {
-                    fatal("Can't specify both -c and -C!\n");
-                } else if (format == json) {
-                    /* JSON doesn't have a summary */
-                    fatal("Can't specify both -J and -C, use -c instead!\n");
+
+                /* check for conflicting format options */
+                switch (format) {
+                    case unset:
+                    case fping:
+                        format = fping;
+                        break;
+                    case unixtime:
+                        fatal("Can't specify both -D and -C!\n");
+                        break;
+                    case ping:
+                        fatal("Can't specify both -c and -C!\n");
+                        break;
+                    case json:
+                        /* JSON doesn't have a summary */
+                        fatal("Can't specify both -J and -C, use -c instead!\n");
+                        break;
+                    case graphite:
+                        fatal("Can't specify both -G and -C, use -c instead!\n");
+                        break;
+                    case statsd:
+                        fatal("Can't specify both -E and -C, use -c instead!\n");
+                        break;
                 }
+
                 count = strtoul(optarg, NULL, 10);
                 if (count == 0 || count == ULONG_MAX) {
                     fatal("Zero count, nothing to do!\n");
@@ -472,12 +500,26 @@ int main(int argc, char **argv) {
                 break;
             /* unixtime ping output */
             case 'D':
-                if (format == fping) {
-                    fatal("Can't specify both -C and -D!\n");
-                } else if (format == json) {
-                    fatal("Can't specify both -J and -D!\n");
+                /* check for conflicting format options */
+                switch (format) {
+                    case unset:
+                    case unixtime:
+                    case ping:
+                        format = unixtime;
+                        break;
+                    case fping:
+                        fatal("Can't specify both -C and -D!\n");
+                        break;
+                    case json:
+                        fatal("Can't specify both -J and -D!\n");
+                        break;
+                    case graphite:
+                        fatal("Can't specify both -G and -D!\n");
+                        break;
+                    case statsd:
+                        fatal("Can't specify both -E and -D!\n");
+                        break;
                 }
-                format = unixtime;
                 break;
             /* output like showmount -e */
             case 'e':
@@ -485,6 +527,7 @@ int main(int argc, char **argv) {
                 break;
             /* Etsy's StatsD format */
             case 'E':
+                /* check for conflicting format options */
                 switch (format) {
                     case unset:
                     case statsd:
@@ -507,12 +550,25 @@ int main(int argc, char **argv) {
                 break;
             /* Graphite */
             case 'G':
-                if (format == unset || format == ping) {
-                    format = graphite;
-                } else if (format == fping) {
-                    fatal("Can't specify both -C and -G!\n");
-                } else if (format == unixtime) {
-                    fatal("Can't specify both -D and -G!\n");
+                /* check for conflicting format options */
+                switch (format) {
+                    case unset:
+                    case ping:
+                    case graphite:
+                        format = graphite;
+                        break;
+                    case fping:
+                        fatal("Can't specify both -C and -G!\n");
+                        break;
+                    case unixtime:
+                        fatal("Can't specify both -D and -G!\n");
+                        break;
+                    case json:
+                        fatal("Can't specify both -J and -G!\n");
+                        break;
+                    case statsd:
+                        fatal("Can't specify both -E and -G!\n");
+                        break;
                 }
                 break;
             /* polling frequency */
@@ -521,12 +577,26 @@ int main(int argc, char **argv) {
                 hertz = strtoul(optarg, NULL, 10);
                 break;
             case 'J':
-                if (format == unixtime) {
-                    fatal("Can't specify both -J and -D!\n");
-                } else if (format == fping) {
-                    fatal("Can't specify both -J and -C, use -c instead!\n");
-                } /* -c is ok */
-                format = json;
+                /* check for conflicting format options */
+                switch (format) {
+                    case unset:
+                    case json:
+                    case ping:
+                        format = json;
+                        break;
+                    case fping:
+                        fatal("Can't specify both -J and -C, use -c instead!\n");
+                        break;
+                    case unixtime:
+                        fatal("Can't specify both -D and -J!\n");
+                        break;
+                    case graphite:
+                        fatal("Can't specify both -G and -J!\n");
+                        break;
+                    case statsd:
+                        fatal("Can't specify both -E and -J!\n");
+                        break;
+                }
                 break;
             case 'l':
                 /* Can't count and loop */
