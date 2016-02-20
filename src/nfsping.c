@@ -6,7 +6,7 @@
 static void usage(void);
 static void print_summary(targets_t);
 static void print_fping_summary(targets_t);
-static void print_output(enum outputs, int, char *, targets_t *, unsigned long, u_long, const struct timespec, unsigned long);
+static void print_output(enum outputs, char *, targets_t *, unsigned long, u_long, const struct timespec, unsigned long);
 static void print_lost(enum outputs, char *, targets_t *, unsigned long, u_long, const struct timespec);
 
 
@@ -93,7 +93,6 @@ void usage() {
 }
 
 
-/* TODO ip as parameter */
 void print_summary(targets_t targets) {
     targets_t *target = &targets;
     double loss;
@@ -143,21 +142,10 @@ void print_fping_summary(targets_t targets) {
 
 
 /* print formatted output after each ping */
-void print_output(enum outputs format, int ip, char *prefix, targets_t *target, unsigned long prognum_offset, u_long version, const struct timespec now, unsigned long us) {
+void print_output(enum outputs format, char *prefix, targets_t *target, unsigned long prognum_offset, u_long version, const struct timespec now, unsigned long us) {
     double loss;
     char epoch[TIME_T_MAX_DIGITS]; /* the largest time_t seconds value, plus a terminating NUL */
     struct tm *secs;
-    char *display_name;
-    char *ndqf;
-
-    /* whether to display IP address or hostname */
-    if (ip) {
-        display_name = target->ip_address;
-        ndqf = target->ip_address;
-    } else {
-        display_name = target->name;
-        ndqf = target->ndqf;
-    }
 
     switch (format) {
         case unset:
@@ -175,15 +163,15 @@ void print_output(enum outputs format, int ip, char *prefix, targets_t *target, 
         case ping:
         case fping:
             loss = (target->sent - target->received) / (double)target->sent * 100;
-            printf("%s : [%u], %03.2f ms (%03.2f avg, %.0f%% loss)\n", display_name, target->sent - 1, us / 1000.0, target->avg / 1000.0, loss);
+            printf("%s : [%u], %03.2f ms (%03.2f avg, %.0f%% loss)\n", target->name, target->sent - 1, us / 1000.0, target->avg / 1000.0, loss);
             break;
         case graphite:
             printf("%s.%s.%s.usec %lu %li\n",
-                prefix, ndqf, null_dispatch[prognum_offset][version].protocol, us, now.tv_sec);
+                prefix, target->ndqf, null_dispatch[prognum_offset][version].protocol, us, now.tv_sec);
             break;
         case statsd:
             printf("%s.%s.%s:%03.2f|ms\n",
-                prefix, ndqf, null_dispatch[prognum_offset][version].protocol, us / 1000.0);
+                prefix, target->ndqf, null_dispatch[prognum_offset][version].protocol, us / 1000.0);
             break;
         case json:
             fatal("JSON output not implemented!\n");
@@ -355,6 +343,8 @@ int main(int argc, char **argv) {
                 if (ip) {
                     /* check if inherited DNS lookups from -m */
                     if (multiple) {
+                        /* if they've specified -d, override the implied -A from -m */
+                        ip = 0;
                         dns = 1;
                     } else {
                         fatal("Can't specify both -A and -d!\n");
@@ -640,7 +630,7 @@ int main(int argc, char **argv) {
 
     /* process the targets from the command line */
     for (index = optind; index < argc; index++) {
-        target->next = make_target(argv[index], &hints, port, dns, multiple, count, format);
+        target->next = make_target(argv[index], &hints, port, dns, ip, multiple, count, format);
         target = target->next;
     }
 
@@ -725,7 +715,7 @@ int main(int argc, char **argv) {
                     if (!quiet) {
                         /* use the start time for the call since some calls may not return */
                         /* if there's an error we use print_lost() but stay consistent with timing */
-                        print_output(format, ip, prefix, target, prognum_offset, version, wall_clock, us);
+                        print_output(format, prefix, target, prognum_offset, version, wall_clock, us);
                     }
                 } else {
                     printf("%s is alive\n", target->name);

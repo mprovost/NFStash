@@ -681,7 +681,7 @@ int main(int argc, char **argv) {
         }
 
         /* make possibly multiple new targets */
-        new_targets = make_target(host, &hints, port, dns, multiple, count, format);
+        new_targets = make_target(host, &hints, port, dns, ip, multiple, count, format);
 
         /* go through this argument's list of possibly multiple dns responses/targets */
         current = new_targets;

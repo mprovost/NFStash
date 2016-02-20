@@ -360,11 +360,8 @@ targets_t *init_target(char *target_name, uint16_t port, unsigned long count, en
 /* return the head of the list */
 /*
  Always store the ip address string in target->ip_address.
- Move the "ip" handling logic to the display side of things where it can decide whether to show the original hostname or the IP (in case of -m etc).
- Don't worry about it in this function.
- Always store the original hostname in target->name, maybe with the exception of doing reverse DNS lookups.
  */
-targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t port, int dns, int multiple, unsigned long count, enum outputs format) {
+targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t port, int dns, int ip, int multiple, unsigned long count, enum outputs format) {
     targets_t *target, *first;
     struct addrinfo *addr;
     int getaddr;
@@ -408,18 +405,26 @@ targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t
                 target->ip_address = calloc(1, INET_ADDRSTRLEN);
                 inet_ntop(AF_INET, &((struct sockaddr_in *)addr->ai_addr)->sin_addr, target->ip_address, INET_ADDRSTRLEN);
 
-                /* if we have reverse lookups enabled */
-                if (dns) {
+                /* if using IP addresses */
+                if (ip) {
+                    target->name = target->ip_address;
+                    /* don't reverse IP addresses */
+                    target->ndqf = target->ip_address;
+                /* if reverse lookups enabled */
+                } else if (dns) {
                     target->name = calloc(1, NI_MAXHOST);
-                    /* TODO NI_NAMEREQD flag? Causes problems with loopback */
-                    getaddr = getnameinfo((struct sockaddr *)target->client_sock, sizeof(struct sockaddr_in), target->name, NI_MAXHOST, NULL, 0, 0);
-                    if (getaddr != 0) { /* failure! */
-                        fprintf(stderr, "%s: %s\n", target_name, gai_strerror(getaddr));
-                        exit(2); /* ping and fping return 2 for name resolution failures */
+                    getaddr = getnameinfo((struct sockaddr *)target->client_sock, sizeof(struct sockaddr_in), target->name, NI_MAXHOST, NULL, 0, NI_NAMEREQD);
+                    if (getaddr == 0) {
+                        target->ndqf = reverse_fqdn(target->name);
+                    /* failure! */
+                    } else {
+                        /* just use the IP address */
+                        target->name = target->ip_address;
+                        target->ndqf = target->name;
                     }
+                } else {
+                    target->ndqf = reverse_fqdn(target->name);
                 }
-
-                target->ndqf = reverse_fqdn(target->name);
 
                 /* multiple results */
                 /* with glibc, this can return 127.0.0.1 twice when using "localhost" if there is an IPv6 entry in /etc/hosts
