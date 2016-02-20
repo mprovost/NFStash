@@ -148,13 +148,15 @@ void print_output(enum outputs format, int ip, char *prefix, targets_t *target, 
     char epoch[TIME_T_MAX_DIGITS]; /* the largest time_t seconds value, plus a terminating NUL */
     struct tm *secs;
     char *display_name;
+    char *ndqf;
 
     /* whether to display IP address or hostname */
-    /* TODO reversed names (ndqf) for graphite and statsd with IP addresses */
     if (ip) {
         display_name = target->ip_address;
+        ndqf = target->ip_address;
     } else {
         display_name = target->name;
+        ndqf = target->ndqf;
     }
 
     switch (format) {
@@ -162,14 +164,14 @@ void print_output(enum outputs format, int ip, char *prefix, targets_t *target, 
             fatal("No format!\n");
             break;
         case unixtime:
-        /* get the epoch time in seconds in the local timezone */
-        /* TODO should we be doing everything in UTC? */
-        /* strftime needs a struct tm so use localtime to convert from time_t */
-        secs = localtime(&now.tv_sec);
-        strftime(epoch, sizeof(epoch), "%s", secs);
-        printf("[%s.%06li] ", epoch, now.tv_nsec / 1000);
-        /* fall through to ping output, this just prepends the current time */
-        /*FALLTHROUGH*/
+            /* get the epoch time in seconds in the local timezone */
+            /* TODO should we be doing everything in UTC? */
+            /* strftime needs a struct tm so use localtime to convert from time_t */
+            secs = localtime(&now.tv_sec);
+            strftime(epoch, sizeof(epoch), "%s", secs);
+            printf("[%s.%06li] ", epoch, now.tv_nsec / 1000);
+            /* fall through to ping output, this just prepends the current time */
+            /*FALLTHROUGH*/
         case ping:
         case fping:
             loss = (target->sent - target->received) / (double)target->sent * 100;
@@ -177,11 +179,11 @@ void print_output(enum outputs format, int ip, char *prefix, targets_t *target, 
             break;
         case graphite:
             printf("%s.%s.%s.usec %lu %li\n",
-                prefix, target->ndqf, null_dispatch[prognum_offset][version].protocol, us, now.tv_sec);
+                prefix, ndqf, null_dispatch[prognum_offset][version].protocol, us, now.tv_sec);
             break;
         case statsd:
             printf("%s.%s.%s:%03.2f|ms\n",
-                prefix, target->ndqf, null_dispatch[prognum_offset][version].protocol, us / 1000.0);
+                prefix, ndqf, null_dispatch[prognum_offset][version].protocol, us / 1000.0);
             break;
         case json:
             fatal("JSON output not implemented!\n");
