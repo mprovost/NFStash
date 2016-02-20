@@ -247,7 +247,16 @@ int main(int argc, char **argv) {
                 break;
             /* show IP addresses */
             case 'A':
-                ip = 1;
+                if (dns) {
+                    /* if they've specified -A, override the implied -d from -m */
+                    if (multiple) {
+                        ip = 0;
+                    } else {
+                        fatal("Can't specify both -d and -A!\n");
+                    }
+                } else {
+                    ip = 1;
+                }
                 break;
             /* number of pings per target, parseable summary */
             case 'C':
@@ -296,18 +305,14 @@ int main(int argc, char **argv) {
                         case fping:
                             fatal("Can't specify both -C and -c!\n");
                             break;
-                        case statsd:
-                            fatal("Can't specify both -E and -c!\n");
-                            break;
-                        case graphite:
-                            fatal("Can't specify both -G and -c!\n");
-                            break;
                         case json:
                             /* no -J option in nfsping */
                             fatal("-J not implemented!\n");
                             break;
+                        /* other fornats are ok, don't change format though */
                         case unixtime:
-                            /* unixtime is ok, don't change format though */
+                        case statsd:
+                        case graphite:
                             break;
                     }
                 }
@@ -319,7 +324,16 @@ int main(int argc, char **argv) {
                 break;
             /* do reverse dns lookups for IP addresses */
             case 'd':
-                dns = 1;
+                if (ip) {
+                    /* check if inherited DNS lookups from -m */
+                    if (multiple) {
+                        dns = 1;
+                    } else {
+                        fatal("Can't specify both -A and -d!\n");
+                    }
+                } else {
+                    dns = 1;
+                }
                 break;
             case 'D':
                 switch (format) {
@@ -570,17 +584,6 @@ int main(int argc, char **argv) {
     /* check null_dispatch table for supported versions for all protocols */
     if (null_dispatch[prognum_offset][version].proc == 0) {
         fatal("Illegal version %lu\n", version);
-    }
-
-    /* check for conflicting options on how we should output hostnames */
-    if (ip && dns) {
-        /* if they've specified -A, override the implied -d from -m */
-        if (multiple) {
-            ip = 0;
-        /* otherwise it's an error, you can't have it both ways */
-        } else {
-            fatal("Can't specify both -A and -d!\n");
-        }
     }
 
     /* set the default port */
