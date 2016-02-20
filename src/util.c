@@ -430,7 +430,7 @@ targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t
                         target->next = init_target(target_name, port, count, format);
                         target = target->next;
                     } else {
-                        fprintf(stderr, "Multiple addresses found for %s, using %s\n", target->name, target->ip_address);
+                        fprintf(stderr, "Multiple addresses found for %s, using %s\n", target_name, target->ip_address);
                         break;
                     }
                 }
