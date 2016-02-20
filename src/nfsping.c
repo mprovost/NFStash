@@ -6,7 +6,7 @@
 static void usage(void);
 static void print_summary(targets_t);
 static void print_fping_summary(targets_t);
-static void print_output(enum outputs, char *, targets_t *, unsigned long, u_long, const struct timespec, unsigned long);
+static void print_output(enum outputs, int, char *, targets_t *, unsigned long, u_long, const struct timespec, unsigned long);
 static void print_lost(enum outputs, char *, targets_t *, unsigned long, u_long, const struct timespec);
 
 
@@ -93,6 +93,7 @@ void usage() {
 }
 
 
+/* TODO ip as parameter */
 void print_summary(targets_t targets) {
     targets_t *target = &targets;
     double loss;
@@ -120,6 +121,7 @@ void print_summary(targets_t targets) {
 }
 
 
+/* TODO ip as parameter */
 /* TODO target output spacing */
 /* print a parseable summary string when finished in fping-compatible format */
 void print_fping_summary(targets_t targets) {
@@ -141,27 +143,51 @@ void print_fping_summary(targets_t targets) {
 
 
 /* print formatted output after each ping */
-void print_output(enum outputs format, char *prefix, targets_t *target, unsigned long prognum_offset, u_long version, const struct timespec now, unsigned long us) {
+void print_output(enum outputs format, int ip, char *prefix, targets_t *target, unsigned long prognum_offset, u_long version, const struct timespec now, unsigned long us) {
     double loss;
+    char epoch[TIME_T_MAX_DIGITS]; /* the largest time_t seconds value, plus a terminating NUL */
+    struct tm *secs;
+    char *display_name;
 
-    if (format == unixtime) {
-        /* FIXME these casts to long aren't great */
-        printf("[%ld.%06ld] ", (long)now.tv_sec, (long)now.tv_nsec / 1000);
+    /* whether to display IP address or hostname */
+    /* TODO reversed names (ndqf) for graphite and statsd with IP addresses */
+    if (ip) {
+        display_name = target->ip_address;
+    } else {
+        display_name = target->name;
     }
 
-    if (format == ping || format == fping || format == unixtime) {
-        loss = (target->sent - target->received) / (double)target->sent * 100;
-        printf("%s : [%u], %03.2f ms (%03.2f avg, %.0f%% loss)\n", target->name, target->sent - 1, us / 1000.0, target->avg / 1000.0, loss);
-    } else if (format == graphite || format == statsd) {
-        printf("%s.%s.", prefix, target->ndqf);
-        printf("%s", null_dispatch[prognum_offset][version].protocol);
-        if (format == graphite) {
-            printf(".usec %lu %li\n", us, now.tv_sec);
-        } else if (format == statsd) {
-        /* statsd only takes milliseconds */
-            printf(":%03.2f|ms\n", us / 1000.0 );
-        }
+    switch (format) {
+        case unset:
+            fatal("No format!\n");
+            break;
+        case unixtime:
+        /* get the epoch time in seconds in the local timezone */
+        /* TODO should we be doing everything in UTC? */
+        /* strftime needs a struct tm so use localtime to convert from time_t */
+        secs = localtime(&now.tv_sec);
+        strftime(epoch, sizeof(epoch), "%s", secs);
+        printf("[%s.%06li] ", epoch, now.tv_nsec / 1000);
+        /* fall through to ping output, this just prepends the current time */
+        /*FALLTHROUGH*/
+        case ping:
+        case fping:
+            loss = (target->sent - target->received) / (double)target->sent * 100;
+            printf("%s : [%u], %03.2f ms (%03.2f avg, %.0f%% loss)\n", display_name, target->sent - 1, us / 1000.0, target->avg / 1000.0, loss);
+            break;
+        case graphite:
+            printf("%s.%s.%s.usec %lu %li\n",
+                prefix, target->ndqf, null_dispatch[prognum_offset][version].protocol, us, now.tv_sec);
+            break;
+        case statsd:
+            printf("%s.%s.%s:%03.2f|ms\n",
+                prefix, target->ndqf, null_dispatch[prognum_offset][version].protocol, us / 1000.0);
+            break;
+        case json:
+            fatal("JSON output not implemented!\n");
+            break;
     }
+
     fflush(stdout);
 }
 
@@ -697,7 +723,7 @@ int main(int argc, char **argv) {
                     if (!quiet) {
                         /* use the start time for the call since some calls may not return */
                         /* if there's an error we use print_lost() but stay consistent with timing */
-                        print_output(format, prefix, target, prognum_offset, version, wall_clock, us);
+                        print_output(format, ip, prefix, target, prognum_offset, version, wall_clock, us);
                     }
                 } else {
                     printf("%s is alive\n", target->name);
