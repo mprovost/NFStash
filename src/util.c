@@ -411,8 +411,7 @@ targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t
                 /* if we have reverse lookups enabled */
                 if (dns) {
                     target->name = calloc(1, NI_MAXHOST);
-                    /* it's an error if we've asked to do reverse DNS lookups and it can't find one */
-                    getaddr = getnameinfo((struct sockaddr *)target->client_sock, sizeof(struct sockaddr_in), target->name, NI_MAXHOST, NULL, 0, NI_NAMEREQD);
+                    getaddr = getnameinfo((struct sockaddr *)target->client_sock, sizeof(struct sockaddr_in), target->name, NI_MAXHOST, NULL, 0, 0);
                     if (getaddr != 0) { /* failure! */
                         fprintf(stderr, "%s: %s\n", target_name, gai_strerror(getaddr));
                         exit(2); /* ping and fping return 2 for name resolution failures */
