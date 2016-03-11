@@ -416,16 +416,17 @@ int main(int argc, char **argv) {
     int quiet           = 0;
     u_long version      = 3;
     struct timeval timeout = NFS_TIMEOUT;
-    struct timespec sleep_time;
     unsigned long hertz = NFS_HERTZ;
+    struct timespec sleep_time;
+    struct timespec wall_clock;
+    struct timespec loop_start, loop_end, loop_elapsed, sleepy;
+    /* response time in microseconds */
+    unsigned long usec;
     /* source ip address for packets */
     struct sockaddr_in src_ip = {
         .sin_family = AF_INET,
         .sin_addr = 0
     };
-    /* response time in microseconds */
-    unsigned long usec;
-    struct timespec wall_clock;
     /* for output alignment */
     /* printf requires an int for %*s formats */
     int width    = 0;
@@ -809,10 +810,16 @@ int main(int argc, char **argv) {
         /* reset to head of list */
         current = targets;
 
+        /* grab the starting time of each loop */
+#ifdef CLOCK_MONOTONIC_RAW
+        clock_gettime(CLOCK_MONOTONIC_RAW, &loop_start);
+#else
+        clock_gettime(CLOCK_MONOTONIC, &loop_start);
+#endif
+
         while(current) {
 
             if (current->client == NULL) {
-                /* TODO see if we can reuse the previous target's connection */
                 /* create an rpc connection */
                 current->client = create_rpc_client(current->client_sock, &hints, MOUNTPROG, version, timeout, src_ip);
                 /* mounts don't need authentication because they return a list of authentication flavours supported so leave it as default (AUTH_NONE) */
@@ -860,9 +867,28 @@ int main(int argc, char **argv) {
             break;
         }
 
-        if ((count && targets->sent < count) || loop) {
+        /* at the end of the targets list, see if we need to loop */
+        /* check the first target */
+        /* TODO do we even need to store the sent number for each target or just once globally? */
+        if (loop || (count && targets->sent < count)) {
             /* sleep between rounds */
-            nanosleep(&sleep_time, NULL);
+            /* measure how long the current round took, and subtract that from the sleep time */
+            /* this keeps us on the polling frequency */
+#ifdef CLOCK_MONOTONIC_RAW
+            clock_gettime(CLOCK_MONOTONIC_RAW, &loop_end);
+#else
+            clock_gettime(CLOCK_MONOTONIC, &loop_end);
+#endif
+            timespecsub(&loop_end, &loop_start, &loop_elapsed);
+            debug("Polling took %lld.%.9lds\n", (long long)loop_elapsed.tv_sec, loop_elapsed.tv_nsec);
+            /* don't sleep if we went over the sleep_time */
+            if (timespeccmp(&loop_elapsed, &sleep_time, >)) {
+                debug("Slow poll, not sleeping\n");
+            } else {
+                timespecsub(&sleep_time, &loop_elapsed, &sleepy);
+                debug("Sleeping for %lld.%.9lds\n", (long long)sleepy.tv_sec, sleepy.tv_nsec);
+                nanosleep(&sleepy, NULL);
+            }
         } else {
             break;
         }
