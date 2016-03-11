@@ -176,6 +176,9 @@ void print_output(enum outputs format, char *prefix, targets_t *target, unsigned
         case json:
             fatal("JSON output not implemented!\n");
             break;
+        case showmount:
+            fatal("showmount output not implemented!\n");
+            break;
     }
 
     fflush(stdout);
@@ -186,6 +189,7 @@ void print_output(enum outputs format, char *prefix, targets_t *target, unsigned
 void print_lost(enum outputs format, char *prefix, targets_t *target, unsigned long prognum_offset, u_long version, const struct timespec now) {
     /* send to stdout even though it could be considered an error, presumably these are being piped somewhere */
     /* stderr prints the errors themselves which can be discarded */
+    /* todo switch (format) */
     if (format == graphite || format == statsd) {
         printf("%s.%s.", prefix, target->ndqf);
         printf("%s", null_dispatch[prognum_offset][version].protocol);
@@ -300,6 +304,10 @@ int main(int argc, char **argv) {
                             /* no -J option in nfsping */
                             fatal("-J not implemented!\n");
                             break;
+                        case showmount:
+                            /* no -e option in nfsping */
+                            fatal("-e not implemented!\n");
+                            break;
                     }
                 }
 
@@ -324,6 +332,10 @@ int main(int argc, char **argv) {
                         case json:
                             /* no -J option in nfsping */
                             fatal("-J not implemented!\n");
+                            break;
+                        case showmount:
+                            /* no -e option in nfsping */
+                            fatal("-e not implemented!\n");
                             break;
                         /* other fornats are ok, don't change format though */
                         case unixtime:
@@ -374,6 +386,10 @@ int main(int argc, char **argv) {
                         /* no -J option in nfsping */
                         fatal("-J not implemented!\n");
                         break;
+                    case showmount:
+                        /* no -e option in nfsping */
+                        fatal("-e not implemented!\n");
+                        break;
                 }
                 break;
             /* [E]tsy's StatsD output */
@@ -396,6 +412,10 @@ int main(int argc, char **argv) {
                     case json:
                         /* no -J option in nfsping */
                         fatal("-J not implemented!\n");
+                        break;
+                    case showmount:
+                        /* no -e option in nfsping */
+                        fatal("-e not implemented!\n");
                         break;
                 }
                 break;
@@ -423,6 +443,10 @@ int main(int argc, char **argv) {
                     case json:
                         /* no -J option in nfsping */
                         fatal("-J not implemented!\n");
+                        break;
+                    case showmount:
+                        /* no -e option in nfsping */
+                        fatal("-e not implemented!\n");
                         break;
                 }
                 break;
