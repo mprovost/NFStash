@@ -698,7 +698,11 @@ int main(int argc, char **argv) {
 
                 if (showmount) {
                     ex = get_exports(current);
-                    exports_count = print_exports(host, ex);
+                    if (ip) {
+                        exports_count = print_exports(current->ip_address, ex);
+                    } else {
+                        exports_count = print_exports(current->name, ex);
+                    }
                 } else {
                     /* look up the export list on the server and create a target for each */
                     append_target(&exports_dummy_ptr, make_exports(current));
