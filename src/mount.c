@@ -10,16 +10,37 @@
 /* local prototypes */
 static void usage(void);
 static void mount_perror(mountstat3);
-static exports get_exports(struct targets *);
+static exports get_exports(struct targets *, const u_long);
 static mountres3 *get_root_filehandle(CLIENT *, char *, char *, unsigned long *);
 static int print_exports(char *, struct exportnode *);
-static targets_t *make_exports(targets_t *);
+static targets_t *make_exports(targets_t *, const u_long);
 void print_output(enum outputs, const char *, const int, const int, targets_t *, const fhandle3, const struct timespec, unsigned long);
 void print_summary(targets_t *, enum outputs, const int, const int);
 
 /* globals */
 extern volatile sig_atomic_t quitting;
 int verbose = 0;
+
+/* MOUNT protocol function pointers */
+/* EXPORT procedure */
+typedef exports *(*proc_export_t)(void *, CLIENT *);
+
+struct export_procs {
+    /* function pointer */
+    proc_export_t proc;
+    /* store the name as a string for error messages */
+    char *name;
+    /* protocol name for output functions */
+    char *protocol;
+    /* protocol version */
+    u_long version;
+};
+
+/* array to store pointers to mount procedures for different mount protocol versions */
+static const struct export_procs export_dispatch[4] = {
+    [1] = { .proc = mountproc_export_1, .name = "mountproc_export_1", .protocol = "mountv1", .version = 1 },
+    [3] = { .proc = mountproc_export_3, .name = "mountproc_export_3", .protocol = "mountv3", .version = 3 },
+};
 
 
 void usage() {
@@ -39,7 +60,9 @@ void usage() {
     -q       quiet, only print summary\n\
     -S addr  set source address\n\
     -T       use TCP (default UDP)\n\
-    -v       verbose output\n");
+    -v       verbose output\n\
+    -V n     MOUNT protocol version (1 or 3, default 3)\n"
+    );
 
     exit(3);
 }
@@ -65,7 +88,7 @@ void mount_perror(mountstat3 fhs_status) {
 
 
 /* get the list of exports from a server */
-exports get_exports(struct targets *target) {
+exports get_exports(struct targets *target, const u_long version) {
     struct rpc_err clnt_err;
     exports ex = NULL;
     unsigned long usec;
@@ -80,7 +103,7 @@ exports get_exports(struct targets *target) {
 #endif
 
         /* the actual RPC call */
-        ex = *mountproc_export_3(NULL, target->client);
+        ex = *export_dispatch[version].proc(NULL, target->client);
 
         /* second time marker */
 #ifdef CLOCK_MONOTONIC_RAW
@@ -209,7 +232,7 @@ int print_exports(char *host, struct exportnode *ex) {
 
 
 /* make a target list by querying the server for a list of exports */
-targets_t *make_exports(targets_t *target) {
+targets_t *make_exports(targets_t *target, const u_long version) {
     exports ex;
     targets_t dummy;
     targets_t *current = &dummy;
@@ -218,7 +241,7 @@ targets_t *make_exports(targets_t *target) {
 
     if (target->client) {
         /* get the list of exports from the server */
-        ex = get_exports(target);
+        ex = get_exports(target, version);
 
         while (ex) {
             /* copy the target don't make a new one */
@@ -386,6 +409,7 @@ int main(int argc, char **argv) {
     };
     char *host;
     char *path;
+    /* RPC call results */
     exports ex;
     /* target lists */
     targets_t target_dummy = {0};
@@ -414,6 +438,7 @@ int main(int argc, char **argv) {
     int loop            = 0;
     int multiple        = 0;
     int quiet           = 0;
+    /* default to version 3 for NFSv3 */
     u_long version      = 3;
     struct timeval timeout = NFS_TIMEOUT;
     unsigned long hertz = NFS_HERTZ;
@@ -436,7 +461,7 @@ int main(int argc, char **argv) {
     if (argc == 1)
         usage();
 
-    while ((ch = getopt(argc, argv, "Ac:C:DeEGhH:JlmqS:Tv")) != -1) {
+    while ((ch = getopt(argc, argv, "Ac:C:DeEGhH:JlmqS:TvV:")) != -1) {
         switch(ch) {
             /* show IP addresses instead of hostnames */
             case 'A':
@@ -684,6 +709,12 @@ int main(int argc, char **argv) {
             case 'v':
                 verbose = 1;
                 break;
+            case 'V':
+                version = strtoul(optarg, NULL, 10);
+                if (version == 0 || version == ULONG_MAX || version > 3) {
+                    fatal("Illegal version %lu!\n", version);
+                }
+                break;
             case 'h':
             case '?':
             default:
@@ -745,7 +776,7 @@ int main(int argc, char **argv) {
                 current->client = create_rpc_client(current->client_sock, &hints, MOUNTPROG, version, timeout, src_ip);
 
                 if (format == showmount) {
-                    ex = get_exports(current);
+                    ex = get_exports(current, version);
                     if (ip) {
                         exports_count = print_exports(current->ip_address, ex);
                     } else {
@@ -753,7 +784,7 @@ int main(int argc, char **argv) {
                     }
                 } else {
                     /* look up the export list on the server and create a target for each */
-                    append_target(&exports_dummy_ptr, make_exports(current));
+                    append_target(&exports_dummy_ptr, make_exports(current, version));
                 }
             }
 
