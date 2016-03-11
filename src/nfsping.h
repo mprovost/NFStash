@@ -103,6 +103,7 @@ enum outputs {
     ping, /* classic ping */
     fping,
     unixtime,
+    showmount,
     graphite,
     statsd,
     json

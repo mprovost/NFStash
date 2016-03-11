@@ -293,6 +293,11 @@ void print_output(enum outputs format, const char *prefix, const int width, cons
         case json:
             print_fhandle3(target, file_handle, usec, wall_clock);
             break;
+        /* this is handled in print_exports() */
+        case showmount:
+            /* shouldn't get here */
+            fatal("No showmount support in print_output()!\n");
+            break;
         case unset:
             fatal("Need a format!\n");
             break;
@@ -366,6 +371,7 @@ void print_summary(targets_t *targets, enum outputs format, const int width, con
         case json:
         case graphite:
         case statsd:
+        case showmount:
             break;
     }
 }
@@ -407,7 +413,6 @@ int main(int argc, char **argv) {
     int ip              = 0;
     int loop            = 0;
     int multiple        = 0;
-    int showmount       = 0;
     int quiet           = 0;
     u_long version      = 3;
     struct timeval timeout = NFS_TIMEOUT;
@@ -451,6 +456,9 @@ int main(int argc, char **argv) {
                     case fping:
                         fatal("Can't specify both -C and -c!\n");
                         break;
+                    case showmount:
+                        fatal("Can't specify both -e and -c!\n");
+                        break;
                     /* -D/-J/-G/-E are ok */
                     case unixtime:
                     case json:
@@ -481,6 +489,9 @@ int main(int argc, char **argv) {
                     case ping:
                         fatal("Can't specify both -c and -C!\n");
                         break;
+                    case showmount:
+                        fatal("Can't specify both -e and -C!\n");
+                        break;
                     case json:
                         /* JSON doesn't have a summary */
                         fatal("Can't specify both -J and -C, use -c instead!\n");
@@ -510,6 +521,9 @@ int main(int argc, char **argv) {
                     case fping:
                         fatal("Can't specify both -C and -D!\n");
                         break;
+                    case showmount:
+                        fatal("Can't specify both -e and -D!\n");
+                        break;
                     case json:
                         fatal("Can't specify both -J and -D!\n");
                         break;
@@ -523,7 +537,31 @@ int main(int argc, char **argv) {
                 break;
             /* output like showmount -e */
             case 'e':
-                showmount = 1;
+                /* check for conflicting format options */
+                switch (format) {
+                    case unset:
+                    case showmount:
+                        format = showmount;
+                        break;
+                    case ping:
+                        fatal("Can't specify both -c and -e!\n");
+                        break;
+                    case fping:
+                        fatal("Can't specify both -C and -e!\n");
+                        break;
+                    case unixtime:
+                        fatal("Can't specify both -D and -e!\n");
+                        break;
+                    case graphite:
+                        fatal("Can't specify both -G and -e!\n");
+                        break;
+                    case statsd:
+                        fatal("Can't specify both -E and -e!\n");
+                        break;
+                    case json:
+                        fatal("Can't specify both -J and -e!\n");
+                        break;
+                }
                 break;
             /* Etsy's StatsD format */
             case 'E':
@@ -539,6 +577,9 @@ int main(int argc, char **argv) {
                         break;
                     case unixtime:
                         fatal("Can't specify both -D and -E!\n");
+                        break;
+                    case showmount:
+                        fatal("Can't specify both -e and -E!\n");
                         break;
                     case graphite:
                         fatal("Can't specify both -G and -E!\n");
@@ -562,6 +603,9 @@ int main(int argc, char **argv) {
                         break;
                     case unixtime:
                         fatal("Can't specify both -D and -G!\n");
+                        break;
+                    case showmount:
+                        fatal("Can't specify both -e and -G!\n");
                         break;
                     case json:
                         fatal("Can't specify both -J and -G!\n");
@@ -589,6 +633,9 @@ int main(int argc, char **argv) {
                         break;
                     case unixtime:
                         fatal("Can't specify both -D and -J!\n");
+                        break;
+                    case showmount:
+                        fatal("Can't specify both -e and -J!\n");
                         break;
                     case graphite:
                         fatal("Can't specify both -G and -J!\n");
@@ -643,8 +690,8 @@ int main(int argc, char **argv) {
         }
     }
 
-    /* if not looping, default to JSON output to pipe to other commands */
-    if (count + loop == 0) {
+    /* default to JSON output to pipe to other commands */
+    if (format == unset) {
         format = json;
     }
 
@@ -675,7 +722,7 @@ int main(int argc, char **argv) {
 
             /* TODO check length against MNTPATHLEN */
 
-            if (showmount) {
+            if (format == showmount) {
                 fatalx(3, "Can't specify -e (exports) and a path!\n");
             }
         }
@@ -696,7 +743,7 @@ int main(int argc, char **argv) {
                 /* first create an rpc connection so we can query the server for an exports list */
                 current->client = create_rpc_client(current->client_sock, &hints, MOUNTPROG, version, timeout, src_ip);
 
-                if (showmount) {
+                if (format == showmount) {
                     ex = get_exports(current);
                     if (ip) {
                         exports_count = print_exports(current->ip_address, ex);
@@ -732,7 +779,7 @@ int main(int argc, char **argv) {
     signal(SIGINT, sigint_handler);
 
     /* don't need to do the target loop for showmount */
-    if (showmount) {
+    if (format == showmount) {
         targets = NULL;
     } else {
         /* skip the first dummy entry */
