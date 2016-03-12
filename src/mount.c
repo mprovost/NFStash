@@ -10,16 +10,19 @@
 /* local prototypes */
 static void usage(void);
 static void mount_perror(mountstat3);
-static exports get_exports(struct targets *, const u_long);
+static exports get_exports(struct targets *);
+static mountres3 *fhstatus_to_mountres3(fhstatus *);
 static mountres3 *get_root_filehandle(CLIENT *, char *, char *, unsigned long *);
 static int print_exports(char *, struct exportnode *);
-static targets_t *make_exports(targets_t *, const u_long);
+static targets_t *make_exports(targets_t *);
 void print_output(enum outputs, const char *, const int, const int, targets_t *, const fhandle3, const struct timespec, unsigned long);
 void print_summary(targets_t *, enum outputs, const int, const int);
 
 /* globals */
 extern volatile sig_atomic_t quitting;
 int verbose = 0;
+/* default to version 3 for NFSv3 */
+u_long version = 3;
 
 /* MOUNT protocol function pointers */
 /* EXPORT procedure */
@@ -88,7 +91,7 @@ void mount_perror(mountstat3 fhs_status) {
 
 
 /* get the list of exports from a server */
-exports get_exports(struct targets *target, const u_long version) {
+exports get_exports(struct targets *target) {
     struct rpc_err clnt_err;
     exports ex = NULL;
     unsigned long usec;
@@ -118,7 +121,7 @@ exports get_exports(struct targets *target, const u_long version) {
 
         /* only print timing to stderr if verbose is enabled */
         /* TODO unless we're doing graphite output */
-        debug("%s (%s): mountproc_export_3=%03.2f ms\n", target->name, target->ip_address, usec / 1000.0);
+        debug("%s (%s): %s=%03.2f ms\n", target->name, target->ip_address, export_dispatch[version].name, usec / 1000.0);
     }
 
     /* export call doesn't return errors */
@@ -136,10 +139,42 @@ exports get_exports(struct targets *target, const u_long version) {
 }
 
 
+/* convert a version 1/2 fhstatus result to a version 3 mountres */
+mountres3 *fhstatus_to_mountres3(fhstatus *status) {
+    mountres3 *mountres;
+    int *flavors;
+
+    mountres = calloc(1, sizeof(mountres));
+    /* make a default authentication list */
+    flavors = calloc(1, sizeof(int));
+    flavors[0] = AUTH_SYS;
+
+    if (status) {
+        /* status codes are the same between versions */
+        mountres->fhs_status = status->fhs_status;
+
+        /* copy the filehandle array pointer */
+        /* version 1/2 are fixed length array */
+        mountres->mountres3_u.mountinfo.fhandle.fhandle3_len = FHSIZE;
+        mountres->mountres3_u.mountinfo.fhandle.fhandle3_val = status->fhstatus_u.fhs_fhandle;
+
+        /* set the default AUTH_SYS authentication */
+        mountres->mountres3_u.mountinfo.auth_flavors.auth_flavors_len = 1;
+        mountres->mountres3_u.mountinfo.auth_flavors.auth_flavors_val = flavors;
+    }
+
+    return mountres;
+}
+
+
 /* get the root filehandle from the server */
 /* take a pointer to usec so we can return the elapsed call time */
+/* if protocol versions 1 or 2 are used, create a synthetic v3 result */
 mountres3 *get_root_filehandle(CLIENT *client, char *hostname, char *path, unsigned long *usec) {
     struct rpc_err clnt_err;
+    /* for versions 1 and 2 */
+    struct fhstatus *status = NULL;
+    /* for version 3 */
     mountres3 *mountres = NULL;
     struct timespec call_start, call_end, call_elapsed;
 
@@ -152,7 +187,21 @@ mountres3 *get_root_filehandle(CLIENT *client, char *hostname, char *path, unsig
 #endif
 
         /* the actual RPC call */
-        mountres = mountproc_mnt_3(&path, client);
+        switch (version) {
+            case 1:
+                status = mountproc_mnt_1(&path, client);
+                /* convert to v3 */
+                mountres = fhstatus_to_mountres3(status);
+                break;
+            case 2:
+                //status = mountproc_mnt_2(&path, client);
+                break;
+            case 3:
+                mountres = mountproc_mnt_3(&path, client);
+                break;
+            default:
+                fatal("Illegal protocol version %lu!\n", version);
+        }
 
         /* second time marker */
 #ifdef CLOCK_MONOTONIC_RAW
@@ -166,6 +215,7 @@ mountres3 *get_root_filehandle(CLIENT *client, char *hostname, char *path, unsig
         *usec = ts2us(call_elapsed);
     }
 
+    /* process the result */
     if (mountres) {
         if (mountres->fhs_status != MNT3_OK) {
             fprintf(stderr, "%s:%s: ", hostname, path);
@@ -182,6 +232,7 @@ mountres3 *get_root_filehandle(CLIENT *client, char *hostname, char *path, unsig
         clnt_geterr(client, &clnt_err);
         if  (clnt_err.re_status) {
             fprintf(stderr, "%s:%s: ", hostname, path);
+            /* TODO mountproc_mnt_1 */
             clnt_perror(client, "mountproc_mnt_3");
         }
     }
@@ -232,7 +283,7 @@ int print_exports(char *host, struct exportnode *ex) {
 
 
 /* make a target list by querying the server for a list of exports */
-targets_t *make_exports(targets_t *target, const u_long version) {
+targets_t *make_exports(targets_t *target) {
     exports ex;
     targets_t dummy;
     targets_t *current = &dummy;
@@ -241,7 +292,7 @@ targets_t *make_exports(targets_t *target, const u_long version) {
 
     if (target->client) {
         /* get the list of exports from the server */
-        ex = get_exports(target, version);
+        ex = get_exports(target);
 
         while (ex) {
             /* copy the target don't make a new one */
@@ -438,8 +489,6 @@ int main(int argc, char **argv) {
     int loop            = 0;
     int multiple        = 0;
     int quiet           = 0;
-    /* default to version 3 for NFSv3 */
-    u_long version      = 3;
     struct timeval timeout = NFS_TIMEOUT;
     unsigned long hertz = NFS_HERTZ;
     struct timespec sleep_time;
@@ -710,6 +759,7 @@ int main(int argc, char **argv) {
                 verbose = 1;
                 break;
             case 'V':
+                /* version is a global */
                 version = strtoul(optarg, NULL, 10);
                 if (version == 0 || version == ULONG_MAX || version > 3) {
                     fatal("Illegal version %lu!\n", version);
@@ -776,7 +826,7 @@ int main(int argc, char **argv) {
                 current->client = create_rpc_client(current->client_sock, &hints, MOUNTPROG, version, timeout, src_ip);
 
                 if (format == showmount) {
-                    ex = get_exports(current, version);
+                    ex = get_exports(current);
                     if (ip) {
                         exports_count = print_exports(current->ip_address, ex);
                     } else {
@@ -784,7 +834,7 @@ int main(int argc, char **argv) {
                     }
                 } else {
                     /* look up the export list on the server and create a target for each */
-                    append_target(&exports_dummy_ptr, make_exports(current, version));
+                    append_target(&exports_dummy_ptr, make_exports(current));
                 }
             }
 
