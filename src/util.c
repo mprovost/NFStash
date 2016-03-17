@@ -317,6 +317,8 @@ char* reverse_fqdn(char *fqdn) {
         }
     }
 
+    free(copy);
+
     return ndqf;
 }
 
