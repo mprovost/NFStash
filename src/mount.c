@@ -937,6 +937,11 @@ int main(int argc, char **argv) {
                         print_output(format, prefix, width, ip, current, mountres->mountres3_u.mountinfo.fhandle, wall_clock, usec);
                     }
                 }
+
+                /* free mountres */
+                if (clnt_freeres(current->client, (xdrproc_t) xdr_mountres3, (caddr_t) &mountres)  == 0) {
+                    fatalx(3, "Couldn't free mountres!\n");
+                }
             }
 
             current = current->next;
