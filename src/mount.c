@@ -13,7 +13,7 @@ static void mount_perror(mountstat3);
 static exports get_exports(struct targets *);
 static mountres3 *fhstatus_to_mountres3(fhstatus *);
 static mountres3 *mountproc_mnt_x(char *, CLIENT *);
-static mountres3 *get_root_filehandle(CLIENT *, char *, char *, unsigned long *);
+static fhandle3 *get_root_filehandle(CLIENT *, char *, char *, fhandle3 *, unsigned long *);
 static int print_exports(char *, struct exportnode *);
 static targets_t *make_exports(targets_t *);
 void print_output(enum outputs, const char *, const int, const int, targets_t *, const fhandle3, const struct timespec, unsigned long);
@@ -200,10 +200,13 @@ mountres3 *mountproc_mnt_x(char *path, CLIENT *client) {
 /* take a pointer to usec so we can return the elapsed call time */
 /* if protocol versions 1 or 2 are used, create a synthetic v3 result */
 /* TODO have this just return the filehandle and not a mountres? */
-mountres3 *get_root_filehandle(CLIENT *client, char *hostname, char *path, unsigned long *usec) {
+fhandle3 *get_root_filehandle(CLIENT *client, char *hostname, char *path, fhandle3 *root, unsigned long *usec) {
     struct rpc_err clnt_err;
     mountres3 *mountres = NULL;
     struct timespec call_start, call_end, call_elapsed;
+
+    /* on error return a blank filehandle */
+    root->fhandle3_len = 0;
 
     if (client) {
         /* first time marker */
@@ -225,31 +228,41 @@ mountres3 *get_root_filehandle(CLIENT *client, char *hostname, char *path, unsig
         /* calculate elapsed microseconds */
         timespecsub(&call_end, &call_start, &call_elapsed);
         *usec = ts2us(call_elapsed);
-    }
 
-    /* process the result */
-    if (mountres) {
-        if (mountres->fhs_status != MNT3_OK) {
-            fprintf(stderr, "%s:%s: ", hostname, path);
-            /* check if we get an access error, this probably means the server wants us to use a reserved port */
-            /* TODO do this check in mount_perror? */
-            if (mountres->fhs_status == MNT3ERR_ACCES && geteuid()) {
-                fprintf(stderr, "Unable to mount filesystem, consider running as root\n");
+        /* process the result */
+        if (mountres) {
+            if (mountres->fhs_status == MNT3_OK) {
+                /* copy the filehandle */
+                root->fhandle3_len = mountres->mountres3_u.mountinfo.fhandle.fhandle3_len;
+                memcpy(root->fhandle3_val, mountres->mountres3_u.mountinfo.fhandle.fhandle3_val, root->fhandle3_len);
             } else {
-                mount_perror(mountres->fhs_status);
+                fprintf(stderr, "%s:%s: ", hostname, path);
+                /* check if we get an access error, this probably means the server wants us to use a reserved port */
+                /* TODO do this check in mount_perror? */
+                if (mountres->fhs_status == MNT3ERR_ACCES && geteuid()) {
+                    fprintf(stderr, "Unable to mount filesystem, consider running as root\n");
+                } else {
+                    mount_perror(mountres->fhs_status);
+                }
+            }
+
+            /* free mountres */
+            if (clnt_freeres(client, (xdrproc_t) xdr_mountres3, (caddr_t) &mountres) == 0) {
+                fatalx(3, "Couldn't free mountres!\n");
+            }
+
+        /* RPC error */
+        } else {
+            clnt_geterr(client, &clnt_err);
+            if  (clnt_err.re_status) {
+                fprintf(stderr, "%s:%s: ", hostname, path);
+                /* TODO specific versions? */
+                clnt_perror(client, "mountproc_mnt_x");
             }
         }
-    /* RPC error */
-    } else {
-        clnt_geterr(client, &clnt_err);
-        if  (clnt_err.re_status) {
-            fprintf(stderr, "%s:%s: ", hostname, path);
-            /* TODO specific versions? */
-            clnt_perror(client, "mountproc_mnt_x");
-        }
-    }
+    } /* if(client) */
 
-    return mountres;
+    return root;
 }
 
 
@@ -464,7 +477,12 @@ void print_summary(targets_t *targets, enum outputs format, const int width, con
 
 
 int main(int argc, char **argv) {
-    mountres3 *mountres;
+    /* allocate space for root filehandle */
+    char fhandle3_val[FHSIZE3];
+    fhandle3 root = {
+        .fhandle3_len = 0,
+        .fhandle3_val = fhandle3_val
+    };
     struct addrinfo hints = {
         .ai_family = AF_INET,
         /* default to UDP */
@@ -507,7 +525,7 @@ int main(int argc, char **argv) {
     struct timespec wall_clock;
     struct timespec loop_start, loop_end, loop_elapsed, sleepy;
     /* response time in microseconds */
-    unsigned long usec;
+    unsigned long usec = 0;
     /* source ip address for packets */
     struct sockaddr_in src_ip = {
         .sin_family = AF_INET,
@@ -925,11 +943,11 @@ int main(int argc, char **argv) {
                 clock_gettime(CLOCK_REALTIME, &wall_clock);
 
                 /* the RPC call */
-                mountres = get_root_filehandle(current->client, current->name, current->path, &usec);
+                get_root_filehandle(current->client, current->name, current->path, &root, &usec);
 
                 current->sent++;
 
-                if (mountres && mountres->fhs_status == MNT3_OK) {
+                if (root.fhandle3_len) {
                     current->received++;
                     exports_ok++;
 
@@ -946,13 +964,8 @@ int main(int argc, char **argv) {
                     }
 
                     if (quiet == 0) {
-                        print_output(format, prefix, width, ip, current, mountres->mountres3_u.mountinfo.fhandle, wall_clock, usec);
+                        print_output(format, prefix, width, ip, current, root, wall_clock, usec);
                     }
-                }
-
-                /* free mountres */
-                if (clnt_freeres(current->client, (xdrproc_t) xdr_mountres3, (caddr_t) &mountres)  == 0) {
-                    fatalx(3, "Couldn't free mountres!\n");
                 }
             }
 
