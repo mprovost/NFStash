@@ -12,6 +12,7 @@ static void usage(void);
 static void mount_perror(mountstat3);
 static exports get_exports(struct targets *);
 static mountres3 *fhstatus_to_mountres3(fhstatus *);
+static mountres3 *mountproc_mnt_x(char *, CLIENT *);
 static mountres3 *get_root_filehandle(CLIENT *, char *, char *, unsigned long *);
 static int print_exports(char *, struct exportnode *);
 static targets_t *make_exports(targets_t *);
@@ -167,15 +168,40 @@ mountres3 *fhstatus_to_mountres3(fhstatus *status) {
 }
 
 
+/* wrapper for mountproc_mnt that handles different protocol versions and always returns a v3 result */
+mountres3 *mountproc_mnt_x(char *path, CLIENT *client) {
+    /* for versions 1 and 2 */
+    fhstatus *status = NULL;
+    /* for version 3 */
+    mountres3 *mountres = NULL;
+
+    /* the actual RPC call */
+    switch (version) {
+        case 1:
+            status = mountproc_mnt_1(&path, client);
+            /* convert to v3 */
+            mountres = fhstatus_to_mountres3(status);
+            break;
+        case 2:
+            //status = mountproc_mnt_2(&path, client);
+            break;
+        case 3:
+            mountres = mountproc_mnt_3(&path, client);
+            break;
+        default:
+            fatal("Illegal protocol version %lu!\n", version);
+    }
+
+    return mountres;
+}
+
+
 /* get the root filehandle from the server */
 /* take a pointer to usec so we can return the elapsed call time */
 /* if protocol versions 1 or 2 are used, create a synthetic v3 result */
 /* TODO have this just return the filehandle and not a mountres? */
 mountres3 *get_root_filehandle(CLIENT *client, char *hostname, char *path, unsigned long *usec) {
     struct rpc_err clnt_err;
-    /* for versions 1 and 2 */
-    struct fhstatus *status = NULL;
-    /* for version 3 */
     mountres3 *mountres = NULL;
     struct timespec call_start, call_end, call_elapsed;
 
@@ -186,23 +212,8 @@ mountres3 *get_root_filehandle(CLIENT *client, char *hostname, char *path, unsig
 #else
         clock_gettime(CLOCK_MONOTONIC, &call_start);
 #endif
-
-        /* the actual RPC call */
-        switch (version) {
-            case 1:
-                status = mountproc_mnt_1(&path, client);
-                /* convert to v3 */
-                mountres = fhstatus_to_mountres3(status);
-                break;
-            case 2:
-                //status = mountproc_mnt_2(&path, client);
-                break;
-            case 3:
-                mountres = mountproc_mnt_3(&path, client);
-                break;
-            default:
-                fatal("Illegal protocol version %lu!\n", version);
-        }
+        /* the RPC call */
+        mountres = mountproc_mnt_x(path, client);
 
         /* second time marker */
 #ifdef CLOCK_MONOTONIC_RAW
@@ -233,8 +244,8 @@ mountres3 *get_root_filehandle(CLIENT *client, char *hostname, char *path, unsig
         clnt_geterr(client, &clnt_err);
         if  (clnt_err.re_status) {
             fprintf(stderr, "%s:%s: ", hostname, path);
-            /* TODO mountproc_mnt_1 */
-            clnt_perror(client, "mountproc_mnt_3");
+            /* TODO specific versions? */
+            clnt_perror(client, "mountproc_mnt_x");
         }
     }
 
