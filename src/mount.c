@@ -247,7 +247,7 @@ fhandle3 *get_root_filehandle(CLIENT *client, char *hostname, char *path, fhandl
             }
 
             /* free mountres */
-            if (clnt_freeres(client, (xdrproc_t) xdr_mountres3, (caddr_t) &mountres) == 0) {
+            if (clnt_freeres(client, (xdrproc_t) xdr_mountres3, (caddr_t) mountres) == 0) {
                 fatalx(3, "Couldn't free mountres!\n");
             }
 
