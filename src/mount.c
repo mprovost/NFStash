@@ -144,7 +144,7 @@ mountres3 *fhstatus_to_mountres3(fhstatus *status) {
     mountres3 *mountres;
     int *flavors;
 
-    mountres = calloc(1, sizeof(mountres));
+    mountres = calloc(1, sizeof(mountres3));
     /* make a default authentication list */
     flavors = calloc(1, sizeof(int));
     flavors[0] = AUTH_SYS;
@@ -170,6 +170,7 @@ mountres3 *fhstatus_to_mountres3(fhstatus *status) {
 /* get the root filehandle from the server */
 /* take a pointer to usec so we can return the elapsed call time */
 /* if protocol versions 1 or 2 are used, create a synthetic v3 result */
+/* TODO have this just return the filehandle and not a mountres? */
 mountres3 *get_root_filehandle(CLIENT *client, char *hostname, char *path, unsigned long *usec) {
     struct rpc_err clnt_err;
     /* for versions 1 and 2 */
