@@ -45,6 +45,7 @@ struct export_procs {
 /* array to store pointers to mount procedures for different mount protocol versions */
 static const struct export_procs export_dispatch[4] = {
     [1] = { .proc = mountproc_export_1, .name = "mountproc_export_1", .protocol = "mountv1", .version = 1 },
+    [2] = { .proc = mountproc_export_2, .name = "mountproc_export_2", .protocol = "mountv2", .version = 2 },
     [3] = { .proc = mountproc_export_3, .name = "mountproc_export_3", .protocol = "mountv3", .version = 3 },
 };
 
@@ -221,7 +222,13 @@ mountres3 *mountproc_mnt_x(char *path, CLIENT *client) {
             }
             break;
         case 2:
-            //status = mountproc_mnt_2(&path, client);
+            status = mountproc_mnt_2(&path, client);
+            /* convert to v3 */
+            mountres = fhstatus_to_mountres3(status);
+            /* free fhstatus */
+            if (clnt_freeres(client, (xdrproc_t) xdr_fhstatus, (caddr_t) status) == 0) {
+                fatalx(3, "Couldn't free fhstatus!\n");
+            }
             break;
         case 3:
             result = mountproc_mnt_3(&path, client);

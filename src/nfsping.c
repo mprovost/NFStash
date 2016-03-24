@@ -25,6 +25,7 @@ int verbose = 0;
 static const struct null_procs null_dispatch[][5] = {
     /* mount version 1 was used with nfs v2 */
     [MOUNTPROG - 100000]      [2] = { .proc = mountproc_null_1, .name = "mountproc_null_1", .protocol = "mountv1", .version = 1 },
+    /* mount version 2 does exist but it's not that common and there's no easy way to specify it */
     [MOUNTPROG - 100000]      [3] = { .proc = mountproc_null_3, .name = "mountproc_null_3", .protocol = "mountv3", .version = 3 },
     /* nfs v4 has mounting built in */
     /* only one version of portmap protocol */
