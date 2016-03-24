@@ -68,7 +68,7 @@ void usage() {
     -S addr  set source address\n\
     -T       use TCP (default UDP)\n\
     -v       verbose output\n\
-    -V n     MOUNT protocol version (1 or 3, default 3)\n"
+    -V n     MOUNT protocol version (1/2/3, default 3)\n"
     );
 
     exit(3);

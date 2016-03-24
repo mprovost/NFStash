@@ -3,7 +3,7 @@ nfsmount(8) -- lookup NFS filesystem root filehandles
 
 ## SYNOPSIS
 
-`nfsmount` [`-ADeEGhJlmqTv`] [`-c` <count>] [`-C` <count>] [`-H` <hertz>] [`-S` <source>] <server[:path]...>
+`nfsmount` [`-ADeEGhJlmqTv`] [`-c` <count>] [`-C` <count>] [`-H` <hertz>] [`-S` <source>] [`-V` <version>] <server[:path]...>
 
 ## DESCRIPTION
 
@@ -58,6 +58,9 @@ nfsmount(8) -- lookup NFS filesystem root filehandles
 
 * `-v`:
   Display debug output on `stderr`.
+
+* `-V` <version>:
+  Use MOUNT protocol `version`. Default = 3, supports versions 1/2/3. MOUNT version 3 is used by NFS version 3, version 1 is used by NFS version 2. Version 2 can also be used with NFS version 2 but this is less common. Versions 1 and 2 will return 32 byte filehandles, version 3 returns variable length filehandles up to 64 bytes.
 
 ## RETURN VALUES
 
