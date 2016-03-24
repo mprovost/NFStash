@@ -12,6 +12,8 @@ static void usage(void);
 static void mount_perror(mountstat3);
 static exports get_exports(struct targets *);
 static mountres3 *fhstatus_to_mountres3(fhstatus *);
+static mountres3 *copy_mountres3(mountres3 *);
+static void free_mountres3(mountres3 *);
 static mountres3 *mountproc_mnt_x(char *, CLIENT *);
 static fhandle3 *get_root_filehandle(CLIENT *, char *, char *, fhandle3 *, unsigned long *);
 static int print_exports(char *, struct exportnode *);
@@ -167,12 +169,45 @@ mountres3 *fhstatus_to_mountres3(fhstatus *status) {
 }
 
 
+/* make a deep copy of a mountres3 struct */
+mountres3 *copy_mountres3(mountres3 *mountres) {
+    mountres3 *new_mountres = calloc(1, sizeof(mountres3));
+
+    /* shallow copy */
+    *new_mountres = *mountres;
+
+    /* copy the filehandle */
+    new_mountres->mountres3_u.mountinfo.fhandle.fhandle3_val = calloc(mountres->mountres3_u.mountinfo.fhandle.fhandle3_len, sizeof(char));
+    memcpy(new_mountres->mountres3_u.mountinfo.fhandle.fhandle3_val, mountres->mountres3_u.mountinfo.fhandle.fhandle3_val, mountres->mountres3_u.mountinfo.fhandle.fhandle3_len);
+
+    /* copy the authentication list */
+    new_mountres->mountres3_u.mountinfo.auth_flavors.auth_flavors_val = calloc(mountres->mountres3_u.mountinfo.auth_flavors.auth_flavors_len, sizeof(int));
+    memcpy(new_mountres->mountres3_u.mountinfo.auth_flavors.auth_flavors_val, mountres->mountres3_u.mountinfo.auth_flavors.auth_flavors_val, mountres->mountres3_u.mountinfo.auth_flavors.auth_flavors_len);
+
+    return new_mountres;
+}
+
+
+/* frees a mountres3 struct */
+void free_mountres3(mountres3 *mountres) {
+    /* free the filehandle */
+    free(mountres->mountres3_u.mountinfo.fhandle.fhandle3_val);
+    /* free the authentication list */
+    free(mountres->mountres3_u.mountinfo.auth_flavors.auth_flavors_val);
+    /* finally free the mountres3 */
+    free(mountres);
+}
+
+
 /* wrapper for mountproc_mnt that handles different protocol versions and always returns a v3 result */
+/* this frees the RPC result in the client and returns a newly allocated mountres which must be freed using free_mountres3() */
 mountres3 *mountproc_mnt_x(char *path, CLIENT *client) {
     /* for versions 1 and 2 */
     fhstatus *status = NULL;
     /* for version 3 */
     mountres3 *mountres = NULL;
+    /* temp result */
+    mountres3 *result;
 
     /* the actual RPC call */
     switch (version) {
@@ -180,13 +215,22 @@ mountres3 *mountproc_mnt_x(char *path, CLIENT *client) {
             status = mountproc_mnt_1(&path, client);
             /* convert to v3 */
             mountres = fhstatus_to_mountres3(status);
-            /* TODO free status? */
+            /* free fhstatus */
+            if (clnt_freeres(client, (xdrproc_t) xdr_fhstatus, (caddr_t) status) == 0) {
+                fatalx(3, "Couldn't free fhstatus!\n");
+            }
             break;
         case 2:
             //status = mountproc_mnt_2(&path, client);
             break;
         case 3:
-            mountres = mountproc_mnt_3(&path, client);
+            result = mountproc_mnt_3(&path, client);
+            /* make a copy so it's out of the RPC client */
+            mountres = copy_mountres3(result);
+            /* now free the result in the client */
+            if (clnt_freeres(client, (xdrproc_t) xdr_mountres3, (caddr_t) result) == 0) {
+                fatalx(3, "Couldn't free mountres3!\n");
+            }
             break;
         default:
             fatal("Illegal protocol version %lu!\n", version);
@@ -245,12 +289,8 @@ fhandle3 *get_root_filehandle(CLIENT *client, char *hostname, char *path, fhandl
                     mount_perror(mountres->fhs_status);
                 }
             }
-
-            /* free mountres */
-            if (clnt_freeres(client, (xdrproc_t) xdr_mountres3, (caddr_t) mountres) == 0) {
-                fatalx(3, "Couldn't free mountres!\n");
-            }
-
+            /* clean up the result */
+            free_mountres3(mountres);
         /* RPC error */
         } else {
             clnt_geterr(client, &clnt_err);
