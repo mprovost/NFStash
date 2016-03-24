@@ -142,26 +142,25 @@ exports get_exports(struct targets *target) {
 
 /* convert a version 1/2 fhstatus result to a version 3 mountres */
 mountres3 *fhstatus_to_mountres3(fhstatus *status) {
-    mountres3 *mountres;
-    int *flavors;
-
-    mountres = calloc(1, sizeof(mountres3));
-    /* make a default authentication list */
-    flavors = calloc(1, sizeof(int));
-    flavors[0] = AUTH_SYS;
+    mountres3 *mountres = NULL;
 
     if (status) {
+        mountres = calloc(1, sizeof(mountres3));
+
         /* status codes are the same between versions */
         mountres->fhs_status = status->fhs_status;
 
         /* copy the filehandle array pointer */
         /* version 1/2 are fixed length array */
         mountres->mountres3_u.mountinfo.fhandle.fhandle3_len = FHSIZE;
-        mountres->mountres3_u.mountinfo.fhandle.fhandle3_val = status->fhstatus_u.fhs_fhandle;
+        mountres->mountres3_u.mountinfo.fhandle.fhandle3_val = calloc(FHSIZE, sizeof(char));
+        memcpy(mountres->mountres3_u.mountinfo.fhandle.fhandle3_val, status->fhstatus_u.fhs_fhandle, FHSIZE);
 
         /* set the default AUTH_SYS authentication */
+        /* make a default authentication list */
         mountres->mountres3_u.mountinfo.auth_flavors.auth_flavors_len = 1;
-        mountres->mountres3_u.mountinfo.auth_flavors.auth_flavors_val = flavors;
+        mountres->mountres3_u.mountinfo.auth_flavors.auth_flavors_val = calloc(1, sizeof(int));
+        mountres->mountres3_u.mountinfo.auth_flavors.auth_flavors_val[0] = AUTH_SYS;
     }
 
     return mountres;
@@ -181,6 +180,7 @@ mountres3 *mountproc_mnt_x(char *path, CLIENT *client) {
             status = mountproc_mnt_1(&path, client);
             /* convert to v3 */
             mountres = fhstatus_to_mountres3(status);
+            /* TODO free status? */
             break;
         case 2:
             //status = mountproc_mnt_2(&path, client);
