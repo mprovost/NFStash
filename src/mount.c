@@ -28,6 +28,8 @@ int verbose = 0;
 /* global config "object" */
 static struct config {
     u_long version;
+    struct timeval timeout;
+    unsigned long hertz;
 } cfg;
 
 /* MOUNT protocol function pointers */
@@ -574,8 +576,6 @@ int main(int argc, char **argv) {
     int loop            = 0;
     int multiple        = 0;
     int quiet           = 0;
-    struct timeval timeout = NFS_TIMEOUT;
-    unsigned long hertz = NFS_HERTZ;
     struct timespec sleep_time;
     struct timespec wall_clock;
     struct timespec loop_start, loop_end, loop_elapsed, sleepy;
@@ -595,6 +595,8 @@ int main(int argc, char **argv) {
     const struct config CONFIG_DEFAULT = {
         /* default to version 3 for NFSv3 */
         .version = 3,
+        .timeout = NFS_TIMEOUT,
+        .hertz   = NFS_HERTZ,
     };
 
     cfg = CONFIG_DEFAULT;
@@ -786,7 +788,7 @@ int main(int argc, char **argv) {
             /* polling frequency */
             case 'H':
                 /* TODO check for reasonable values */
-                hertz = strtoul(optarg, NULL, 10);
+                cfg.hertz = strtoul(optarg, NULL, 10);
                 break;
             case 'J':
                 /* check for conflicting format options */
@@ -872,13 +874,13 @@ int main(int argc, char **argv) {
     /* calculate the sleep_time based on the frequency */
     /* check for a frequency of 1, that's a simple case */
     /* this doesn't support frequencies lower than 1Hz */
-    if (hertz == 1) {
+    if (cfg.hertz == 1) {
         sleep_time.tv_sec = 1;
         sleep_time.tv_nsec = 0;
     } else {
         sleep_time.tv_sec = 0;
         /* nanoseconds */
-        sleep_time.tv_nsec = 1000000000 / hertz;
+        sleep_time.tv_nsec = 1000000000 / cfg.hertz;
     }
 
     /* loop through arguments and create targets */
@@ -915,7 +917,7 @@ int main(int argc, char **argv) {
             /* no path given, look up exports on server */
             } else {
                 /* first create an rpc connection so we can query the server for an exports list */
-                current->client = create_rpc_client(current->client_sock, &hints, MOUNTPROG, cfg.version, timeout, src_ip);
+                current->client = create_rpc_client(current->client_sock, &hints, MOUNTPROG, cfg.version, cfg.timeout, src_ip);
 
                 if (format == showmount) {
                     ex = get_exports(current);
@@ -994,7 +996,7 @@ int main(int argc, char **argv) {
 
             if (current->client == NULL) {
                 /* create an rpc connection */
-                current->client = create_rpc_client(current->client_sock, &hints, MOUNTPROG, cfg.version, timeout, src_ip);
+                current->client = create_rpc_client(current->client_sock, &hints, MOUNTPROG, cfg.version, cfg.timeout, src_ip);
                 /* mounts don't need authentication because they return a list of authentication flavours supported so leave it as default (AUTH_NONE) */
             }
 
