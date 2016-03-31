@@ -213,39 +213,6 @@ nfs_fh_list *parse_fh(char *input) {
 }
 
 
-/* print a MOUNT filehandle as a series of hex bytes wrapped in a JSON object */
-/* this format has to be parsed again so take structs instead of strings to keep random data from being used as inputs */
-/* TODO accept path as struct? */
-/* print the IP address of the host in case there are multiple DNS results for a hostname */
-int print_fhandle3(struct targets *target, const fhandle3 file_handle, const unsigned long usec, const struct timespec wall_clock) {
-    unsigned int i;
-    /* two chars for each byte (FF in hex) plus terminating NULL */
-    char fh_string[NFS3_FHSIZE * 2 + 1];
-    JSON_Object *json_obj;
-    char *my_json_string;
-
-    json_obj = json_value_get_object(target->json_root);
-    json_object_set_string(json_obj, "ip", target->ip_address);
-    /* this escapes / to \/ */
-    json_object_set_string(json_obj, "path", target->path);
-    json_object_set_number(json_obj, "usec", usec);
-    json_object_set_number(json_obj, "timestamp", wall_clock.tv_sec);
-
-    /* walk through the NFS filehandle, print each byte as two hex characters */
-    for (i = 0; i < file_handle.fhandle3_len; i++) {
-        sprintf(&fh_string[i * 2], "%02hhx", file_handle.fhandle3_val[i]);
-    }
-
-    json_object_set_string(json_obj, "filehandle", fh_string);
-
-    my_json_string = json_serialize_to_string(target->json_root);
-    printf("%s\n", my_json_string);
-    json_free_serialized_string(my_json_string);
-
-    return i;
-}
-
-
 /* convert an NFS filehandle to a string */
 int nfs_fh3_to_string(char *str, nfs_fh3 file_handle) {
     unsigned int i;
