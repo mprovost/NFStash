@@ -429,16 +429,19 @@ void print_output(enum outputs format, const char *prefix, const int width, cons
             break;
         /* Graphite output */
         case graphite:
-            /* TODO versions */
             /* TODO use escape_char from df.c to escape paths */
-            printf("%s.%s.%s.mountv3.usec %lu %li\n",
-                //use exports struct to get version string
-                prefix, target->ndqf, target->path, usec, wall_clock.tv_sec);
+            printf("%s.%s.%s.%s.usec %lu %li\n",
+                prefix, target->ndqf, target->path, 
+                /* use exports struct to get version string */
+                export_dispatch[cfg.version].protocol,
+                usec, wall_clock.tv_sec);
             break;
         case statsd:
-            printf("%s.%s.%s.mountv3:%03.2f|ms\n",
-                //use exports struct to get version string
-                prefix, target->ndqf, target->path, usec / 1000.0);
+            printf("%s.%s.%s.%s:%03.2f|ms\n",
+                prefix, target->ndqf, target->path, 
+                /* use exports struct to get version string */
+                export_dispatch[cfg.version].protocol,
+                usec / 1000.0);
             break;
         /* print the filehandle as JSON */
         case json:
