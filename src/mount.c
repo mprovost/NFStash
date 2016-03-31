@@ -27,6 +27,8 @@ int verbose = 0;
 
 /* global config "object" */
 static struct config {
+    enum outputs format;
+    char *prefix;
     u_long version;
     unsigned long count;
     uint16_t port;
@@ -572,10 +574,6 @@ int main(int argc, char **argv) {
     unsigned int exports_ok    = 0;
     /* getopt */
     int ch;
-    /* command line options */
-    /* default to unset so we can check in getopt */
-    enum outputs format = unset;
-    char *prefix        = "nfsmount";
     struct timespec sleep_time;
     struct timespec wall_clock;
     struct timespec loop_start, loop_end, loop_elapsed, sleepy;
@@ -593,6 +591,9 @@ int main(int argc, char **argv) {
 
     /* default config */
     const struct config CONFIG_DEFAULT = {
+        /* default to unset so we can check in getopt */
+        .format    = unset,
+        .prefix    = "nfsmount",
         /* default to version 3 for NFSv3 */
         .version  = 3,
         .timeout  = NFS_TIMEOUT,
@@ -625,10 +626,10 @@ int main(int argc, char **argv) {
                 }
 
                 /* check for conflicting format options */
-                switch (format) {
+                switch (cfg.format) {
                     case unset:
                     case ping:
-                        format = ping;
+                        cfg.format = ping;
                         break;
                     case fping:
                         fatal("Can't specify both -C and -c!\n");
@@ -655,10 +656,10 @@ int main(int argc, char **argv) {
                 }
 
                 /* check for conflicting format options */
-                switch (format) {
+                switch (cfg.format) {
                     case unset:
                     case fping:
-                        format = fping;
+                        cfg.format = fping;
                         break;
                     case unixtime:
                         fatal("Can't specify both -D and -C!\n");
@@ -689,11 +690,11 @@ int main(int argc, char **argv) {
             /* unixtime ping output */
             case 'D':
                 /* check for conflicting format options */
-                switch (format) {
+                switch (cfg.format) {
                     case unset:
                     case unixtime:
                     case ping:
-                        format = unixtime;
+                        cfg.format = unixtime;
                         break;
                     case fping:
                         fatal("Can't specify both -C and -D!\n");
@@ -715,10 +716,10 @@ int main(int argc, char **argv) {
             /* output like showmount -e */
             case 'e':
                 /* check for conflicting format options */
-                switch (format) {
+                switch (cfg.format) {
                     case unset:
                     case showmount:
-                        format = showmount;
+                        cfg.format = showmount;
                         break;
                     case ping:
                         fatal("Can't specify both -c and -e!\n");
@@ -743,11 +744,11 @@ int main(int argc, char **argv) {
             /* Etsy's StatsD format */
             case 'E':
                 /* check for conflicting format options */
-                switch (format) {
+                switch (cfg.format) {
                     case unset:
                     case statsd:
                     case ping:
-                        format = statsd;
+                        cfg.format = statsd;
                         break;
                     case fping:
                         fatal("Can't specify both -C and -E!\n");
@@ -769,11 +770,11 @@ int main(int argc, char **argv) {
             /* Graphite */
             case 'G':
                 /* check for conflicting format options */
-                switch (format) {
+                switch (cfg.format) {
                     case unset:
                     case ping:
                     case graphite:
-                        format = graphite;
+                        cfg.format = graphite;
                         break;
                     case fping:
                         fatal("Can't specify both -C and -G!\n");
@@ -799,11 +800,11 @@ int main(int argc, char **argv) {
                 break;
             case 'J':
                 /* check for conflicting format options */
-                switch (format) {
+                switch (cfg.format) {
                     case unset:
                     case json:
                     case ping:
-                        format = json;
+                        cfg.format = json;
                         break;
                     case fping:
                         fatal("Can't specify both -J and -C, use -c instead!\n");
@@ -825,13 +826,13 @@ int main(int argc, char **argv) {
             case 'l':
                 /* Can't count and loop */
                 if (cfg.count) {
-                    if (format == ping || format == unixtime) {
+                    if (cfg.format == ping || cfg.format == unixtime) {
                         fatal("Can't specify both -c and -l!\n");
-                    } else if (format == fping) {
+                    } else if (cfg.format == fping) {
                         fatal("Can't specify both -C and -l!\n");
                     }
-                } else if (format == unset) {
-                    format = ping;
+                } else if (cfg.format == unset) {
+                    cfg.format = ping;
                 } /* other formats are ok */
 
                 cfg.loop = 1;
@@ -874,8 +875,8 @@ int main(int argc, char **argv) {
     }
 
     /* default to JSON output to pipe to other commands */
-    if (format == unset) {
-        format = json;
+    if (cfg.format == unset) {
+        cfg.format = json;
     }
 
     /* calculate the sleep_time based on the frequency */
@@ -905,13 +906,13 @@ int main(int argc, char **argv) {
 
             /* TODO check length against MNTPATHLEN */
 
-            if (format == showmount) {
+            if (cfg.format == showmount) {
                 fatalx(3, "Can't specify -e (exports) and a path!\n");
             }
         }
 
         /* make possibly multiple new targets */
-        new_targets = make_target(host, &hints, cfg.port, cfg.dns, cfg.ip, cfg.multiple, cfg.count, format);
+        new_targets = make_target(host, &hints, cfg.port, cfg.dns, cfg.ip, cfg.multiple, cfg.count, cfg.format);
 
         /* go through this argument's list of possibly multiple dns responses/targets */
         current = new_targets;
@@ -926,7 +927,7 @@ int main(int argc, char **argv) {
                 /* first create an rpc connection so we can query the server for an exports list */
                 current->client = create_rpc_client(current->client_sock, &hints, MOUNTPROG, cfg.version, cfg.timeout, src_ip);
 
-                if (format == showmount) {
+                if (cfg.format == showmount) {
                     ex = get_exports(current);
                     if (cfg.ip) {
                         exports_count = print_exports(current->ip_address, ex);
@@ -962,7 +963,7 @@ int main(int argc, char **argv) {
     signal(SIGINT, sigint_handler);
 
     /* don't need to do the target loop for showmount */
-    if (format == showmount) {
+    if (cfg.format == showmount) {
         targets = NULL;
     } else {
         /* skip the first dummy entry */
@@ -1029,13 +1030,13 @@ int main(int argc, char **argv) {
                         /* calculate the average time */
                         current->avg = (current->avg * (current->received - 1) + usec) / current->received;
 
-                        if (format == fping) {
+                        if (cfg.format == fping) {
                             current->results[current->sent - 1] = usec;
                         }
                     }
 
                     if (cfg.quiet == 0) {
-                        print_output(format, prefix, width, cfg.ip, current, root, wall_clock, usec);
+                        print_output(cfg.format, cfg.prefix, width, cfg.ip, current, root, wall_clock, usec);
                     }
                 }
             }
@@ -1079,7 +1080,7 @@ int main(int argc, char **argv) {
 
     /* only print summary if looping */
     if (cfg.count || cfg.loop) {
-        print_summary(targets, format, width, cfg.ip);
+        print_summary(targets, cfg.format, width, cfg.ip);
     }
 
     if (exports_count && exports_count == exports_ok) {
