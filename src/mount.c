@@ -592,8 +592,12 @@ int main(int argc, char **argv) {
     int tmpwidth = 0;
 
     /* default config */
-    /* default to version 3 for NFSv3 */
-    cfg.version = 3;
+    const struct config CONFIG_DEFAULT = {
+        /* default to version 3 for NFSv3 */
+        .version = 3,
+    };
+
+    cfg = CONFIG_DEFAULT;
 
     /* no arguments passed */
     if (argc == 1)
