@@ -47,10 +47,10 @@
 
 /* struct timeval */
 /* timeout for RPC requests, keep it the same (or lower) than the sleep time below */
-#define NFS_TIMEOUT { 1, 0 };
+#define NFS_TIMEOUT { 1, 0 }
 /* struct timespec */
 /* time to wait between pings */
-#define NFS_WAIT { 0, 25000000 };
+#define NFS_WAIT { 0, 25000000 }
 /* struct timespec */
 /* polling frequency */
 #define NFS_HERTZ 1
