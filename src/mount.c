@@ -28,6 +28,13 @@ int verbose = 0;
 /* global config "object" */
 static struct config {
     u_long version;
+    unsigned long count;
+    uint16_t port;
+    int dns;
+    int ip;
+    int loop;
+    int multiple;
+    int quiet;
     struct timeval timeout;
     unsigned long hertz;
 } cfg;
@@ -569,13 +576,6 @@ int main(int argc, char **argv) {
     /* default to unset so we can check in getopt */
     enum outputs format = unset;
     char *prefix        = "nfsmount";
-    unsigned long count = 0;
-    uint16_t port       = 0; /* 0 = use portmapper */
-    int dns             = 0;
-    int ip              = 0;
-    int loop            = 0;
-    int multiple        = 0;
-    int quiet           = 0;
     struct timespec sleep_time;
     struct timespec wall_clock;
     struct timespec loop_start, loop_end, loop_elapsed, sleepy;
@@ -594,9 +594,16 @@ int main(int argc, char **argv) {
     /* default config */
     const struct config CONFIG_DEFAULT = {
         /* default to version 3 for NFSv3 */
-        .version = 3,
-        .timeout = NFS_TIMEOUT,
-        .hertz   = NFS_HERTZ,
+        .version  = 3,
+        .timeout  = NFS_TIMEOUT,
+        .hertz    = NFS_HERTZ,
+        .count    = 0,
+        .port     = 0, /* 0 = use portmapper */
+        .dns      = 0,
+        .ip       = 0,
+        .loop     = 0,
+        .multiple = 0,
+        .quiet    = 0,
     };
 
     cfg = CONFIG_DEFAULT;
@@ -609,11 +616,11 @@ int main(int argc, char **argv) {
         switch(ch) {
             /* show IP addresses instead of hostnames */
             case 'A':
-                ip = 1;
+                cfg.ip = 1;
                 break;
             /* ping output with a count */
             case 'c':
-                if (loop) {
+                if (cfg.loop) {
                     fatal("Can't specify both -l and -c!\n");
                 }
 
@@ -637,13 +644,13 @@ int main(int argc, char **argv) {
                         break;
                 }
 
-                count = strtoul(optarg, NULL, 10);
-                if (count == 0 || count == ULONG_MAX) {
+                cfg.count = strtoul(optarg, NULL, 10);
+                if (cfg.count == 0 || cfg.count == ULONG_MAX) {
                     fatal("Zero count, nothing to do!\n");
                 }
                 break;
             case 'C':
-                if (loop) {
+                if (cfg.loop) {
                     fatal("Can't specify both -l and -C!\n");
                 }
 
@@ -674,8 +681,8 @@ int main(int argc, char **argv) {
                         break;
                 }
 
-                count = strtoul(optarg, NULL, 10);
-                if (count == 0 || count == ULONG_MAX) {
+                cfg.count = strtoul(optarg, NULL, 10);
+                if (cfg.count == 0 || cfg.count == ULONG_MAX) {
                     fatal("Zero count, nothing to do!\n");
                 }
                 break;
@@ -817,7 +824,7 @@ int main(int argc, char **argv) {
                 break;
             case 'l':
                 /* Can't count and loop */
-                if (count) {
+                if (cfg.count) {
                     if (format == ping || format == unixtime) {
                         fatal("Can't specify both -c and -l!\n");
                     } else if (format == fping) {
@@ -827,17 +834,17 @@ int main(int argc, char **argv) {
                     format = ping;
                 } /* other formats are ok */
 
-                loop = 1;
+                cfg.loop = 1;
                 break;
             /* use multiple IP addresses if found */
             /* in this case we also want to default to showing IP addresses instead of names */
             case 'm':
-                multiple = 1;
+                cfg.multiple = 1;
                 /* implies -A to use IP addresses so output isn't ambiguous */
-                ip = 1;
+                cfg.ip = 1;
                 break;
             case 'q':
-                quiet = 1;
+                cfg.quiet = 1;
                 break;
             /* specify source address */
             case 'S':
@@ -904,7 +911,7 @@ int main(int argc, char **argv) {
         }
 
         /* make possibly multiple new targets */
-        new_targets = make_target(host, &hints, port, dns, ip, multiple, count, format);
+        new_targets = make_target(host, &hints, cfg.port, cfg.dns, cfg.ip, cfg.multiple, cfg.count, format);
 
         /* go through this argument's list of possibly multiple dns responses/targets */
         current = new_targets;
@@ -921,7 +928,7 @@ int main(int argc, char **argv) {
 
                 if (format == showmount) {
                     ex = get_exports(current);
-                    if (ip) {
+                    if (cfg.ip) {
                         exports_count = print_exports(current->ip_address, ex);
                     } else {
                         exports_count = print_exports(current->name, ex);
@@ -965,7 +972,7 @@ int main(int argc, char **argv) {
         current = targets;
         while (current) {
             /* depends whether we're displaying IP addresses or not */
-            if (ip) {
+            if (cfg.ip) {
                 tmpwidth = strlen(current->ip_address) + strlen(current->path);
             } else {
                 tmpwidth = strlen(current->name) + strlen(current->path);
@@ -1016,7 +1023,7 @@ int main(int argc, char **argv) {
                     exports_ok++;
 
                     /* only calculate these if we're looping */
-                    if (count || loop) {
+                    if (cfg.count || cfg.loop) {
                         if (usec < current->min) current->min = usec;
                         if (usec > current->max) current->max = usec;
                         /* calculate the average time */
@@ -1027,8 +1034,8 @@ int main(int argc, char **argv) {
                         }
                     }
 
-                    if (quiet == 0) {
-                        print_output(format, prefix, width, ip, current, root, wall_clock, usec);
+                    if (cfg.quiet == 0) {
+                        print_output(format, prefix, width, cfg.ip, current, root, wall_clock, usec);
                     }
                 }
             }
@@ -1045,7 +1052,7 @@ int main(int argc, char **argv) {
         /* at the end of the targets list, see if we need to loop */
         /* check the first target */
         /* TODO do we even need to store the sent number for each target or just once globally? */
-        if (loop || (count && targets->sent < count)) {
+        if (cfg.loop || (cfg.count && targets->sent < cfg.count)) {
             /* sleep between rounds */
             /* measure how long the current round took, and subtract that from the sleep time */
             /* this keeps us on the polling frequency */
@@ -1071,8 +1078,8 @@ int main(int argc, char **argv) {
     } /* while(1) */
 
     /* only print summary if looping */
-    if (count || loop) {
-        print_summary(targets, format, width, ip);
+    if (cfg.count || cfg.loop) {
+        print_summary(targets, format, width, cfg.ip);
     }
 
     if (exports_count && exports_count == exports_ok) {
