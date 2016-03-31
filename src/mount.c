@@ -24,8 +24,11 @@ void print_summary(targets_t *, enum outputs, const int, const int);
 /* globals */
 extern volatile sig_atomic_t quitting;
 int verbose = 0;
-/* default to version 3 for NFSv3 */
-u_long version = 3;
+
+/* global config "object" */
+static struct config {
+    u_long version;
+} cfg;
 
 /* MOUNT protocol function pointers */
 /* EXPORT procedure */
@@ -110,7 +113,7 @@ exports get_exports(struct targets *target) {
 #endif
 
         /* the actual RPC call */
-        ex = *export_dispatch[version].proc(NULL, target->client);
+        ex = *export_dispatch[cfg.version].proc(NULL, target->client);
 
         /* second time marker */
 #ifdef CLOCK_MONOTONIC_RAW
@@ -125,7 +128,7 @@ exports get_exports(struct targets *target) {
 
         /* only print timing to stderr if verbose is enabled */
         /* TODO unless we're doing graphite output */
-        debug("%s (%s): %s=%03.2f ms\n", target->name, target->ip_address, export_dispatch[version].name, usec / 1000.0);
+        debug("%s (%s): %s=%03.2f ms\n", target->name, target->ip_address, export_dispatch[cfg.version].name, usec / 1000.0);
     }
 
     /* export call doesn't return errors */
@@ -211,7 +214,7 @@ mountres3 *mountproc_mnt_x(char *path, CLIENT *client) {
     mountres3 *result;
 
     /* the actual RPC call */
-    switch (version) {
+    switch (cfg.version) {
         case 1:
             status = mountproc_mnt_1(&path, client);
             /* convert to v3 */
@@ -240,7 +243,7 @@ mountres3 *mountproc_mnt_x(char *path, CLIENT *client) {
             }
             break;
         default:
-            fatal("Illegal protocol version %lu!\n", version);
+            fatal("Illegal protocol version %lu!\n", cfg.version);
     }
 
     return mountres;
@@ -426,13 +429,15 @@ void print_output(enum outputs format, const char *prefix, const int width, cons
             break;
         /* Graphite output */
         case graphite:
-            /* TODO versions  */
+            /* TODO versions */
             /* TODO use escape_char from df.c to escape paths */
             printf("%s.%s.%s.mountv3.usec %lu %li\n",
+                //use exports struct to get version string
                 prefix, target->ndqf, target->path, usec, wall_clock.tv_sec);
             break;
         case statsd:
             printf("%s.%s.%s.mountv3:%03.2f|ms\n",
+                //use exports struct to get version string
                 prefix, target->ndqf, target->path, usec / 1000.0);
             break;
         /* print the filehandle as JSON */
@@ -582,6 +587,10 @@ int main(int argc, char **argv) {
     /* printf requires an int for %*s formats */
     int width    = 0;
     int tmpwidth = 0;
+
+    /* default config */
+    /* default to version 3 for NFSv3 */
+    cfg.version = 3;
 
     /* no arguments passed */
     if (argc == 1)
@@ -836,10 +845,9 @@ int main(int argc, char **argv) {
                 verbose = 1;
                 break;
             case 'V':
-                /* version is a global */
-                version = strtoul(optarg, NULL, 10);
-                if (version == 0 || version == ULONG_MAX || version > 3) {
-                    fatal("Illegal version %lu!\n", version);
+                cfg.version = strtoul(optarg, NULL, 10);
+                if (cfg.version == 0 || cfg.version == ULONG_MAX || cfg.version > 3) {
+                    fatal("Illegal version %lu!\n", cfg.version);
                 }
                 break;
             case 'h':
@@ -900,7 +908,7 @@ int main(int argc, char **argv) {
             /* no path given, look up exports on server */
             } else {
                 /* first create an rpc connection so we can query the server for an exports list */
-                current->client = create_rpc_client(current->client_sock, &hints, MOUNTPROG, version, timeout, src_ip);
+                current->client = create_rpc_client(current->client_sock, &hints, MOUNTPROG, cfg.version, timeout, src_ip);
 
                 if (format == showmount) {
                     ex = get_exports(current);
@@ -979,7 +987,7 @@ int main(int argc, char **argv) {
 
             if (current->client == NULL) {
                 /* create an rpc connection */
-                current->client = create_rpc_client(current->client_sock, &hints, MOUNTPROG, version, timeout, src_ip);
+                current->client = create_rpc_client(current->client_sock, &hints, MOUNTPROG, cfg.version, timeout, src_ip);
                 /* mounts don't need authentication because they return a list of authentication flavours supported so leave it as default (AUTH_NONE) */
             }
 
