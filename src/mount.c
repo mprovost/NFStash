@@ -53,13 +53,13 @@ struct export_procs {
     char *name;
     /* protocol name for output functions */
     char *protocol;
-    /* protocol version */
+    /* version is the filehandle version, ie NFSv2 or v3 */
     u_long version;
 };
 
 /* array to store pointers to mount procedures for different mount protocol versions */
 static const struct export_procs export_dispatch[4] = {
-    [1] = { .proc = mountproc_export_1, .name = "mountproc_export_1", .protocol = "mountv1", .version = 1 },
+    [1] = { .proc = mountproc_export_1, .name = "mountproc_export_1", .protocol = "mountv1", .version = 2 },
     [2] = { .proc = mountproc_export_2, .name = "mountproc_export_2", .protocol = "mountv2", .version = 2 },
     [3] = { .proc = mountproc_export_3, .name = "mountproc_export_3", .protocol = "mountv3", .version = 3 },
 };
@@ -410,24 +410,30 @@ int print_fhandle3(struct targets *target, const fhandle3 file_handle, const uns
     char fh_string[NFS3_FHSIZE * 2 + 1];
     JSON_Object *json_obj;
     char *my_json_string;
+
     json_obj = json_value_get_object(target->json_root);
     json_object_set_string(json_obj, "ip", target->ip_address);
     /* this escapes / to \/ */
     json_object_set_string(json_obj, "path", target->path);
     json_object_set_number(json_obj, "usec", usec);
     json_object_set_number(json_obj, "timestamp", wall_clock.tv_sec);
+
     /* walk through the NFS filehandle, print each byte as two hex characters */
     for (i = 0; i < file_handle.fhandle3_len; i++) {
         sprintf(&fh_string[i * 2], "%02hhx", file_handle.fhandle3_val[i]);
     
     }
+
     json_object_set_string(json_obj, "filehandle", fh_string);
-    //mount protocol version! or filehandle version? or NFS version?
+
+    /* NFS filehandle version */
+    json_object_set_number(json_obj, "version", export_dispatch[cfg.version].version);
+
     my_json_string = json_serialize_to_string(target->json_root);
     printf("%s\n", my_json_string);
     json_free_serialized_string(my_json_string);
-    return i;
 
+    return i;
 }
 
 
