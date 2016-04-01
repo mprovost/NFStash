@@ -334,6 +334,7 @@ targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t
     targets_t *target, *first;
     struct addrinfo *addr;
     int getaddr;
+    JSON_Object *json_obj;
 
     /* first build a blank target */
     target = init_target(target_name, port, count, format);
@@ -345,6 +346,10 @@ targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t
     if (inet_pton(AF_INET, target->name, &((struct sockaddr_in *)target->client_sock)->sin_addr)) {
         /* the name is already an IP address if inet_pton succeeded */
         target->ip_address = target->name;
+
+        /* copy the IP into the JSON object */
+        json_obj = json_value_get_object(target->json_root);
+        json_object_set_string(json_obj, "ip", target->ip_address);
 
         /* reverse dns */
         if (dns) {
@@ -373,6 +378,10 @@ targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t
                 /* save the IP address as a string */
                 target->ip_address = calloc(1, INET_ADDRSTRLEN);
                 inet_ntop(AF_INET, &((struct sockaddr_in *)addr->ai_addr)->sin_addr, target->ip_address, INET_ADDRSTRLEN);
+
+                /* copy the IP into the JSON object */
+                json_obj = json_value_get_object(target->json_root);
+                json_object_set_string(json_obj, "ip", target->ip_address);
 
                 /* if using IP addresses */
                 if (ip) {
