@@ -899,7 +899,10 @@ int main(int argc, char **argv) {
             case 'm':
                 cfg.multiple = 1;
                 /* implies -A to use IP addresses so output isn't ambiguous */
-                cfg.ip = 1;
+                /* unless -d already set */
+                if (cfg.dns == 0) {
+                    cfg.ip = 1;
+                }
                 break;
             case 'q':
                 cfg.quiet = 1;
