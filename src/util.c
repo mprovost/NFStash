@@ -291,9 +291,9 @@ char* reverse_fqdn(char *fqdn) {
 
 
 /* allocate and initialise a target struct */
+/* TODO should we set the target name here at all or in make_target()? */
 targets_t *init_target(char *target_name, uint16_t port, unsigned long count, enum outputs format) {
     targets_t *target;
-    JSON_Object *json_obj;
     
     target = calloc(1, sizeof(targets_t));
     target->next = NULL;
@@ -314,12 +314,8 @@ targets_t *init_target(char *target_name, uint16_t port, unsigned long count, en
     target->client_sock->sin_family = AF_INET;
     target->client_sock->sin_port = port;
 
-    /* create a JSON value for output */
+    /* create an empty JSON value for output */
     target->json_root = json_value_init_object();
-    /* get a handle to the object */
-    json_obj = json_value_get_object(target->json_root);
-    /* add the hostname */
-    json_object_set_string(json_obj, "host", target_name);
 
     return target;
 }
@@ -340,6 +336,9 @@ targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t
     /* first build a blank target */
     target = init_target(target_name, port, count, format);
 
+    /* get a handle to the JSON object */
+    json_obj = json_value_get_object(target->json_root);
+
     /* save the head of the list in case of multiple DNS responses */
     first = target;
 
@@ -347,10 +346,6 @@ targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t
     if (inet_pton(AF_INET, target->name, &((struct sockaddr_in *)target->client_sock)->sin_addr)) {
         /* the name is already an IP address if inet_pton succeeded */
         target->ip_address = target->name;
-
-        /* copy the IP into the JSON object */
-        json_obj = json_value_get_object(target->json_root);
-        json_object_set_string(json_obj, "ip", target->ip_address);
 
         /* reverse dns */
         if (dns) {
@@ -367,6 +362,11 @@ targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t
             /* don't reverse IP addresses */
             target->ndqf = target->name;
         }
+
+        /* add the hostname to JSON */
+        json_object_set_string(json_obj, "host", target->name);
+        /* copy the IP into the JSON object */
+        json_object_set_string(json_obj, "ip", target->ip_address);
     /* not an IP address, do a DNS lookup */
     } else {
         /* we don't call freeaddrinfo because we keep a pointer to the sin_addr in the target */
@@ -380,10 +380,6 @@ targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t
                 target->ip_address = calloc(1, INET_ADDRSTRLEN);
                 inet_ntop(AF_INET, &((struct sockaddr_in *)addr->ai_addr)->sin_addr, target->ip_address, INET_ADDRSTRLEN);
 
-                /* copy the IP into the JSON object */
-                json_obj = json_value_get_object(target->json_root);
-                json_object_set_string(json_obj, "ip", target->ip_address);
-
                 /* if using IP addresses */
                 if (ip) {
                     target->name = target->ip_address;
@@ -393,17 +389,23 @@ targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t
                 } else if (dns) {
                     target->name = calloc(1, NI_MAXHOST);
                     getaddr = getnameinfo((struct sockaddr *)target->client_sock, sizeof(struct sockaddr_in), target->name, NI_MAXHOST, NULL, 0, NI_NAMEREQD);
+                    /* check for DNS success */
                     if (getaddr == 0) {
                         target->ndqf = reverse_fqdn(target->name);
-                    /* failure! */
+                    /* just use the IP address */
                     } else {
-                        /* just use the IP address */
                         target->name = target->ip_address;
                         target->ndqf = target->name;
                     }
                 } else {
                     target->ndqf = reverse_fqdn(target->name);
                 }
+
+                /* add the hostname to JSON */
+                /* TODO since we have a separate IP address field in JSON, should this always be the hostname? */
+                json_object_set_string(json_obj, "host", target->name);
+                /* copy the IP into the JSON object */
+                json_object_set_string(json_obj, "ip", target->ip_address);
 
                 /* multiple results */
                 /* with glibc, this can return 127.0.0.1 twice when using "localhost" if there is an IPv6 entry in /etc/hosts
@@ -414,6 +416,9 @@ targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t
                         /* make the next target */
                         target->next = init_target(target_name, port, count, format);
                         target = target->next;
+
+                        /* get a handle to the JSON object */
+                        json_obj = json_value_get_object(target->json_root);
                     } else {
                         fprintf(stderr, "Multiple addresses found for %s, using %s\n", target_name, target->ip_address);
                         break;
