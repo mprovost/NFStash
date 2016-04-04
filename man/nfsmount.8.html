@@ -64,6 +64,7 @@
     <a href="#DESCRIPTION">DESCRIPTION</a>
     <a href="#OPTIONS">OPTIONS</a>
     <a href="#RETURN-VALUES">RETURN VALUES</a>
+    <a href="#OUTPUT">OUTPUT</a>
     <a href="#AUTHOR">AUTHOR</a>
     <a href="#COPYRIGHT">COPYRIGHT</a>
   </div>
@@ -85,7 +86,7 @@
 
 <h2 id="DESCRIPTION">DESCRIPTION</h2>
 
-<p><code>nfsmount</code> sends MOUNT protocol version 3 RPC requests to NFS servers to look up exported filesystems and their root filehandles. Specific filesystems can be queried with an argument in the format <code>hostname:path</code>. If the path is absent then a separate EXPORT request is sent to list all available filesystems which will then be looked up individually with MNT RPC requests. The result(s) are returned as a series of JSON objects (one per line) with the keys "host", "ip", "path", "usec", "timestamp" and "filehandle", where the value of the "filehandle" key is the hex representation of the filesystem's root NFS filehandle. If the NFS server requires "secure" ports (&lt;1024), <code>nfsmount</code> must be run as root.</p>
+<p><code>nfsmount</code> sends MOUNT protocol version 3 RPC requests to NFS servers to look up exported filesystems and their root filehandles. Specific filesystems can be queried with an argument in the format <code>hostname:path</code>. If the path is absent then a separate EXPORT request is sent to list all available filesystems which will then be looked up individually with MNT RPC requests. The result(s) are returned as a series of JSON objects (one per line) with the keys "host", "ip", "path", "usec", "timestamp", "filehandle" and "version", where the value of the "filehandle" key is the hex representation of the filesystem's root NFS filehandle. If the NFS server requires "secure" ports (&lt;1024), <code>nfsmount</code> must be run as root.</p>
 
 <h2 id="OPTIONS">OPTIONS</h2>
 
@@ -114,6 +115,22 @@
 <h2 id="RETURN-VALUES">RETURN VALUES</h2>
 
 <p><code>nfsmount</code> will return <code>0</code> if all requests to all targets received successful responses. Nonzero exit codes indicate a failure. <code>1</code> is an RPC error, <code>2</code> is a name resolution failure, <code>3</code> is an initialisation failure (typically bad arguments).</p>
+
+<h2 id="OUTPUT">OUTPUT</h2>
+
+<p>By default, <code>nfsmount</code> outputs a list of NFS root filehandles exported on the target server(s) as JSON objects, one per line:</p>
+
+<p>{"host":"localhost","ip":"127.0.0.1","path":"\/","usec":206,"timestamp":1459804688,"filehandle":"0100010000000000","version":3}</p>
+
+<p>Slashes (<code>/</code>) in the "path" field are automatically escaped. The "version" field represents the version of the MOUNT protocol (specified with the <code>-V</code> option). Version 3 is used with NFS version 3, versions 1 and 2 are used with NFS version 2.</p>
+
+<p>When the <code>-G</code> option is specified, <code>nfsmount</code> will produce Graphite-compatible output:</p>
+
+<p>nfsmount.localhost./.mountv3.usec 256 1459805225</p>
+
+<p>When the <code>-E</code> option is specified, <code>nfsmount</code> will produce StatsD-compatible output:</p>
+
+<p>nfsmount.localhost./.mountv3:0.20|ms</p>
 
 <h2 id="AUTHOR">AUTHOR</h2>
 

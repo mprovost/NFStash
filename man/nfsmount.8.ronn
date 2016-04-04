@@ -7,7 +7,7 @@ nfsmount(8) -- lookup NFS filesystem root filehandles
 
 ## DESCRIPTION
 
-`nfsmount` sends MOUNT protocol version 3 RPC requests to NFS servers to look up exported filesystems and their root filehandles. Specific filesystems can be queried with an argument in the format `hostname:path`. If the path is absent then a separate EXPORT request is sent to list all available filesystems which will then be looked up individually with MNT RPC requests. The result(s) are returned as a series of JSON objects (one per line) with the keys "host", "ip", "path", "usec", "timestamp" and "filehandle", where the value of the "filehandle" key is the hex representation of the filesystem's root NFS filehandle. If the NFS server requires "secure" ports (<1024), `nfsmount` must be run as root.
+`nfsmount` sends MOUNT protocol version 3 RPC requests to NFS servers to look up exported filesystems and their root filehandles. Specific filesystems can be queried with an argument in the format `hostname:path`. If the path is absent then a separate EXPORT request is sent to list all available filesystems which will then be looked up individually with MNT RPC requests. The result(s) are returned as a series of JSON objects (one per line) with the keys "host", "ip", "path", "usec", "timestamp", "filehandle" and "version", where the value of the "filehandle" key is the hex representation of the filesystem's root NFS filehandle. If the NFS server requires "secure" ports (<1024), `nfsmount` must be run as root.
 
 ## OPTIONS
 
@@ -68,6 +68,22 @@ nfsmount(8) -- lookup NFS filesystem root filehandles
 ## RETURN VALUES
 
 `nfsmount` will return `0` if all requests to all targets received successful responses. Nonzero exit codes indicate a failure. `1` is an RPC error, `2` is a name resolution failure, `3` is an initialisation failure (typically bad arguments).
+
+## OUTPUT
+
+By default, `nfsmount` outputs a list of NFS root filehandles exported on the target server(s) as JSON objects, one per line:
+
+{"host":"localhost","ip":"127.0.0.1","path":"\/","usec":206,"timestamp":1459804688,"filehandle":"0100010000000000","version":3}
+
+Slashes (`/`) in the "path" field are automatically escaped. The "version" field represents the version of the MOUNT protocol (specified with the `-V` option). Version 3 is used with NFS version 3, versions 1 and 2 are used with NFS version 2.
+
+When the `-G` option is specified, `nfsmount` will produce Graphite-compatible output:
+
+nfsmount.localhost./.mountv3.usec 256 1459805225
+
+When the `-E` option is specified, `nfsmount` will produce StatsD-compatible output:
+
+nfsmount.localhost./.mountv3:0.20|ms
 
 ## AUTHOR
 
