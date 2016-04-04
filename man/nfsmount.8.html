@@ -81,7 +81,7 @@
 
 <h2 id="SYNOPSIS">SYNOPSIS</h2>
 
-<p><code>nfsmount</code> [<code>-ADeEGhJlmqTv</code>] [<code>-c</code> <var>count</var>] [<code>-C</code> <var>count</var>] [<code>-H</code> <var>hertz</var>] [<code>-S</code> <var>source</var>] [<code>-V</code> <var>version</var>] &lt;server[:path]...></p>
+<p><code>nfsmount</code> [<code>-AdDeEGhJlmqTv</code>] [<code>-c</code> <var>count</var>] [<code>-C</code> <var>count</var>] [<code>-H</code> <var>hertz</var>] [<code>-S</code> <var>source</var>] [<code>-V</code> <var>version</var>] &lt;server[:path]...></p>
 
 <h2 id="DESCRIPTION">DESCRIPTION</h2>
 
@@ -90,9 +90,10 @@
 <h2 id="OPTIONS">OPTIONS</h2>
 
 <dl>
-<dt class="flush"><code>-A</code></dt><dd><p>Display IP addresses instead of hostnames.</p></dd>
+<dt class="flush"><code>-A</code></dt><dd><p>Display IP addresses instead of hostnames. Also implied by <code>-m</code>.</p></dd>
 <dt><code>-c</code> <var>count</var></dt><dd><p>Count of mount (MNT) requests to send to target(s) before exiting. Print a line of output after each response is received. A summary of all responses is printed when the count is reached or the program is interrupted.</p></dd>
 <dt><code>-C</code> <var>count</var></dt><dd><p>Count of mount (MNT) requests to send to target(s), outputs <code>fping(8)</code> compatible parseable summary when the count is reached or the program is interrupted.</p></dd>
+<dt class="flush"><code>-d</code></dt><dd><p>Perform reverse DNS lookups for target(s). This option overrides <code>-A</code> (and the implied <code>-A</code> from the <code>-m</code> option).</p></dd>
 <dt class="flush"><code>-D</code></dt><dd><p>Print timestamp (Unix time) before each line of output when counting or looping.</p></dd>
 <dt class="flush"><code>-e</code></dt><dd><p>Display available filesystems and their export policies in a human readable format, like <code>showmount -e</code>. This sends a single EXPORT RPC per target server and does not look up filehandles.</p></dd>
 <dt class="flush"><code>-E</code></dt><dd><p>Display output in Etsy's StatsD format (nfsmount.$hostname.$path.mountv3:<var>msec</var>|ms).</p></dd>
@@ -101,7 +102,7 @@
 <dt><code>-H</code> <var>hertz</var></dt><dd><p>The polling frequency in Hertz. This is the number of requests sent to each target per second in looping and counting modes. Default = 1.</p></dd>
 <dt class="flush"><code>-J</code></dt><dd><p>Force JSON output, even in counting and looping modes.</p></dd>
 <dt class="flush"><code>-l</code></dt><dd><p>Loop forever sending mount (MNT) requests. Exit loop with Ctrl-c.</p></dd>
-<dt class="flush"><code>-m</code></dt><dd><p>Use multiple target IP addresses if found. This can be useful for clustered file servers. Implies -A (shows IP address instead of hostnames) so output isn't ambiguous.</p></dd>
+<dt class="flush"><code>-m</code></dt><dd><p>Use multiple target IP addresses if found. This can be useful for clustered file servers. Implies <code>-A</code> (shows IP addresses instead of hostnames) so output isn't ambiguous.</p></dd>
 <dt class="flush"><code>-q</code></dt><dd><p>Quiet. Only print a summary.</p></dd>
 <dt><code>-S</code> <var>source</var></dt><dd><p>Use the specified source IP address for request packets.</p></dd>
 <dt class="flush"><code>-T</code></dt><dd><p>Use TCP to connect to server. Default = UDP.</p></dd>

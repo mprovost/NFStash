@@ -330,6 +330,7 @@ targets_t *init_target(char *target_name, uint16_t port, unsigned long count, en
 /*
  Always store the ip address string in target->ip_address.
  */
+//also look at setting hostname in make_target instead of init_target based on dns/ip
 targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t port, int dns, int ip, int multiple, unsigned long count, enum outputs format) {
     targets_t *target, *first;
     struct addrinfo *addr;

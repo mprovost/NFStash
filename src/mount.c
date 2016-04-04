@@ -634,6 +634,7 @@ int main(int argc, char **argv) {
         .hertz    = NFS_HERTZ,
         .count    = 0,
         .port     = 0, /* 0 = use portmapper */
+        /* reverse DNS lookups */
         .dns      = 0,
         .ip       = 0,
         .loop     = 0,
@@ -647,11 +648,16 @@ int main(int argc, char **argv) {
     if (argc == 1)
         usage();
 
-    while ((ch = getopt(argc, argv, "Ac:C:DeEGhH:JlmqS:TvV:")) != -1) {
+    while ((ch = getopt(argc, argv, "Ac:C:dDeEGhH:JlmqS:TvV:")) != -1) {
         switch(ch) {
             /* show IP addresses instead of hostnames */
             case 'A':
-                cfg.ip = 1;
+                /* check for conflicting option to do reverse DNS lookups */
+                if (cfg.dns) {
+                    fatal("Can't specify both -d and -A!\n");
+                } else {
+                    cfg.ip = 1;
+                }
                 break;
             /* ping output with a count */
             case 'c':
@@ -719,6 +725,23 @@ int main(int argc, char **argv) {
                 cfg.count = strtoul(optarg, NULL, 10);
                 if (cfg.count == 0 || cfg.count == ULONG_MAX) {
                     fatal("Zero count, nothing to do!\n");
+                }
+                break;
+            /* reverse DNS lookups */
+            case 'd':
+                /* check if option to use IP addresses was already set */
+                if (cfg.ip) {
+                    /* this could have been set by -m */
+                    if (cfg.multiple) {
+                        /* override with new setting */
+                        cfg.ip = 0;
+                        cfg.dns = 1;
+                    /* set with -A */
+                    } else {
+                        fatal("Can't specify both -A and -d!\n");
+                    }
+                } else {
+                    cfg.dns = 1;
                 }
                 break;
             /* unixtime ping output */

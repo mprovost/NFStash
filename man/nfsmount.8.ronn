@@ -3,7 +3,7 @@ nfsmount(8) -- lookup NFS filesystem root filehandles
 
 ## SYNOPSIS
 
-`nfsmount` [`-ADeEGhJlmqTv`] [`-c` <count>] [`-C` <count>] [`-H` <hertz>] [`-S` <source>] [`-V` <version>] <server[:path]...>
+`nfsmount` [`-AdDeEGhJlmqTv`] [`-c` <count>] [`-C` <count>] [`-H` <hertz>] [`-S` <source>] [`-V` <version>] <server[:path]...>
 
 ## DESCRIPTION
 
@@ -12,13 +12,16 @@ nfsmount(8) -- lookup NFS filesystem root filehandles
 ## OPTIONS
 
 * `-A`:
-  Display IP addresses instead of hostnames.
+  Display IP addresses instead of hostnames. Also implied by `-m`.
 
 * `-c` <count>:
   Count of mount (MNT) requests to send to target(s) before exiting. Print a line of output after each response is received. A summary of all responses is printed when the count is reached or the program is interrupted.
 
 * `-C` <count>:
   Count of mount (MNT) requests to send to target(s), outputs `fping(8)` compatible parseable summary when the count is reached or the program is interrupted.
+
+* `-d`:
+  Perform reverse DNS lookups for target(s). This option overrides `-A` (and the implied `-A` from the `-m` option).
 
 * `-D`:
   Print timestamp (Unix time) before each line of output when counting or looping.
@@ -45,7 +48,7 @@ nfsmount(8) -- lookup NFS filesystem root filehandles
   Loop forever sending mount (MNT) requests. Exit loop with Ctrl-c.
 
 * `-m`:
-  Use multiple target IP addresses if found. This can be useful for clustered file servers. Implies -A (shows IP address instead of hostnames) so output isn't ambiguous.
+  Use multiple target IP addresses if found. This can be useful for clustered file servers. Implies `-A` (shows IP addresses instead of hostnames) so output isn't ambiguous.
 
 * `-q`:
   Quiet. Only print a summary.
