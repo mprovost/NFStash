@@ -500,7 +500,10 @@ int main(int argc, char **argv) {
             case 'm':
                 multiple = 1;
                 /* implies -A to use IP addresses so output isn't ambiguous */
-                ip = 1;
+                /* unless -d already set */
+                if (dns == 0) {
+                    ip = 1;
+                }
                 break;
             /* use the portmapper */
             case 'M':
