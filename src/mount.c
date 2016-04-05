@@ -383,7 +383,7 @@ targets_t *make_exports(targets_t *target) {
 
         while (ex) {
             /* copy the target don't make a new one */
-            current->next = copy_target(target);
+            current->next = copy_target(target, cfg.count, cfg.format);
             current = current->next;
             /* terminate the list */
             current->next = NULL;
@@ -1099,7 +1099,10 @@ int main(int argc, char **argv) {
                         print_output(cfg.format, cfg.prefix, width, cfg.ip, current, root, wall_clock, usec);
                     }
                 }
-            }
+            } /* TODO else if no connection */
+
+            /* disconnect from server */
+            //current->client = destroy_rpc_client(current->client);
 
             current = current->next;
 

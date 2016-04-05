@@ -441,23 +441,24 @@ targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t
 
 /* copy a target struct safely */
 /* TODO const */
-targets_t *copy_target(targets_t *target) {
+targets_t *copy_target(targets_t *target, unsigned long count, enum outputs format) {
     struct targets *new_target = NULL;
 
     new_target = calloc(1, sizeof(struct targets));
     /* copy */
     *new_target = *target;
 
-    /* allocate a blank results array */
-    if (target->results) {
-        new_target->results = calloc(1, sizeof(target->results));
+    /* copy the results array */
+    if (format == fping) {
+        new_target->results = calloc(count, sizeof(unsigned long));
         if (new_target->results == NULL) {
             fatalx(3, "Couldn't allocate memory for results!\n");
         }
+        memcpy(new_target->results, target->results, count);
+    } else if (format == json) {
+        /* copy the JSON object */
+        new_target->json_root = json_value_deep_copy(target->json_root);
     }
-
-    /* copy the JSON object */
-    new_target->json_root = json_value_deep_copy(target->json_root);
 
     return new_target;
 }
