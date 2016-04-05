@@ -73,18 +73,16 @@ enum byte_prefix {
 typedef struct targets {
     char *name;
     char *ndqf; /* reversed name */
-    /* the IP address as a string */
-    char *ip_address;
+    char *ip_address; /* the IP address as a string */
     char *path;
-    struct sockaddr_in *client_sock;
-    CLIENT *client;
+    struct sockaddr_in *client_sock; /* used to store the port number and connect to the RPC client */
+    CLIENT *client; /* RPC client */
     /* for fping output when we need to store the individual results for the summary */
     unsigned long *results;
     unsigned int sent, received;
     unsigned long min, max;
     float avg;
-    /* the JSON object for output */
-    JSON_Value *json_root;
+    JSON_Value *json_root; /* the JSON object for output */
     struct targets *next;
 } targets_t;
 

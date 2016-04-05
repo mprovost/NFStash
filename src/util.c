@@ -442,10 +442,9 @@ targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t
 /* copy a target struct safely */
 /* TODO const */
 targets_t *copy_target(targets_t *target, unsigned long count, enum outputs format) {
-    struct targets *new_target = NULL;
+    struct targets *new_target = calloc(1, sizeof(struct targets));
 
-    new_target = calloc(1, sizeof(struct targets));
-    /* copy */
+    /* shallow copy */
     *new_target = *target;
 
     /* copy the results array */
