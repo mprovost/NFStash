@@ -17,6 +17,7 @@ static void free_mountres3(mountres3 *);
 static mountres3 *mountproc_mnt_x(char *, CLIENT *);
 static fhandle3 *get_root_filehandle(CLIENT *, char *, char *, fhandle3 *, unsigned long *);
 static int print_exports(char *, struct exportnode *);
+static struct mount_exports *init_export(char *);
 static struct mount_exports *make_exports(targets_t *);
 static int print_fhandle3(JSON_Object *, const fhandle3, const unsigned long, const struct timespec);
 void print_output(enum outputs, const char *, const int, const char *, const char *, struct mount_exports *, const fhandle3, const struct timespec, unsigned long);
@@ -265,7 +266,7 @@ mountres3 *mountproc_mnt_x(char *path, CLIENT *client) {
 /* get the root filehandle from the server */
 /* take a pointer to usec so we can return the elapsed call time */
 /* if protocol versions 1 or 2 are used, create a synthetic v3 result */
-/* TODO have this just return the filehandle and not a mountres? */
+/* TODO does this need root as an argument or just return one? */
 fhandle3 *get_root_filehandle(CLIENT *client, char *hostname, char *path, fhandle3 *root, unsigned long *usec) {
     struct rpc_err clnt_err;
     mountres3 *mountres = NULL;
@@ -369,6 +370,31 @@ int print_exports(char *host, struct exportnode *ex) {
 }
 
 
+/* allocate and initialise a new mount_exports struct */
+struct mount_exports *init_export(char *path) {
+    struct mount_exports *export = calloc(1, sizeof(struct mount_exports));
+
+    /* allocate space for printing out a summary of all ping times at the end */
+    if (cfg.format == fping) {
+        export->results = calloc(cfg.count, sizeof(unsigned long));
+        if (export->results == NULL) {
+            fatalx(3, "Couldn't allocate memory for results!\n");
+        }
+    } else if (cfg.format == json) {
+        /* create an empty JSON value for output */
+        export->json_root = json_value_init_object();
+    }
+
+    /* terminate the list */
+    export->next = NULL;
+
+    /* copy the hostname from the mount result into the target */
+    strncpy(export->path, path, MNTPATHLEN);
+
+    return export;
+}
+
+
 /* make an export list by querying the server for a list of exports */
 struct mount_exports *make_exports(targets_t *target) {
     exports ex;
@@ -382,15 +408,8 @@ struct mount_exports *make_exports(targets_t *target) {
         ex = get_exports(target);
 
         while (ex) {
-            /* copy the target don't make a new one */
-            current->next = calloc(1, sizeof(struct mount_exports));
-            /* TODO allocate space for fping results */
+            current->next = init_export(ex->ex_dir);
             current = current->next;
-            /* terminate the list */
-            current->next = NULL;
-
-            /* copy the hostname from the mount result into the target */
-            strncpy(current->path, ex->ex_dir, MNTPATHLEN);
 
             ex = ex->ex_next;
         }
@@ -971,9 +990,8 @@ int main(int argc, char **argv) {
 
         while (current) {
             if (path) {
-                /* copy the path into the new target */
-                current->exports = calloc(1, sizeof(struct mount_exports));
-                strncpy(current->exports->path, path, MNTPATHLEN);
+                /* make a new blank export */
+                current->exports = init_export(path);
             /* no path given, look up exports on server */
             } else {
                 /* first create an rpc connection so we can query the server for an exports list */
@@ -1045,6 +1063,7 @@ int main(int argc, char **argv) {
         clock_gettime(CLOCK_MONOTONIC, &loop_start);
 #endif
 
+        /* go through the list of targets */
         while(current) {
 
             if (current->client == NULL) {
@@ -1056,6 +1075,7 @@ int main(int argc, char **argv) {
             if (current->client) {
                 export = current->exports;
 
+                /* for each target, go through the list of filesystem exports */
                 while (export) {
                     exports_count++;
 
@@ -1079,7 +1099,7 @@ int main(int argc, char **argv) {
                             export->avg = (export->avg * (export->received - 1) + usec) / export->received;
 
                             if (cfg.format == fping) {
-                                current->results[current->sent - 1] = usec;
+                                export->results[export->sent - 1] = usec;
                             }
                         }
 
