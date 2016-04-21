@@ -81,7 +81,6 @@ typedef struct targets {
     unsigned int sent, received;
     unsigned long min, max;
     float avg;
-    JSON_Value *json_root; /* the JSON object for output */
     /* list of filesystem exports */
     struct mount_exports *exports;
 

@@ -308,9 +308,6 @@ targets_t *init_target(char *target_name, uint16_t port, unsigned long count, en
         if (target->results == NULL) {
             fatalx(3, "Couldn't allocate memory for results!\n");
         }
-    } else if (format == json) {
-        /* create an empty JSON value for output */
-        target->json_root = json_value_init_object();
     }
 
     target->client_sock = calloc(1, sizeof(struct sockaddr_in));
@@ -331,7 +328,6 @@ targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t
     targets_t *target, *first;
     struct addrinfo *addr;
     int getaddr;
-    JSON_Object *json_obj;
 
     /* first build a blank target */
     target = init_target(target_name, port, count, format);
@@ -360,14 +356,6 @@ targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t
             target->ndqf = target->name;
         }
 
-        if (format == json) {
-            /* get a handle to the JSON object */
-            json_obj = json_value_get_object(target->json_root);
-            /* add the hostname to JSON */
-            json_object_set_string(json_obj, "host", target->name);
-            /* copy the IP into the JSON object */
-            json_object_set_string(json_obj, "ip", target->ip_address);
-        }
     /* not an IP address, do a DNS lookup */
     } else {
         /* we don't call freeaddrinfo because we keep a pointer to the sin_addr in the target */
@@ -400,15 +388,6 @@ targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t
                     }
                 } else {
                     target->ndqf = reverse_fqdn(target->name);
-                }
-
-                if (format == json) {
-                    /* get a handle to the JSON object */
-                    json_obj = json_value_get_object(target->json_root);
-                    /* add the hostname to JSON */
-                    json_object_set_string(json_obj, "host", target->name);
-                    /* copy the IP into the JSON object */
-                    json_object_set_string(json_obj, "ip", target->ip_address);
                 }
 
                 /* multiple results */
@@ -454,9 +433,6 @@ targets_t *copy_target(targets_t *target, unsigned long count, enum outputs form
             fatalx(3, "Couldn't allocate memory for results!\n");
         }
         memcpy(new_target->results, target->results, count);
-    } else if (format == json) {
-        /* copy the JSON object */
-        new_target->json_root = json_value_deep_copy(target->json_root);
     }
 
     return new_target;

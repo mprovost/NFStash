@@ -17,7 +17,7 @@ static void free_mountres3(mountres3 *);
 static mountres3 *mountproc_mnt_x(char *, CLIENT *);
 static fhandle3 *get_root_filehandle(CLIENT *, char *, char *, fhandle3 *, unsigned long *);
 static int print_exports(char *, struct exportnode *);
-static struct mount_exports *init_export(char *);
+static struct mount_exports *init_export(targets_t *, char *);
 static struct mount_exports *make_exports(targets_t *);
 static int print_fhandle3(JSON_Value *, const fhandle3, const unsigned long, const struct timespec);
 void print_output(enum outputs, const char *, const int, const char *, const char *, struct mount_exports *, const fhandle3, const struct timespec, unsigned long);
@@ -371,8 +371,9 @@ int print_exports(char *host, struct exportnode *ex) {
 
 
 /* allocate and initialise a new mount_exports struct */
-struct mount_exports *init_export(char *path) {
+struct mount_exports *init_export(struct targets *target, char *path) {
     struct mount_exports *export = calloc(1, sizeof(struct mount_exports));
+    JSON_Object *json_obj;
 
     /* allocate space for printing out a summary of all ping times at the end */
     if (cfg.format == fping) {
@@ -383,6 +384,12 @@ struct mount_exports *init_export(char *path) {
     } else if (cfg.format == json) {
         /* create an empty JSON value for output */
         export->json_root = json_value_init_object();
+        /* get a handle to the JSON object */
+        json_obj = json_value_get_object(export->json_root);
+        /* add the hostname to JSON */
+        json_object_set_string(json_obj, "host", target->name);
+        /* copy the IP into the JSON object */
+        json_object_set_string(json_obj, "ip", target->ip_address);
     }
 
     /* terminate the list */
@@ -408,7 +415,7 @@ struct mount_exports *make_exports(targets_t *target) {
         ex = get_exports(target);
 
         while (ex) {
-            current->next = init_export(ex->ex_dir);
+            current->next = init_export(target, ex->ex_dir);
             current = current->next;
 
             ex = ex->ex_next;
@@ -726,6 +733,7 @@ int main(int argc, char **argv) {
                         break;
                     case json:
                         /* JSON doesn't have a summary */
+                        /* TODO in this case should we print a JSON array of all the ping results for each export? */
                         fatal("Can't specify both -J and -C, use -c instead!\n");
                         break;
                     case graphite:
@@ -992,7 +1000,7 @@ int main(int argc, char **argv) {
         while (current) {
             if (path) {
                 /* make a new blank export */
-                current->exports = init_export(path);
+                current->exports = init_export(current, path);
             /* no path given, look up exports on server */
             } else {
                 /* first create an rpc connection so we can query the server for an exports list */
@@ -1029,6 +1037,7 @@ int main(int argc, char **argv) {
         targets = targets->next;
 
         /* calculate the maximum width for aligned printing */
+        /* TODO only for certain formats (not JSON) */
         current = targets;
         while (current) {
             export = current->exports;
