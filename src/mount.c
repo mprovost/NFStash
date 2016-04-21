@@ -19,7 +19,7 @@ static fhandle3 *get_root_filehandle(CLIENT *, char *, char *, fhandle3 *, unsig
 static int print_exports(char *, struct exportnode *);
 static struct mount_exports *init_export(char *);
 static struct mount_exports *make_exports(targets_t *);
-static int print_fhandle3(JSON_Object *, const fhandle3, const unsigned long, const struct timespec);
+static int print_fhandle3(JSON_Value *, const fhandle3, const unsigned long, const struct timespec);
 void print_output(enum outputs, const char *, const int, const char *, const char *, struct mount_exports *, const fhandle3, const struct timespec, unsigned long);
 void print_summary(targets_t *, enum outputs, const int, const int);
 
@@ -421,10 +421,11 @@ struct mount_exports *make_exports(targets_t *target) {
 
 
 /* print a MOUNT filehandle as a series of hex bytes wrapped in a JSON object */
-int print_fhandle3(JSON_Object *json_obj, const fhandle3 file_handle, const unsigned long usec, const struct timespec wall_clock) {
+int print_fhandle3(JSON_Value *json_root, const fhandle3 file_handle, const unsigned long usec, const struct timespec wall_clock) {
     unsigned int i;
     /* two chars for each byte (FF in hex) plus terminating NULL */
     char fh_string[NFS3_FHSIZE * 2 + 1];
+    JSON_Object *json_obj = json_value_get_object(json_root);
     char *my_json_string;
 
     /* this escapes / to \/ */
@@ -443,9 +444,9 @@ int print_fhandle3(JSON_Object *json_obj, const fhandle3 file_handle, const unsi
     /* NFS filehandle version */
     json_object_set_number(json_obj, "version", export_dispatch[cfg.version].version);
 
-    //my_json_string = json_serialize_to_string(json_obj);
-    //printf("%s\n", my_json_string);
-    //json_free_serialized_string(my_json_string);
+    my_json_string = json_serialize_to_string(json_root);
+    printf("%s\n", my_json_string);
+    json_free_serialized_string(my_json_string);
 
     return i;
 }
@@ -499,7 +500,7 @@ void print_output(enum outputs format, const char *prefix, const int width, cons
             break;
         /* print the filehandle as JSON */
         case json:
-            print_fhandle3(json_value_get_object(export->json_root), file_handle, usec, wall_clock);
+            print_fhandle3(export->json_root, file_handle, usec, wall_clock);
             break;
         /* this is handled in print_exports() */
         case showmount:
