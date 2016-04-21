@@ -17,9 +17,9 @@ static void free_mountres3(mountres3 *);
 static mountres3 *mountproc_mnt_x(char *, CLIENT *);
 static fhandle3 *get_root_filehandle(CLIENT *, char *, char *, fhandle3 *, unsigned long *);
 static int print_exports(char *, struct exportnode *);
-static targets_t *make_exports(targets_t *);
-static int print_fhandle3(struct targets *, const fhandle3, const unsigned long, const struct timespec);
-void print_output(enum outputs, const char *, const int, const int, targets_t *, const fhandle3, const struct timespec, unsigned long);
+static struct mount_exports *make_exports(targets_t *);
+static int print_fhandle3(JSON_Object *, const fhandle3, const unsigned long, const struct timespec);
+void print_output(enum outputs, const char *, const int, const char *, const char *, struct mount_exports *, const fhandle3, const struct timespec, unsigned long);
 void print_summary(targets_t *, enum outputs, const int, const int);
 
 /* globals */
@@ -369,11 +369,11 @@ int print_exports(char *host, struct exportnode *ex) {
 }
 
 
-/* make a target list by querying the server for a list of exports */
-targets_t *make_exports(targets_t *target) {
+/* make an export list by querying the server for a list of exports */
+struct mount_exports *make_exports(targets_t *target) {
     exports ex;
-    targets_t dummy;
-    targets_t *current = &dummy;
+    struct mount_exports dummy;
+    struct mount_exports *current = &dummy;
 
     dummy.next = NULL;
 
@@ -383,13 +383,13 @@ targets_t *make_exports(targets_t *target) {
 
         while (ex) {
             /* copy the target don't make a new one */
-            current->next = copy_target(target, cfg.count, cfg.format);
+            current->next = calloc(1, sizeof(struct mount_exports));
+            /* TODO allocate space for fping results */
             current = current->next;
             /* terminate the list */
             current->next = NULL;
 
             /* copy the hostname from the mount result into the target */
-            current->path = calloc(1, MNTPATHLEN);
             strncpy(current->path, ex->ex_dir, MNTPATHLEN);
 
             ex = ex->ex_next;
@@ -402,16 +402,14 @@ targets_t *make_exports(targets_t *target) {
 
 
 /* print a MOUNT filehandle as a series of hex bytes wrapped in a JSON object */
-/* this format has to be parsed again so take structs instead of strings to keep random data from being used as inputs */
-int print_fhandle3(struct targets *target, const fhandle3 file_handle, const unsigned long usec, const struct timespec wall_clock) {
+int print_fhandle3(JSON_Object *json_obj, const fhandle3 file_handle, const unsigned long usec, const struct timespec wall_clock) {
     unsigned int i;
     /* two chars for each byte (FF in hex) plus terminating NULL */
     char fh_string[NFS3_FHSIZE * 2 + 1];
-    JSON_Object *json_obj = json_value_get_object(target->json_root);
     char *my_json_string;
 
     /* this escapes / to \/ */
-    json_object_set_string(json_obj, "path", target->path);
+    //json_object_set_string(json_obj, "path", target->path);
     json_object_set_number(json_obj, "usec", usec);
     json_object_set_number(json_obj, "timestamp", wall_clock.tv_sec);
 
@@ -426,27 +424,19 @@ int print_fhandle3(struct targets *target, const fhandle3 file_handle, const uns
     /* NFS filehandle version */
     json_object_set_number(json_obj, "version", export_dispatch[cfg.version].version);
 
-    my_json_string = json_serialize_to_string(target->json_root);
-    printf("%s\n", my_json_string);
-    json_free_serialized_string(my_json_string);
+    //my_json_string = json_serialize_to_string(json_obj);
+    //printf("%s\n", my_json_string);
+    //json_free_serialized_string(my_json_string);
 
     return i;
 }
 
 
 /* print output to stdout in different formats for each mount result */
-void print_output(enum outputs format, const char *prefix, const int width, const int ip, targets_t *target, const fhandle3 file_handle, const struct timespec wall_clock, unsigned long usec) {
-    double loss = (target->sent - target->received) / target->sent * 100.0;
+void print_output(enum outputs format, const char *prefix, const int width, const char *display_name, const char *ndqf, struct mount_exports *export, const fhandle3 file_handle, const struct timespec wall_clock, unsigned long usec) {
+    double loss = (export->sent - export->received) / export->sent * 100.0;
     char epoch[TIME_T_MAX_DIGITS]; /* the largest time_t seconds value, plus a terminating NUL */
     struct tm *secs;
-    char *display_name;
-
-    /* whether to display IP address or hostname */
-    if (ip) {
-        display_name = target->ip_address;
-    } else {
-        display_name = target->name;
-    }
 
     switch(format) {
         case unixtime:
@@ -466,31 +456,31 @@ void print_output(enum outputs format, const char *prefix, const int width, cons
                 /* have to cast size_t to int for compiler warning */
                 /* printf only accepts ints for field widths with * */
                 width - (int)strlen(display_name),
-                target->path,
-                target->sent - 1,
+                export->path,
+                export->sent - 1,
                 usec / 1000.0,
-                target->avg / 1000.0,
+                export->avg / 1000.0,
                 loss);
             break;
         /* Graphite output */
         case graphite:
             /* TODO use escape_char from df.c to escape paths */
             printf("%s.%s.%s.%s.usec %lu %li\n",
-                prefix, target->ndqf, target->path, 
+                prefix, ndqf, export->path, 
                 /* use exports struct to get version string */
                 export_dispatch[cfg.version].protocol,
                 usec, wall_clock.tv_sec);
             break;
         case statsd:
             printf("%s.%s.%s.%s:%03.2f|ms\n",
-                prefix, target->ndqf, target->path, 
+                prefix, ndqf, export->path, 
                 /* use exports struct to get version string */
                 export_dispatch[cfg.version].protocol,
                 usec / 1000.0);
             break;
         /* print the filehandle as JSON */
         case json:
-            print_fhandle3(target, file_handle, usec, wall_clock);
+            print_fhandle3(json_value_get_object(export->json_root), file_handle, usec, wall_clock);
             break;
         /* this is handled in print_exports() */
         case showmount:
@@ -507,6 +497,7 @@ void print_output(enum outputs format, const char *prefix, const int width, cons
 /* print a summary to stderr */
 void print_summary(targets_t *targets, enum outputs format, const int width, const int ip) {
     targets_t *current = targets;
+    struct mount_exports *export;
     double loss;
     unsigned long i;
     char *display_name;
@@ -520,46 +511,51 @@ void print_summary(targets_t *targets, enum outputs format, const int width, con
             fprintf(stderr, "\n");
 
             while (current) {
-                /* whether to display IP address or hostname */
-                if (ip) {
-                    display_name = current->ip_address;
-                } else {
-                    display_name = current->name;
-                }
+                export = current->exports;
+                while (export) {
+                    /* whether to display IP address or hostname */
+                    if (ip) {
+                        display_name = current->ip_address;
+                    } else {
+                        display_name = current->name;
+                    }
 
-                /* first print the aligned host and path */
-                fprintf(stderr, "%s:%-*s :",
-                    display_name,
-                    width - (int)strlen(display_name),
-                    current->path);
+                    /* first print the aligned host and path */
+                    fprintf(stderr, "%s:%-*s :",
+                        display_name,
+                        width - (int)strlen(display_name),
+                        export->path);
 
-                switch (format) {
-                    case ping:
-                    case unixtime:
-                    case json: /* not sure if this makes sense? */
-                        loss = (current->sent - current->received) / current->sent * 100.0;
-                        fprintf(stderr, " xmt/rcv/%%loss = %u/%u/%.0f%%",
-                            current->sent, current->received, loss);
-                        /* only print times if we got any responses */
-                        if (current->received) {
-                            fprintf(stderr, ", min/avg/max = %.2f/%.2f/%.2f",
-                                current->min / 1000.0, current->avg / 1000.0, current->max / 1000.0);
-                        }
-                        break;
-                    case fping:
-                        for (i = 0; i < current->sent; i++) {
-                            if (current->results[i]) {
-                                fprintf(stderr, " %.2f", current->results[i] / 1000.0);
-                            } else {
-                                fprintf(stderr, " -");
+                    switch (format) {
+                        case ping:
+                        case unixtime:
+                        case json: /* not sure if this makes sense? */
+                            loss = (export->sent - export->received) / export->sent * 100.0;
+                            fprintf(stderr, " xmt/rcv/%%loss = %u/%u/%.0f%%",
+                                export->sent, export->received, loss);
+                            /* only print times if we got any responses */
+                            if (export->received) {
+                                fprintf(stderr, ", min/avg/max = %.2f/%.2f/%.2f",
+                                    export->min / 1000.0, export->avg / 1000.0, export->max / 1000.0);
                             }
-                        }
-                        break;
-                    default:
-                        fatalx(3, "There should be a summary here!");
-                }
+                            break;
+                        case fping:
+                            for (i = 0; i < export->sent; i++) {
+                                if (export->results[i]) {
+                                    fprintf(stderr, " %.2f", export->results[i] / 1000.0);
+                                } else {
+                                    fprintf(stderr, " -");
+                                }
+                            }
+                            break;
+                        default:
+                            fatalx(3, "There should be a summary here!");
+                    }
 
-                fprintf(stderr, "\n");
+                    fprintf(stderr, "\n");
+
+                    export = export->next;
+                }
 
                 current = current->next;
             } /* while (current) */
@@ -590,6 +586,7 @@ int main(int argc, char **argv) {
     };
     char *host;
     char *path;
+    char *display_name; /* for print_output() */
     /* RPC call results */
     exports ex;
     /* target lists */
@@ -598,11 +595,8 @@ int main(int argc, char **argv) {
     targets_t *current = &target_dummy;
     /* global target list */
     targets_t *targets = current;
-    /* temporary target list for building new targets from arguments */
-    targets_t *new_targets;
-    /* temporary target list for looking up exports on server */
-    targets_t exports_dummy = {0};
-    targets_t *exports_dummy_ptr = &exports_dummy;
+    /* current export */
+    struct mount_exports *export = NULL;
     /* counters for results */
     unsigned int exports_count = 0;
     unsigned int exports_ok    = 0;
@@ -972,16 +966,14 @@ int main(int argc, char **argv) {
         }
 
         /* make possibly multiple new targets */
-        new_targets = make_target(host, &hints, cfg.port, cfg.dns, cfg.ip, cfg.multiple, cfg.count, cfg.format);
-
-        /* go through this argument's list of possibly multiple dns responses/targets */
-        current = new_targets;
+        current->next = make_target(host, &hints, cfg.port, cfg.dns, cfg.ip, cfg.multiple, cfg.count, cfg.format);
+        current = current->next;
 
         while (current) {
             if (path) {
                 /* copy the path into the new target */
-                current->path = calloc(1, MNTPATHLEN);
-                strncpy(current->path, path, MNTPATHLEN);
+                current->exports = calloc(1, sizeof(struct mount_exports));
+                strncpy(current->exports->path, path, MNTPATHLEN);
             /* no path given, look up exports on server */
             } else {
                 /* first create an rpc connection so we can query the server for an exports list */
@@ -995,25 +987,13 @@ int main(int argc, char **argv) {
                         exports_count = print_exports(current->name, ex);
                     }
                 } else {
-                    /* look up the export list on the server and create a target for each */
-                    append_target(&exports_dummy_ptr, make_exports(current));
+                    /* look up the export list on the server and create a list of exports */
+                    current->exports = make_exports(current);
                 }
             }
 
             current = current->next;
         }
-
-        /* append to the global target list */
-        if (path) {
-            append_target(&targets, new_targets);
-        } else {
-            /* TODO showmount */
-            /* skip the dummy entry */
-            append_target(&targets, exports_dummy_ptr->next);
-        }
-
-        /* reset the exports list to reuse on the next loop */
-        exports_dummy_ptr->next = NULL;
 
         optind++;
     }
@@ -1032,15 +1012,20 @@ int main(int argc, char **argv) {
         /* calculate the maximum width for aligned printing */
         current = targets;
         while (current) {
-            /* depends whether we're displaying IP addresses or not */
-            if (cfg.ip) {
-                tmpwidth = strlen(current->ip_address) + strlen(current->path);
-            } else {
-                tmpwidth = strlen(current->name) + strlen(current->path);
-            }
+            export = current->exports;
+            while (export) {
+                /* depends whether we're displaying IP addresses or not */
+                if (cfg.ip) {
+                    tmpwidth = strlen(current->ip_address) + strlen(export->path);
+                } else {
+                    tmpwidth = strlen(current->name) + strlen(export->path);
+                }
 
-            if (tmpwidth > width) {
-                width = tmpwidth;
+                if (tmpwidth > width) {
+                    width = tmpwidth;
+                }
+
+                export = export->next;
             }
 
             current = current->next;
@@ -1069,35 +1054,48 @@ int main(int argc, char **argv) {
             }
 
             if (current->client) {
-                exports_count++;
+                export = current->exports;
 
-                /* get the current timestamp */
-                clock_gettime(CLOCK_REALTIME, &wall_clock);
+                while (export) {
+                    exports_count++;
 
-                /* the RPC call */
-                get_root_filehandle(current->client, current->name, current->path, &root, &usec);
+                    /* get the current timestamp */
+                    clock_gettime(CLOCK_REALTIME, &wall_clock);
 
-                current->sent++;
+                    /* the RPC call */
+                    get_root_filehandle(current->client, current->name, export->path, &root, &usec);
 
-                if (root.fhandle3_len) {
-                    current->received++;
-                    exports_ok++;
+                    export->sent++;
 
-                    /* only calculate these if we're looping */
-                    if (cfg.count || cfg.loop) {
-                        if (usec < current->min) current->min = usec;
-                        if (usec > current->max) current->max = usec;
-                        /* calculate the average time */
-                        current->avg = (current->avg * (current->received - 1) + usec) / current->received;
+                    if (root.fhandle3_len) {
+                        export->received++;
+                        exports_ok++;
 
-                        if (cfg.format == fping) {
-                            current->results[current->sent - 1] = usec;
+                        /* only calculate these if we're looping */
+                        if (cfg.count || cfg.loop) {
+                            if (usec < export->min) export->min = usec;
+                            if (usec > export->max) export->max = usec;
+                            /* calculate the average time */
+                            export->avg = (export->avg * (export->received - 1) + usec) / export->received;
+
+                            if (cfg.format == fping) {
+                                current->results[current->sent - 1] = usec;
+                            }
+                        }
+
+                        if (cfg.quiet == 0) {
+                            /* whether to display IP address or hostname */
+                            if (cfg.ip) {
+                                display_name = current->ip_address;
+                            } else {
+                                display_name = current->name;
+                            }
+
+                            print_output(cfg.format, cfg.prefix, width, display_name, current->ndqf, export, root, wall_clock, usec);
                         }
                     }
 
-                    if (cfg.quiet == 0) {
-                        print_output(cfg.format, cfg.prefix, width, cfg.ip, current, root, wall_clock, usec);
-                    }
+                    export = export->next;
                 }
             } /* TODO else if no connection */
 
@@ -1114,9 +1112,9 @@ int main(int argc, char **argv) {
         }
 
         /* at the end of the targets list, see if we need to loop */
-        /* check the first target */
+        /* check the first export of the first target */
         /* TODO do we even need to store the sent number for each target or just once globally? */
-        if (cfg.loop || (cfg.count && targets->sent < cfg.count)) {
+        if (cfg.loop || (cfg.count && targets->exports->sent < cfg.count)) {
             /* sleep between rounds */
             /* measure how long the current round took, and subtract that from the sleep time */
             /* this keeps us on the polling frequency */

@@ -74,7 +74,6 @@ typedef struct targets {
     char *name;
     char *ndqf; /* reversed name */
     char *ip_address; /* the IP address as a string */
-    char *path;
     struct sockaddr_in *client_sock; /* used to store the port number and connect to the RPC client */
     CLIENT *client; /* RPC client */
     /* for fping output when we need to store the individual results for the summary */
@@ -83,8 +82,24 @@ typedef struct targets {
     unsigned long min, max;
     float avg;
     JSON_Value *json_root; /* the JSON object for output */
+    /* list of filesystem exports */
+    struct mount_exports *exports;
+
     struct targets *next;
 } targets_t;
+
+/* MOUNT protocol filesystem exports */
+struct mount_exports {
+    char path[MNTPATHLEN];
+    /* for fping output when we need to store the individual results for the summary */
+    unsigned long *results;
+    unsigned int sent, received;
+    unsigned long min, max;
+    float avg;
+    JSON_Value *json_root; /* the JSON object for output */
+
+    struct mount_exports *next;
+};
 
 /* a singly linked list of nfs filehandles */
 typedef struct nfs_fh_list {
