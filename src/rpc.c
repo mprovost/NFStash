@@ -67,7 +67,8 @@ CLIENT *create_rpc_client(struct sockaddr_in *client_sock, struct addrinfo *hint
     CLIENT *client = NULL;
     int sock;
     long unsigned protocol; /* for portmapper */
-    char ip[INET_ADDRSTRLEN];
+    char src[INET_ADDRSTRLEN];
+    char dst[INET_ADDRSTRLEN];
     struct sockaddr_in getaddr; /* for getsockname */
     socklen_t len = sizeof(getaddr);
 
@@ -122,8 +123,10 @@ CLIENT *create_rpc_client(struct sockaddr_in *client_sock, struct addrinfo *hint
                 perror("create_rpc_client(getsockname)");
                 /* this is just verbose output so don't return an error */
             } else {
-                inet_ntop(AF_INET, (struct sockaddr_in *)&getaddr.sin_addr, ip, INET_ADDRSTRLEN);
-                debug("portmap source port = %s:%u\n", ip, ntohs(getaddr.sin_port));
+                inet_ntop(AF_INET, (struct sockaddr_in *)&getaddr.sin_addr, src, INET_ADDRSTRLEN);
+                //inet_ntop(AF_INET, &(((struct sockaddr_in *)&client_sock)->sin_addr), dst, INET_ADDRSTRLEN);
+                inet_ntop(AF_INET, &(client_sock->sin_addr), dst, INET_ADDRSTRLEN);
+                debug("portmap request = %s:%u -> %s:%u\n", src, ntohs(getaddr.sin_port), dst, ntohs(client_sock->sin_port));
             }
         }
 
@@ -189,9 +192,9 @@ CLIENT *create_rpc_client(struct sockaddr_in *client_sock, struct addrinfo *hint
                 perror("create_rpc_client(getsockname)");
                 /* this is just verbose output so don't return an error */
             } else {
-                inet_ntop(AF_INET, (struct sockaddr_in *)&getaddr.sin_addr, ip, INET_ADDRSTRLEN);
-                /* TODO print destination address and port */
-                debug("source port = %s:%u\n", ip, ntohs(getaddr.sin_port));
+                inet_ntop(AF_INET, (struct sockaddr_in *)&getaddr.sin_addr, src, INET_ADDRSTRLEN);
+                inet_ntop(AF_INET, &(client_sock->sin_addr), dst, INET_ADDRSTRLEN);
+                debug("Connected = %s:%u -> %s:%u\n", src, ntohs(getaddr.sin_port), dst, ntohs(client_sock->sin_port));
             }
         }
     }
