@@ -3,6 +3,19 @@
 #include "util.h"
 #include "stddef.h"
 
+/* for shifting */
+static enum byte_prefix {
+    NONE  = -1,
+    HUMAN =  0,
+    KILO  = 10,
+    MEGA  = 20,
+    GIGA  = 30,
+    TERA  = 40,
+    PETA  = 50,
+    EXA   = 60
+};
+
+
 /* local prototypes */
 static void usage(void);
 static FSSTAT3res *get_fsstat(CLIENT *, nfs_fh_list *);

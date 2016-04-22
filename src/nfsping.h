@@ -59,18 +59,6 @@
 /* 9223372036854775807 is LLONG_MAX, add one for a '-' (just in case!) and another for a terminating NUL */
 #define TIME_T_MAX_DIGITS 21
 
-/* for shifting */
-enum byte_prefix {
-    NONE  = -1,
-    HUMAN =  0,
-    KILO  = 10,
-    MEGA  = 20,
-    GIGA  = 30,
-    TERA  = 40,
-    PETA  = 50,
-    EXA   = 60
-};
-
 typedef struct targets {
     char *name;
     char *ndqf; /* reversed name */
