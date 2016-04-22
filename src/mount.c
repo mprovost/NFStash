@@ -39,6 +39,7 @@ static struct config {
     int loop;
     int multiple;
     int quiet;
+    int reconnect;
     struct timeval timeout;
     unsigned long hertz;
 } cfg;
@@ -81,6 +82,7 @@ void usage() {
     -l       loop forever\n\
     -m       use multiple target IP addresses if found (implies -A)\n\
     -q       quiet, only print summary\n\
+    -R       don't reconnect to server after each round\n\
     -S addr  set source address\n\
     -T       use TCP (default UDP)\n\
     -v       verbose output\n\
@@ -650,17 +652,18 @@ int main(int argc, char **argv) {
         .format    = unset,
         .prefix    = "nfsmount",
         /* default to version 3 for NFSv3 */
-        .version  = 3,
-        .timeout  = NFS_TIMEOUT,
-        .hertz    = NFS_HERTZ,
-        .count    = 0,
-        .port     = 0, /* 0 = use portmapper */
+        .version   = 3,
+        .timeout   = NFS_TIMEOUT,
+        .hertz     = NFS_HERTZ,
+        .count     = 0,
+        .port      = 0, /* 0 = use portmapper */
         /* reverse DNS lookups */
-        .dns      = 0,
-        .ip       = 0,
-        .loop     = 0,
-        .multiple = 0,
-        .quiet    = 0,
+        .dns       = 0,
+        .ip        = 0,
+        .loop      = 0,
+        .multiple  = 0,
+        .reconnect = 1,
+        .quiet     = 0,
     };
 
     cfg = CONFIG_DEFAULT;
@@ -669,7 +672,7 @@ int main(int argc, char **argv) {
     if (argc == 1)
         usage();
 
-    while ((ch = getopt(argc, argv, "Ac:C:dDeEGhH:JlmqS:TvV:")) != -1) {
+    while ((ch = getopt(argc, argv, "Ac:C:dDeEGhH:JlmqRS:TvV:")) != -1) {
         switch(ch) {
             /* show IP addresses instead of hostnames */
             case 'A':
@@ -929,6 +932,10 @@ int main(int argc, char **argv) {
             case 'q':
                 cfg.quiet = 1;
                 break;
+            /* don't reconnect to server */
+            case 'R':
+                cfg.reconnect = 0;
+                break;
             /* specify source address */
             case 'S':
                 if (inet_pton(AF_INET, optarg, &src_ip.sin_addr) != 1) {
@@ -1130,7 +1137,9 @@ int main(int argc, char **argv) {
             } /* TODO else if no connection */
 
             /* disconnect from server */
-            //current->client = destroy_rpc_client(current->client);
+            if (cfg.reconnect) {
+                current->client = destroy_rpc_client(current->client);
+            }
 
             current = current->next;
 
