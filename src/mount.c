@@ -377,6 +377,9 @@ struct mount_exports *init_export(struct targets *target, char *path) {
     struct mount_exports *export = calloc(1, sizeof(struct mount_exports));
     JSON_Object *json_obj;
 
+    /* copy the hostname from the mount result into the target */
+    strncpy(export->path, path, MNTPATHLEN);
+
     /* allocate space for printing out a summary of all ping times at the end */
     if (cfg.format == fping) {
         export->results = calloc(cfg.count, sizeof(unsigned long));
@@ -392,13 +395,12 @@ struct mount_exports *init_export(struct targets *target, char *path) {
         json_object_set_string(json_obj, "host", target->name);
         /* copy the IP into the JSON object */
         json_object_set_string(json_obj, "ip", target->ip_address);
+        /* this escapes / to \/ */
+        json_object_set_string(json_obj, "path", path);
     }
 
     /* terminate the list */
     export->next = NULL;
-
-    /* copy the hostname from the mount result into the target */
-    strncpy(export->path, path, MNTPATHLEN);
 
     return export;
 }
@@ -437,8 +439,6 @@ int print_fhandle3(JSON_Value *json_root, const fhandle3 file_handle, const unsi
     JSON_Object *json_obj = json_value_get_object(json_root);
     char *my_json_string;
 
-    /* this escapes / to \/ */
-    //json_object_set_string(json_obj, "path", target->path);
     json_object_set_number(json_obj, "usec", usec);
     json_object_set_number(json_obj, "timestamp", wall_clock.tv_sec);
 
