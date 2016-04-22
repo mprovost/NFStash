@@ -66,17 +66,19 @@ int prefix_print(size3 input, char *output, enum byte_prefix prefix) {
     int index;
     size3 shifted;
 
-    /* TODO PETA (and BYTE?) */
+    /* TODO BYTE? */
     static const char label[] = {
         [KILO] = 'K',
         [MEGA] = 'M',
         [GIGA] = 'G',
         [TERA] = 'T',
+        [PETA] = 'P',
+        [EXA]  = 'E'
     };
 
     if (prefix == HUMAN) {
-        /* try and find the best fit, starting with terabytes and working down */
-        prefix = TERA;
+        /* try and find the best fit, starting with exabytes and working down */
+        prefix = EXA;
         while (prefix) {
             shifted = input >> prefix;
             if (shifted && shifted > 10)

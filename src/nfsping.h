@@ -62,12 +62,13 @@
 /* for shifting */
 enum byte_prefix {
     NONE  = -1,
-    HUMAN = 0,
+    HUMAN =  0,
     KILO  = 10,
     MEGA  = 20,
     GIGA  = 30,
     TERA  = 40,
-    PETA  = 50
+    PETA  = 50,
+    EXA   = 60
 };
 
 typedef struct targets {
