@@ -3,11 +3,11 @@ nfsmount(8) -- lookup NFS filesystem root filehandles
 
 ## SYNOPSIS
 
-`nfsmount` [`-AdDeEGhJlmqTv`] [`-c` <count>] [`-C` <count>] [`-H` <hertz>] [`-S` <source>] [`-V` <version>] <server[:path]...>
+`nfsmount` [`-AdDeEGhJlmqRTv`] [`-c` <count>] [`-C` <count>] [`-H` <hertz>] [`-S` <source>] [`-V` <version>] <server[:path]...>
 
 ## DESCRIPTION
 
-`nfsmount` sends MOUNT protocol version 3 RPC requests to NFS servers to look up exported filesystems and their root filehandles. Specific filesystems can be queried with an argument in the format `hostname:path`. If the path is absent then a separate EXPORT request is sent to list all available filesystems which will then be looked up individually with MNT RPC requests. The result(s) are returned as a series of JSON objects (one per line) with the keys "host", "ip", "path", "usec", "timestamp", "filehandle" and "version", where the value of the "filehandle" key is the hex representation of the filesystem's root NFS filehandle. If the NFS server requires "secure" ports (<1024), `nfsmount` must be run as root.
+`nfsmount` sends MOUNT protocol version 3 RPC requests to NFS servers to look up exported filesystems and their root filehandles. Specific filesystems can be queried with an argument in the format `hostname:path`. If the path is absent then a separate `EXPORT` request is sent to list all available filesystems which will then be looked up individually with `MNT` RPC requests. The result(s) are returned as a series of JSON objects (one per line) with the keys "host", "ip", "path", "usec", "timestamp", "filehandle" and "version", where the value of the "filehandle" key is the hex representation of the filesystem's root NFS filehandle. If the NFS server requires "secure" ports (<1024), `nfsmount` must be run as root.
 
 ## OPTIONS
 
@@ -15,10 +15,10 @@ nfsmount(8) -- lookup NFS filesystem root filehandles
   Display IP addresses instead of hostnames. Also implied by `-m`.
 
 * `-c` <count>:
-  Count of mount (MNT) requests to send to target(s) before exiting. Print a line of output after each response is received. A summary of all responses is printed when the count is reached or the program is interrupted.
+  Count of (MNT) requests to send to each target's exported filesystems before exiting. For example, if a target has 4 filesystems exported, with a count 5, 20 requests will be sent (5 to each filesystem). Print a line of `ping`-style output after each response is received. A summary of all responses is printed when the count is reached or the program is interrupted.
 
 * `-C` <count>:
-  Count of mount (MNT) requests to send to target(s), outputs `fping(8)` compatible parseable summary when the count is reached or the program is interrupted.
+  Count of mount (MNT) requests to send to each target's exported filesystems. Outputs an `fping(8)` compatible parseable summary of the response times (in milliseconds) of all requests when the count is reached or the program is interrupted. Errors or lost responses are represented with `-`.
 
 * `-d`:
   Perform reverse DNS lookups for target(s). This option overrides `-A` (and the implied `-A` from the `-m` option).
@@ -27,7 +27,7 @@ nfsmount(8) -- lookup NFS filesystem root filehandles
   Print timestamp (Unix time) before each line of output when counting or looping.
 
 * `-e`:
-  Display available filesystems and their export policies in a human readable format, like `showmount -e`. This sends a single EXPORT RPC per target server and does not look up filehandles.
+  Display available filesystems and their export policies in a human readable format, like `showmount -e`. This sends a single `EXPORT` RPC per target server and does not look up filehandles.
 
 * `-E`:
   Display output in Etsy's StatsD format (nfsmount.$hostname.$path.mountv3:<msec>|ms).
@@ -52,6 +52,9 @@ nfsmount(8) -- lookup NFS filesystem root filehandles
 
 * `-q`:
   Quiet. Only print a summary.
+
+* `-R`:
+  Don't reconnect to target servers after each loop. The default behaviour is to disconnect and reconnect after all of the exported filesystems on each target are queried.
 
 * `-S` <source>:
   Use the specified source IP address for request packets.
