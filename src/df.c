@@ -27,27 +27,38 @@ static const char prefix_label[] = {
     [EXA]  = 'E'
 };
 
+static const char *header_label[] = {
+    [BYTE]  = "bytes",
+    [KILO]  = "kbytes",
+    [MEGA]  = "mbytes",
+    [GIGA]  = "gbytes",
+    [TERA]  = "tbytes",
+    [PETA]  = "pbytes", /* not used */
+    [EXA]   = "ebytes", /* not used */
+    [HUMAN] = "size"
+};
+
 /* the value returned by fsstat is a uint64 in bytes */
 /* so the largest value is 18446744073709551615 == 15 exabytes */
-/* The longest output for each column (up to 15 exabytes in bytes) is 20 digits plus two for label */
+/* The longest output for each column (up to 15 exabytes in bytes) is 20 digits */
 /* TODO struct so we can put in a label and a width */
 static const int prefix_width[] = {
-    /* if we're using human output the column will never be longer than 4 digits plus two for label */
-    [HUMAN] = 6,
-    /* 15EB in B = 18446744073709551615 B */
-    [BYTE] = 22,
-    /* 15EB in KB = 18014398509481983KB */
-    [KILO] = 15,
-    /* 15EB in MB = 17592186044415MB */
-    [MEGA] = 12,
-    /* 15EB in GB = 17179869183GB */
-    [GIGA] = 9,
-    /* 15EB in TB = 16777215TB */
-    [TERA] = 6,
-    /* 15EB in PB = 16383PB */
-    [PETA] = 7,
-    /* 15EB in EB = 15EB */
-    [EXA]  = 4,
+    /* if we're using human output the column will never be longer than 4 digits */
+    [HUMAN] = 4,
+    /* 15EB in B  = 18446744073709551615 */
+    [BYTE]  = 20,
+    /* 15EB in KB = 18014398509481983 */
+    [KILO]  = 17,
+    /* 15EB in MB = 17592186044415 */
+    [MEGA]  = 14,
+    /* 15EB in GB = 17179869183 */
+    [GIGA]  = 11,
+    /* 15EB in TB = 16777215 */
+    [TERA]  = 8,
+    /* 15EB in PB = 16383 */
+    [PETA]  = 5,
+    /* 15EB in EB = 15 */
+    [EXA]   = 2,
 };
 
 
@@ -114,28 +125,38 @@ FSSTAT3res *get_fsstat(CLIENT *client, nfs_fh_list *fs) {
 int prefix_print(size3 input, char *output, enum byte_prefix prefix) {
     int index;
     size3 shifted;
+    enum byte_prefix shifted_prefix = prefix;
+    size_t width = prefix_width[prefix] + 1; /* add one to length for terminating NULL */
 
     if (prefix == HUMAN) {
+        /* add space for per-filesystem size labels */
+        width += 2;
+
         /* try and find the best fit, starting with exabytes and working down */
-        prefix = EXA;
-        while (prefix) {
-            shifted = input >> prefix;
+        shifted_prefix = EXA;
+        while (shifted_prefix) {
+            shifted = input >> shifted_prefix;
             if (shifted && shifted > 10)
                 break;
-            prefix -= 10;
+            shifted_prefix -= 10;
         }
     }
 
     /* TODO check the length */
-    /* add one to length for terminating NULL */
-    index = snprintf(output, prefix_width[prefix] + 1, "%" PRIu64 "", input >> prefix);
+    index = snprintf(output, width, "%" PRIu64 "", input >> shifted_prefix);
 
     /* print the label */
-    /* FIXME only print this for human mode otherwise stuff the prefix in the header? */
-    output[index] = prefix_label[prefix];
+    /* only print this for human mode otherwise stuff the prefix in the header */
+    if (prefix == HUMAN) {
+        if (shifted_prefix > BYTE) {
+            output[index] = prefix_label[shifted_prefix];
+            index++;
+        }
 
-    /* all of them end in B(ytes) */
-    output[++index] = 'B';
+        /* all of them end in B(ytes) */
+        output[index] = 'B';
+    }
+
     output[++index] = '\0';
 
     return index;
@@ -267,7 +288,7 @@ int main(int argc, char **argv) {
     enum byte_prefix prefix = NONE;
     enum outputs format = unset;
     char output_prefix[255] = "nfs";
-    int width  = 0;
+    int width        = 0;
     char *input_fh = NULL;
     size_t n = 0; /* for getline() */
     nfs_fh_list fh_dummy;
@@ -456,6 +477,7 @@ int main(int argc, char **argv) {
         }
     }
 
+    /* TODO move this into a print_header() function */
     if (format == ping) {
         /* header */
         /* Print the header before sending any RPCs, this means we have to guess about the size of the results
@@ -473,9 +495,14 @@ int main(int argc, char **argv) {
         /* extra space for gap between columns */
         width++;
 
+        /* leave room for unit labels */
+        if (prefix == HUMAN) {
+            width += 2;
+        }
+
         /* FIXME print prefix in total column */
         printf("%-*s %*s %*s %*s capacity\n",
-            maxhost + maxpath + 1, "Filesystem", width, "total", width, "used", width, "avail");
+            maxhost + maxpath + 1, "Filesystem", width, header_label[prefix], width, "used", width, "avail");
     }
 
     do {
