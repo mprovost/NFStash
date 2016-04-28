@@ -16,6 +16,40 @@ enum byte_prefix {
     HUMAN = 99
 };
 
+static const char prefix_label[] = {
+    /* TODO something better than a space for bytes */
+    [BYTE] = ' ', /* nothing for just bytes */
+    [KILO] = 'K',
+    [MEGA] = 'M',
+    [GIGA] = 'G',
+    [TERA] = 'T',
+    [PETA] = 'P',
+    [EXA]  = 'E'
+};
+
+/* the value returned by fsstat is a uint64 in bytes */
+/* so the largest value is 18446744073709551615 == 15 exabytes */
+/* The longest output for each column (up to 15 exabytes in bytes) is 20 digits plus two for label */
+/* TODO struct so we can put in a label and a width */
+static const int prefix_width[] = {
+    /* if we're using human output the column will never be longer than 4 digits plus two for label */
+    [HUMAN] = 6,
+    /* 15EB in B = 18446744073709551615 B */
+    [BYTE] = 22,
+    /* 15EB in KB = 18014398509481983KB */
+    [KILO] = 15,
+    /* 15EB in MB = 17592186044415MB */
+    [MEGA] = 12,
+    /* 15EB in GB = 17179869183GB */
+    [GIGA] = 9,
+    /* 15EB in TB = 16777215TB */
+    [TERA] = 6,
+    /* 15EB in PB = 16383PB */
+    [PETA] = 7,
+    /* 15EB in EB = 15EB */
+    [EXA]  = 4,
+};
+
 
 /* local prototypes */
 static void usage(void);
@@ -81,18 +115,6 @@ int prefix_print(size3 input, char *output, enum byte_prefix prefix) {
     int index;
     size3 shifted;
 
-    /* TODO BYTE? */
-    static const char label[] = {
-        /* TODO something better than a space for bytes */
-        [BYTE] = ' ', /* nothing for just bytes */
-        [KILO] = 'K',
-        [MEGA] = 'M',
-        [GIGA] = 'G',
-        [TERA] = 'T',
-        [PETA] = 'P',
-        [EXA]  = 'E'
-    };
-
     if (prefix == HUMAN) {
         /* try and find the best fit, starting with exabytes and working down */
         prefix = EXA;
@@ -105,11 +127,12 @@ int prefix_print(size3 input, char *output, enum byte_prefix prefix) {
     }
 
     /* TODO check the length */
-    index = snprintf(output, 13, "%" PRIu64 "", input >> prefix);
+    /* add one to length for terminating NULL */
+    index = snprintf(output, prefix_width[prefix] + 1, "%" PRIu64 "", input >> prefix);
 
     /* print the label */
     /* FIXME only print this for prefix=0 aka human mode otherwise stuff the prefix in the header */
-    output[index] = label[prefix];
+    output[index] = prefix_label[prefix];
 
     /* all of them end in B(ytes) */
     output[++index] = 'B';
@@ -247,7 +270,9 @@ int main(int argc, char **argv) {
     int width  = 0;
     char *input_fh = NULL;
     size_t n = 0; /* for getline() */
-    nfs_fh_list *filehandles, *current, fh_dummy;
+    nfs_fh_list fh_dummy;
+    nfs_fh_list *current     = &fh_dummy;
+    nfs_fh_list *filehandles = current;
     int loop = 0;
     unsigned int maxpath = 0;
     unsigned int maxhost = 0;
@@ -269,31 +294,6 @@ int main(int argc, char **argv) {
         .sin_family = AF_INET,
         .sin_addr = 0
     };
-
-    /* the value returned by fsstat is a uint64 in bytes */
-    /* so the largest value is 18446744073709551615 == 15 exabytes */
-    /* The longest output for each column (up to 15 exabytes in bytes) is 20 digits plus two for label */
-    /* TODO struct so we can put in a label and a width */
-    static const int prefix_width[] = {
-        /* if we're using human output the column will never be longer than 4 digits plus two for label */
-        [HUMAN] = 6,
-        /* 15EB in B = 18446744073709551615B */
-        /* only plus one for the B */
-        [BYTE] = 21,
-        /* 15EB in KB = 18014398509481983KB */
-        [KILO] = 15,
-        /* 15EB in MB = 17592186044415MB */
-        [MEGA] = 12,
-        /* 15EB in GB = 17179869183GB */
-        [GIGA] = 9,
-        /* 15EB in TB = 16777215TB */
-        [TERA] = 6,
-        /* 15EB in PB = 16383PB */
-        [PETA] = 7,
-        /* 15EB in EB = 15EB */
-        [EXA]  = 4,
-    };
-
 
     while ((ch = getopt(argc, argv, "bgGhH:iklmp:S:tTv")) != -1) {
         switch(ch) {
@@ -415,9 +415,6 @@ int main(int argc, char **argv) {
         /* nanoseconds */
         sleep_time.tv_nsec = 1000000000 / hertz;
     }
-
-    current = &fh_dummy;
-    filehandles = current;
 
     /* check if we don't have any command line targets */
     if (optind == argc) {
