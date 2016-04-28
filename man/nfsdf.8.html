@@ -63,6 +63,7 @@
     <a href="#SYNOPSIS">SYNOPSIS</a>
     <a href="#DESCRIPTION">DESCRIPTION</a>
     <a href="#OPTIONS">OPTIONS</a>
+    <a href="#EXAMPLES">EXAMPLES</a>
     <a href="#RETURN-VALUES">RETURN VALUES</a>
     <a href="#AUTHOR">AUTHOR</a>
     <a href="#COPYRIGHT">COPYRIGHT</a>
@@ -81,11 +82,11 @@
 
 <h2 id="SYNOPSIS">SYNOPSIS</h2>
 
-<p><code>nfsdf</code> [<code>-gGhiklmtTv</code>] [<code>-H</code> <var>hertz</var>] [<code>-p</code> <var>prefix</var>] [<code>-S</code> <var>source</var>] &lt;filehandle...></p>
+<p><code>nfsdf</code> [<code>-bgGhiklmtTv</code>] [<code>-H</code> <var>hertz</var>] [<code>-p</code> <var>prefix</var>] [<code>-S</code> <var>source</var>] &lt;filehandle...></p>
 
 <h2 id="DESCRIPTION">DESCRIPTION</h2>
 
-<p><code>nfsdf</code> sends an NFS version 3 FSSTAT RPC request to an NFS server and reports the amount of disk space or inodes used on the filesystem specified in the filehandle argument(s). Filehandles can be passed on stdin, in this case <code>nfsdf</code> waits until the end of input (EOF) before sending any requests so that the correct width header can be printed. The default output is human readable, similar to <code>df -h</code>, units can be specified with the <code>-g</code>, <code>-k</code>, <code>-m</code>, or <code>-t</code> options. Any filehandle on the target filesystem can be used as an argument, including the root filehandle obtained from <code>nfsmount</code>.</p>
+<p><code>nfsdf</code> sends an NFS version 3 FSSTAT RPC request to an NFS server and reports the amount of disk space (or inodes with the <code>-i</code> option) used on the filesystem specified in the filehandle argument(s). Filehandles can be passed on stdin, in this case <code>nfsdf</code> waits until the end of input (EOF) before sending any requests so that the correct width header can be printed. The default output is human readable, similar to <code>df -h</code>, units can be specified with the <code>-b</code>, <code>-k</code>, <code>-m</code>, <code>-g</code>, or <code>-t</code> options. Any filehandle on the target filesystem can be used as an argument, including the root filehandle obtained from <code>nfsmount</code>.</p>
 
 <p>Input filehandles are represented as a series of JSON objects (one per line) with the keys "host", "ip", "path", and "filehandle", where the value of the "filehandle" key is the hex representation of the file's NFS filehandle. As command line arguments they will need to be escaped from the shell with single quotes.</p>
 
@@ -94,10 +95,11 @@
 <h2 id="OPTIONS">OPTIONS</h2>
 
 <dl>
+<dt class="flush"><code>-b</code></dt><dd><p>Report disk space in bytes.</p></dd>
 <dt class="flush"><code>-g</code></dt><dd><p>Report disk space in gigabytes.</p></dd>
 <dt class="flush"><code>-G</code></dt><dd><p>Graphite format output. Default is human readable (<code>-h</code>).</p></dd>
 <dt class="flush"><code>-h</code></dt><dd><p>Report disk space in human readable format (default). This selects whichever unit is the most compact to display.</p></dd>
-<dt><code>-H</code> <var>hertz</var></dt><dd><p>The polling frequency in Hertz. This is the number of requests sent to each target per second. Default = 1.</p></dd>
+<dt><code>-H</code> <var>hertz</var></dt><dd><p>The polling frequency in Hertz when in looping mode (<code>-l</code>). This is the number of requests sent to each target per second. Default = 1.</p></dd>
 <dt class="flush"><code>-i</code></dt><dd><p>Report inodes (files) instead of disk space.</p></dd>
 <dt class="flush"><code>-k</code></dt><dd><p>Report disk space in kilobytes.</p></dd>
 <dt class="flush"><code>-l</code></dt><dd><p>Loop forever. Exit loop with Ctrl-c.</p></dd>
@@ -109,6 +111,19 @@
 <dt class="flush"><code>-v</code></dt><dd><p>Display debug output on <code>stderr</code>.</p></dd>
 </dl>
 
+
+<h2 id="EXAMPLES">EXAMPLES</h2>
+
+<p>Typically <code>nfsdf</code> will use a filehandle obtained from the output of the <code>nfsmount</code> command:</p>
+
+<p>  <code>sudo sh -c "nfsmount server1 | nfsdf"</code></p>
+
+<p>Since both commands typically need root privileges (to bind to a "secure" port) they can be run with a single subshell under sudo.</p>
+
+<p>If the check is being run repeatedly, there is no need to query the fileserver with <code>nfsmount</code> every time. Since the root filehandles shouldn't change, the output can be stored in a file:</p>
+
+<p>  <code>sudo nfsmount server1 &gt; server1.nfs</code><br />
+  <code>sudo nfsdf &lt; server1.nfs</code></p>
 
 <h2 id="RETURN-VALUES">RETURN VALUES</h2>
 
