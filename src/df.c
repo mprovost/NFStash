@@ -131,7 +131,7 @@ int prefix_print(size3 input, char *output, enum byte_prefix prefix) {
     index = snprintf(output, prefix_width[prefix] + 1, "%" PRIu64 "", input >> prefix);
 
     /* print the label */
-    /* FIXME only print this for prefix=0 aka human mode otherwise stuff the prefix in the header */
+    /* FIXME only print this for human mode otherwise stuff the prefix in the header? */
     output[index] = prefix_label[prefix];
 
     /* all of them end in B(ytes) */
@@ -143,10 +143,10 @@ int prefix_print(size3 input, char *output, enum byte_prefix prefix) {
 
 
 int print_df(int offset, int width, char *host, char *path, FSSTAT3res *fsstatres, const enum byte_prefix prefix) {
-    /* 13 is enough for a petabyte in kilobytes, plus three for the label and a trailing NUL */
-    char total[16];
-    char used[16];
-    char avail[16];
+    /* 22 is enough for 15 exabytes in bytes, plus three for the label and a trailing NUL */
+    char total[25];
+    char used[25];
+    char avail[25];
     double capacity;
 
     if (fsstatres && fsstatres->status == NFS3_OK) {
