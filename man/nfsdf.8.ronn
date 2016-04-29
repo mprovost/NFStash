@@ -7,7 +7,7 @@ nfsdf(8) -- report NFS server disk space usage
 
 ## DESCRIPTION
 
-`nfsdf` sends an NFS version 3 FSSTAT RPC request to an NFS server and reports the amount of disk space (or inodes with the `-i` option) used on the filesystem specified in the filehandle argument(s). Filehandles can be passed on stdin, in this case `nfsdf` waits until the end of input (EOF) before sending any requests so that the correct width header can be printed. The default output is human readable, similar to `df -h`, units can be specified with the `-b`, `-k`, `-m`, `-g`, or `-t` options. Any filehandle on the target filesystem can be used as an argument, including the root filehandle obtained from `nfsmount`.
+`nfsdf` sends NFS version 3 FSSTAT RPC requests to an NFS server and reports the total, used and available amounts of disk space (or inodes with the `-i` option) for the filesystems specified in the filehandle argument(s), as well as the response time for the RPC requests in milliseconds. Alternatively, filehandles can be passed on `stdin`, in this case `nfsdf` waits until the end of input (EOF) before sending any requests so that the correct width header can be printed. The default output is human readable, similar to `df -h`, units can be specified with the `-b`, `-k`, `-m`, `-g`, or `-t` options. Any filehandle on the target filesystem can be used as an argument, including the root filehandle obtained from `nfsmount`.
 
 Input filehandles are represented as a series of JSON objects (one per line) with the keys "host", "ip", "path", and "filehandle", where the value of the "filehandle" key is the hex representation of the file's NFS filehandle. As command line arguments they will need to be escaped from the shell with single quotes.
 
