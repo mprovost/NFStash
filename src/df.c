@@ -72,7 +72,7 @@ static const int max_prefix_width = 25;
 static void usage(void);
 static FSSTAT3res *get_fsstat(CLIENT *, nfs_fh_list *);
 static int prefix_print(size3, char *, enum byte_prefix);
-static int print_df(int, int, char *, char *, FSSTAT3res *, const enum byte_prefix);
+static int print_df(int, int, char *, char *, FSSTAT3res *, const enum byte_prefix, unsigned long);
 static void print_inodes(int, int, char *, char *, FSSTAT3res *);
 static char *replace_char(const char *, const char *, const char *);
 static void print_format(enum outputs, char *, char *, char *, FSSTAT3res *, const struct timespec);
@@ -169,7 +169,8 @@ int prefix_print(size3 input, char *output, enum byte_prefix prefix) {
 }
 
 
-int print_df(int offset, int width, char *host, char *path, FSSTAT3res *fsstatres, const enum byte_prefix prefix) {
+/* print 'df' style output */
+int print_df(int offset, int width, char *host, char *path, FSSTAT3res *fsstatres, const enum byte_prefix prefix, unsigned long usec) {
     /* just use static string arrays, they're not big enough to allocate memory dynamically */
     char total[max_prefix_width];
     char used[max_prefix_width];
@@ -185,8 +186,8 @@ int print_df(int offset, int width, char *host, char *path, FSSTAT3res *fsstatre
         /* percent full */
         capacity = (1 - ((double)fsstatres->FSSTAT3res_u.resok.fbytes / fsstatres->FSSTAT3res_u.resok.tbytes)) * 100;
 
-        printf("%s:%-*s %*s %*s %*s %7.0f%%\n",
-            host, offset, path, width, total, width, used, width, avail, capacity);
+        printf("%s:%-*s %*s %*s %*s %7.0f%% %5lu\n",
+            host, offset, path, width, total, width, used, width, avail, capacity, usec);
     } else {
         /* get_fsstat will print the rpc error */
         return EXIT_FAILURE;
@@ -509,7 +510,8 @@ int main(int argc, char **argv) {
         }
 
         /* FIXME print prefix in total column */
-        printf("%-*s %*s %*s %*s capacity\n",
+        /* leave enough space for milliseconds */
+        printf("%-*s %*s %*s %*s capacity    ms\n",
             maxhost + maxpath + 1, "Filesystem", width, header_label[prefix], width, "used", width, "avail");
     }
 
@@ -567,7 +569,7 @@ int main(int argc, char **argv) {
                     if (inodes) {
                         print_inodes(maxpath, width, current->host, current->path, fsstatres);
                     } else {
-                        print_df(maxpath, width, current->host, current->path, fsstatres, prefix);
+                        print_df(maxpath, width, current->host, current->path, fsstatres, prefix, usec);
                     }
                 } else {
                     print_format(format, output_prefix, current->host, current->path, fsstatres, wall_clock);
