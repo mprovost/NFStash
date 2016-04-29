@@ -75,7 +75,7 @@ static int prefix_print(size3, char *, enum byte_prefix);
 static int print_df(int, int, char *, char *, FSSTAT3res *, const enum byte_prefix);
 static void print_inodes(int, int, char *, char *, FSSTAT3res *);
 static char *replace_char(const char *, const char *, const char *);
-static void print_format(enum outputs, char *, char *, char *, FSSTAT3res *, struct timeval);
+static void print_format(enum outputs, char *, char *, char *, FSSTAT3res *, const struct timespec);
 
 /* globals */
 int verbose = 0;
@@ -253,7 +253,7 @@ char *replace_char(const char *str, const char *old, const char *new)
 
 /* formatted output ie graphite */
 /* TODO escape dots and spaces (replace with underscores) in paths */
-void print_format(enum outputs format, char *prefix, char *host, char *path, FSSTAT3res *fsstatres, struct timeval now) {
+void print_format(enum outputs format, char *prefix, char *host, char *path, FSSTAT3res *fsstatres, const struct timespec now) {
     char *ndqf;
     char *bad_characters[] = {
         " ", ".", "-", "/"
@@ -275,6 +275,7 @@ void print_format(enum outputs format, char *prefix, char *host, char *path, FSS
         ndqf = reverse_fqdn(host);
     }
 
+    /* TODO round seconds up to next whole second? */
     switch (format) {
         case graphite:
             printf("%s.%s.df.%s.tbytes %" PRIu64 " %li\n", prefix, ndqf, path, fsstatres->FSSTAT3res_u.resok.tbytes, now.tv_sec);
@@ -309,7 +310,8 @@ int main(int argc, char **argv) {
     struct timespec sleep_time;
     unsigned long hertz = NFS_HERTZ;
     struct timeval timeout = NFS_TIMEOUT;
-    struct timeval call_start, call_end;
+    struct timespec call_start, call_end, call_elapsed, wall_clock;
+    unsigned long usec = 0;
     struct addrinfo hints = {
         .ai_family = AF_INET,
         /* default to UDP */
@@ -539,12 +541,26 @@ int main(int argc, char **argv) {
                 clnt_control(client, CLGET_SERVER_ADDR, (char *)&clnt_info);
             }
 
-            /* first time marker */
-            gettimeofday(&call_start, NULL);
-            /* the rpc call */
+            /* get the current timestamp */
+            clock_gettime(CLOCK_REALTIME, &wall_clock);
+
+#ifdef CLOCK_MONOTONIC_RAW
+            clock_gettime(CLOCK_MONOTONIC_RAW, &call_start);
+#else  
+            clock_gettime(CLOCK_MONOTONIC, &call_start);
+#endif 
+            /* the actual RPC call */
             fsstatres = get_fsstat(client, current);
             /* second time marker */
-            gettimeofday(&call_end, NULL);
+#ifdef CLOCK_MONOTONIC_RAW
+            clock_gettime(CLOCK_MONOTONIC_RAW, &call_end);
+#else  
+            clock_gettime(CLOCK_MONOTONIC, &call_end);
+#endif
+
+            /* calculate elapsed microseconds */
+            timespecsub(&call_end, &call_start, &call_elapsed);
+            usec = ts2us(call_elapsed);
 
             if (fsstatres && fsstatres->status == NFS3_OK) {
                 if (format == ping) {
@@ -554,7 +570,7 @@ int main(int argc, char **argv) {
                         print_df(maxpath, width, current->host, current->path, fsstatres, prefix);
                     }
                 } else {
-                    print_format(format, output_prefix, current->host, current->path, fsstatres, call_end);
+                    print_format(format, output_prefix, current->host, current->path, fsstatres, wall_clock);
                 }
             }
 
