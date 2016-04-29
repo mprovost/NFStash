@@ -72,13 +72,18 @@ static const int max_prefix_width = 25;
 static void usage(void);
 static FSSTAT3res *get_fsstat(CLIENT *, nfs_fh_list *);
 static int prefix_print(size3, char *, enum byte_prefix);
-static int print_df(int, int, char *, char *, FSSTAT3res *, const enum byte_prefix, unsigned long);
-static void print_inodes(int, int, char *, char *, FSSTAT3res *);
+static int print_df(int, int, char *, char *, FSSTAT3res *, const enum byte_prefix, const unsigned long);
+static void print_inodes(int, int, char *, char *, FSSTAT3res *, const unsigned long);
 static char *replace_char(const char *, const char *, const char *);
 static void print_format(enum outputs, char *, char *, char *, FSSTAT3res *, const struct timespec);
 
 /* globals */
 int verbose = 0;
+
+/* global config "object" */
+static struct config {
+    int inodes;
+} cfg;
 
 void usage() {
     printf("Usage: nfsdf [options] [filehandle...]\n\
@@ -170,6 +175,11 @@ int prefix_print(size3 input, char *output, enum byte_prefix prefix) {
 
 
 /* print 'df' style output */
+/* Netapp style:
+   toaster> df
+   Filesystem          kbytes   used     avail   capacity Mounted on
+   /vol/vol0           4339168  1777824  2561344 41%      /vol/vol0
+ */
 int print_df(int offset, int width, char *host, char *path, FSSTAT3res *fsstatres, const enum byte_prefix prefix, unsigned long usec) {
     /* just use static string arrays, they're not big enough to allocate memory dynamically */
     char total[max_prefix_width];
@@ -199,19 +209,28 @@ int print_df(int offset, int width, char *host, char *path, FSSTAT3res *fsstatre
 
 /* TODO human readable output ie 4M, use the -h flag */
 /* base 10 (SI units) vs base 2? (should this be an option for bytes as well?) */
-void print_inodes(int offset, int width, char *host, char *path, FSSTAT3res *fsstatres) {
+/* Netapp style output:
+   toaster> df -i /vol/vol0
+   Filesystem          iused    ifree    %iused  Mounted on
+   /vol/vol0           164591   14313    92%     /vol/vol0
+
+   (Except right justify columns)
+ */
+void print_inodes(int offset, int width, char *host, char *path, FSSTAT3res *fsstatres, const unsigned long usec) {
     double capacity;
 
     /* percent used */
     capacity = (1 - ((double)fsstatres->FSSTAT3res_u.resok.ffiles / fsstatres->FSSTAT3res_u.resok.tfiles)) * 100;
 
-    printf("%s:%-*s %*" PRIu64 " %*" PRIu64 " %*" PRIu64 " %7.0f%%\n",
+    printf("%s:%-*s %*" PRIu64 " %*" PRIu64 " %5.0f%% %5lu\n",
         host,
         offset, path,
-        width, fsstatres->FSSTAT3res_u.resok.tfiles,
+        /* calculate number of used inodes */
         width, fsstatres->FSSTAT3res_u.resok.tfiles - fsstatres->FSSTAT3res_u.resok.ffiles,
+        /* free inodes */
         width, fsstatres->FSSTAT3res_u.resok.ffiles,
-        capacity);
+        capacity,
+        usec);
 }
 
 
@@ -292,7 +311,6 @@ void print_format(enum outputs format, char *prefix, char *host, char *path, FSS
 
 int main(int argc, char **argv) {
     int ch;
-    int inodes = 0;
     enum byte_prefix prefix = NONE;
     enum outputs format = unset;
     char output_prefix[255] = "nfs";
@@ -324,6 +342,13 @@ int main(int argc, char **argv) {
         .sin_family = AF_INET,
         .sin_addr = 0
     };
+
+    /* default config */
+    const struct config CONFIG_DEFAULT = {
+        .inodes = 0,
+    };
+
+    cfg = CONFIG_DEFAULT;
 
     while ((ch = getopt(argc, argv, "bgGhH:iklmp:S:tTv")) != -1) {
         switch(ch) {
@@ -366,7 +391,7 @@ int main(int argc, char **argv) {
                 break;
             /* display inodes */
             case 'i':
-                inodes = 1; 
+                cfg.inodes = 1; 
                 break;
             /* display kilobytes */
             case 'k':
@@ -493,26 +518,27 @@ int main(int argc, char **argv) {
            but it lets the user know that the program is running. Then we can print the results as they come in
            which will also give a visual indication of which filesystems are slow to respond */
         /* TODO check max line length < 80 or truncate path (or -w option for wide?) */
-        if (inodes) {
+        if (cfg.inodes) {
             /* with 32 bit inodes you can have 2^32 per filesystem = 4294967296 = 10 digits */
             /* ZFS can have 2^48 inodes which is 15 digits */
             /* let's assume 32 bits is enough for now */
             width = 10;
+            printf("%-*s %*s %*s %%iused    ms\n",
+                maxhost + maxpath + 1, "Filesystem", width, "iused", width, "ifree");
         } else {
             width = prefix_width[prefix];
-        }
-        /* extra space for gap between columns */
-        width++;
+            /* extra space for gap between columns */
+            width++;
 
-        /* leave room for unit labels */
-        if (prefix == HUMAN) {
-            width += 2;
-        }
+            /* leave room for unit labels */
+            if (prefix == HUMAN) {
+                width += 2;
+            }
 
-        /* FIXME print prefix in total column */
-        /* leave enough space for milliseconds */
-        printf("%-*s %*s %*s %*s capacity    ms\n",
-            maxhost + maxpath + 1, "Filesystem", width, header_label[prefix], width, "used", width, "avail");
+            /* leave enough space for milliseconds */
+            printf("%-*s %*s %*s %*s capacity    ms\n",
+                maxhost + maxpath + 1, "Filesystem", width, header_label[prefix], width, "used", width, "avail");
+        }
     }
 
     do {
@@ -566,8 +592,8 @@ int main(int argc, char **argv) {
 
             if (fsstatres && fsstatres->status == NFS3_OK) {
                 if (format == ping) {
-                    if (inodes) {
-                        print_inodes(maxpath, width, current->host, current->path, fsstatres);
+                    if (cfg.inodes) {
+                        print_inodes(maxpath, width, current->host, current->path, fsstatres, usec);
                     } else {
                         print_df(maxpath, width, current->host, current->path, fsstatres, prefix, usec);
                     }
