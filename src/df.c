@@ -27,6 +27,8 @@ static const char prefix_label[] = {
     [EXA]  = 'E'
 };
 
+/* we could include the "bytes" in the output string but if we're in Human mode then the header is "size" */
+/* better to keep it in a constant than to have another branch statement in the code */
 static const char *header_label[] = {
     [BYTE]  = "bytes",
     [KILO]  = "kbytes",
@@ -41,6 +43,7 @@ static const char *header_label[] = {
 /* the value returned by fsstat is a uint64 in bytes */
 /* so the largest value is 18446744073709551615 == 15 exabytes */
 /* The longest output for each column (up to 15 exabytes in bytes) is 20 digits */
+/* these widths don't include space for labels or trailing NULL */
 /* TODO struct so we can put in a label and a width */
 static const int prefix_width[] = {
     /* if we're using human output the column will never be longer than 4 digits */
@@ -60,6 +63,9 @@ static const int prefix_width[] = {
     /* 15EB in EB = 15 */
     [EXA]   = 2,
 };
+
+/* 20 is enough for 15 exabytes in bytes, plus three for the label and a trailing NUL */
+static const int max_prefix_width = 25;
 
 
 /* local prototypes */
@@ -164,10 +170,10 @@ int prefix_print(size3 input, char *output, enum byte_prefix prefix) {
 
 
 int print_df(int offset, int width, char *host, char *path, FSSTAT3res *fsstatres, const enum byte_prefix prefix) {
-    /* 22 is enough for 15 exabytes in bytes, plus three for the label and a trailing NUL */
-    char total[25];
-    char used[25];
-    char avail[25];
+    /* just use static string arrays, they're not big enough to allocate memory dynamically */
+    char total[max_prefix_width];
+    char used[max_prefix_width];
+    char avail[max_prefix_width];
     double capacity;
 
     if (fsstatres && fsstatres->status == NFS3_OK) {
