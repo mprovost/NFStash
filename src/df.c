@@ -1,7 +1,6 @@
 #include "nfsping.h"
 #include "rpc.h"
 #include "util.h"
-#include "stddef.h"
 
 /* for shifting */
 enum byte_prefix {
