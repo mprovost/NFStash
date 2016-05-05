@@ -46,8 +46,9 @@ static const char *header_label[] = {
 /* these widths don't include space for labels or trailing NULL */
 /* TODO struct so we can put in a label and a width */
 static const int prefix_width[] = {
-    /* if we're using human output the column will never be longer than 4 digits */
-    [HUMAN] = 4,
+    /* if we're using human output the number will never be longer than 4 digits */
+    /* add two for per-filesystem size labels */
+    [HUMAN] = 6,
     /* 15EB in B  = 18446744073709551615 */
     [BYTE]  = 20,
     /* 15EB in KB = 18014398509481983 */
@@ -95,6 +96,15 @@ static void print_format(enum outputs, char *, char *, char *, FSSTAT3res *, con
 
 
 void usage() {
+    /* TODO:
+       -c for count
+       -e for exabytes?
+       -E for statsd
+       -p for petabytes, but that is already used for the graphite prefix
+       -g is already used for gigabytes so can't use that for graphite prefix
+       -P for the port number
+       -V for NFS version
+     */
     printf("Usage: nfsdf [options] [filehandle...]\n\
     -b         display sizes in bytes\n\
     -g         display sizes in gigabytes\n\
@@ -106,8 +116,8 @@ void usage() {
     -l         loop forever\n\
     -m         display sizes in megabytes\n\
     -p string  prefix for graphite metric names\n\
-    -t         display sizes in terabytes\n\
     -S addr    set source address\n\
+    -t         display sizes in terabytes\n\
     -T         use TCP (default UDP)\n\
     -v         verbose output\n");
 
@@ -171,19 +181,21 @@ void print_header(int maxhost, int maxpath, enum byte_prefix prefix) {
 
 
 /* generate formatted df size strings */
+/* takes an input size and a string pointer to output into */
+/* returns the size of the output string, including NULL */
 /* in "human" mode, calculate the best fit and print the label since each filesystem can have a different "best" unit */
-/* the "best" fit is the largest unit that fits into 4 digits */
 /* otherwise printing the prefix has moved into the header instead of after each number */
+/* the "best" fit is the largest unit that fits into 4 digits */
+/* note that this is different than other dfs which fit it into 3 digits and use a decimal */
+/* in our case, prefer the extra resolution and avoid decimals */
 int prefix_print(size3 input, char *output, enum byte_prefix prefix) {
-    int index;
+    /* string position */
+    int index = 0;
     size3 shifted;
     enum byte_prefix shifted_prefix = prefix;
     size_t width = prefix_width[prefix] + 1; /* add one to length for terminating NULL */
 
     if (prefix == HUMAN) {
-        /* add space for per-filesystem size labels */
-        width += 2;
-
         /* try and find the best fit, starting with exabytes and working down */
         shifted_prefix = EXA;
         while (shifted_prefix) {
@@ -192,14 +204,24 @@ int prefix_print(size3 input, char *output, enum byte_prefix prefix) {
                 break;
             shifted_prefix -= 10;
         }
+    } else {
+        shifted = input >> shifted_prefix;
+
+        /* check if the prefix is forcing us to print a zero result when there actually is something there */
+        /* this can happen if a large unit is specified (terabytes for a small filesystem for example) */
+        if (input > 0 && shifted == 0) {
+            /* in this case, print a less than sign before the zero to indicate that there was a nonzero result */
+            output[index++] = '<';
+        }
     }
 
     /* TODO check the length */
-    index = snprintf(output, width, "%" PRIu64 "", input >> shifted_prefix);
+    index += snprintf(&output[index], width, "%" PRIu64 "", shifted);
 
     /* print the label */
     /* only print this for human mode otherwise stuff the prefix in the header */
     if (prefix == HUMAN) {
+        /* don't print a blank space for bytes */
         if (shifted_prefix > BYTE) {
             output[index] = prefix_label[shifted_prefix];
             index++;
@@ -209,6 +231,7 @@ int prefix_print(size3 input, char *output, enum byte_prefix prefix) {
         output[index] = 'B';
     }
 
+    /* terminate the string */
     output[++index] = '\0';
 
     return index;
@@ -221,6 +244,7 @@ int prefix_print(size3 input, char *output, enum byte_prefix prefix) {
    Filesystem          kbytes   used     avail   capacity Mounted on
    /vol/vol0           4339168  1777824  2561344 41%      /vol/vol0
  */
+/* TODO should it also print inodes by default like OSX's df? The fsstat call already returns those results */
 int print_df(int offset, char *host, char *path, FSSTAT3res *fsstatres, const enum byte_prefix prefix, unsigned long usec) {
     /* just use static string arrays, they're not big enough to allocate memory dynamically */
     char total[max_prefix_width];
@@ -346,6 +370,7 @@ void print_format(enum outputs format, char *prefix, char *host, char *path, FSS
     /* TODO round seconds up to next whole second? */
     switch (format) {
         case graphite:
+            /* TODO just one printf! */
             printf("%s.%s.df.%s.tbytes %" PRIu64 " %li\n", prefix, ndqf, path, fsstatres->FSSTAT3res_u.resok.tbytes, now.tv_sec);
             printf("%s.%s.df.%s.fbytes %" PRIu64 " %li\n", prefix, ndqf, path, fsstatres->FSSTAT3res_u.resok.fbytes, now.tv_sec);
             printf("%s.%s.df.%s.tfiles %" PRIu64 " %li\n", prefix, ndqf, path, fsstatres->FSSTAT3res_u.resok.tfiles, now.tv_sec);
@@ -558,9 +583,13 @@ int main(int argc, char **argv) {
         }
     }
 
-    /* Print the header before sending any RPCs, this means we have to guess about the size of the results
-       but it lets the user know that the program is running. Then we can print the results as they come in
-       which will also give a visual indication of which filesystems are slow to respond */
+    /* 
+     * Print the header before sending any RPCs, this means we have to guess about the size of the results
+     * but it lets the user know that the program is running. Then we can print the results as they come in
+     * which will also give a visual indication of which filesystems are slow to respond. We also may be
+     * looping or running for a specific count, so we can't wait for just the first result to size the 
+     * columns since the results may change over time.
+     */
 
     print_header(maxhost, maxpath, prefix);
 
