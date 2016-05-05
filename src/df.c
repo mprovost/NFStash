@@ -170,6 +170,10 @@ void print_header(int maxhost, int maxpath, enum byte_prefix prefix) {
 }
 
 
+/* generate formatted df size strings */
+/* in "human" mode, calculate the best fit and print the label since each filesystem can have a different "best" unit */
+/* the "best" fit is the largest unit that fits into 4 digits */
+/* otherwise printing the prefix has moved into the header instead of after each number */
 int prefix_print(size3 input, char *output, enum byte_prefix prefix) {
     int index;
     size3 shifted;
