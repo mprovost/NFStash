@@ -15,6 +15,7 @@ enum byte_prefix {
     HUMAN = 99
 };
 
+/* labels for printing size prefixes */
 static const char prefix_label[] = {
     /* TODO something better than a space for bytes */
     [BYTE] = ' ', /* nothing for just bytes */
@@ -66,6 +67,21 @@ static const int prefix_width[] = {
 /* 20 is enough for 15 exabytes in bytes, plus three for the label and a trailing NUL */
 static const int max_prefix_width = 25;
 
+/* with 32 bit inodes you can have 2^32 per filesystem = 4294967296 = 10 digits */
+/* ZFS can have 2^48 inodes which is 15 digits */
+/* let's assume 32 bits is enough for now */
+/* add one extra space for a gap between columns */
+static const int max_inode_width = 11;
+
+/* globals */
+int verbose = 0;
+
+/* global config "object" */
+static struct config {
+    enum outputs format;
+    int inodes;
+} cfg;
+
 
 /* local prototypes */
 static void usage(void);
@@ -77,14 +93,6 @@ static void print_inodes(int, char *, char *, FSSTAT3res *, const unsigned long)
 static char *replace_char(const char *, const char *, const char *);
 static void print_format(enum outputs, char *, char *, char *, FSSTAT3res *, const struct timespec);
 
-/* globals */
-int verbose = 0;
-
-/* global config "object" */
-static struct config {
-    enum outputs format;
-    int inodes;
-} cfg;
 
 void usage() {
     printf("Usage: nfsdf [options] [filehandle...]\n\
@@ -141,10 +149,7 @@ void print_header(int maxhost, int maxpath, enum byte_prefix prefix) {
 
     if (cfg.format == ping) {
         if (cfg.inodes) {
-            /* with 32 bit inodes you can have 2^32 per filesystem = 4294967296 = 10 digits */
-            /* ZFS can have 2^48 inodes which is 15 digits */
-            /* let's assume 32 bits is enough for now */
-            width = 10;
+            width = max_inode_width;
             printf("%-*s %*s %*s %%iused    ms\n",
                 maxhost + maxpath + 1, "Filesystem", width, "iused", width, "ifree");
         } else {
@@ -257,7 +262,6 @@ int print_df(int offset, char *host, char *path, FSSTAT3res *fsstatres, const en
  */
 void print_inodes(int offset, char *host, char *path, FSSTAT3res *fsstatres, const unsigned long usec) {
     double capacity;
-    int width = 10;
 
     /* percent used */
     capacity = (1 - ((double)fsstatres->FSSTAT3res_u.resok.ffiles / fsstatres->FSSTAT3res_u.resok.tfiles)) * 100;
@@ -266,9 +270,9 @@ void print_inodes(int offset, char *host, char *path, FSSTAT3res *fsstatres, con
         host,
         offset, path,
         /* calculate number of used inodes */
-        width, fsstatres->FSSTAT3res_u.resok.tfiles - fsstatres->FSSTAT3res_u.resok.ffiles,
+        max_inode_width, fsstatres->FSSTAT3res_u.resok.tfiles - fsstatres->FSSTAT3res_u.resok.ffiles,
         /* free inodes */
-        width, fsstatres->FSSTAT3res_u.resok.ffiles,
+        max_inode_width, fsstatres->FSSTAT3res_u.resok.ffiles,
         capacity,
         usec / 1000.0);
 }
