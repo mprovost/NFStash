@@ -82,7 +82,7 @@ struct mount_exports {
     char path[MNTPATHLEN];
     /* for fping output when we need to store the individual results for the summary */
     unsigned long *results;
-    unsigned int sent, received;
+    unsigned long sent, received;
     unsigned long min, max;
     float avg;
     JSON_Value *json_root; /* the JSON object for output */
@@ -93,9 +93,11 @@ struct mount_exports {
 /* a singly linked list of nfs filehandles */
 typedef struct nfs_fh_list {
     char *host;
-    struct sockaddr_in *client_sock;
     char *path;
+    struct sockaddr_in *client_sock;
+    unsigned long sent, received;
     nfs_fh3 nfs_fh; /* generic name so we can include v2/v4 later */
+
     struct nfs_fh_list *next;
 } nfs_fh_list;
 
