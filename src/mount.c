@@ -627,8 +627,8 @@ int main(int argc, char **argv) {
     /* current export */
     struct mount_exports *export = NULL;
     /* counters for results */
-    unsigned int exports_count = 0;
-    unsigned int exports_ok    = 0;
+    unsigned long exports_sent = 0;
+    unsigned long exports_ok    = 0;
     /* getopt */
     int ch;
     struct timespec sleep_time;
@@ -1016,9 +1016,9 @@ int main(int argc, char **argv) {
                 if (cfg.format == showmount) {
                     ex = get_exports(current);
                     if (cfg.ip) {
-                        exports_count = print_exports(current->ip_address, ex);
+                        exports_sent = print_exports(current->ip_address, ex);
                     } else {
-                        exports_count = print_exports(current->name, ex);
+                        exports_sent = print_exports(current->name, ex);
                     }
                 } else {
                     /* look up the export list on the server and create a list of exports */
@@ -1094,14 +1094,13 @@ int main(int argc, char **argv) {
 
                 /* for each target, go through the list of filesystem exports */
                 while (export) {
-                    exports_count++;
-
                     /* get the current timestamp */
                     clock_gettime(CLOCK_REALTIME, &wall_clock);
 
                     /* the RPC call */
                     get_root_filehandle(current->client, current->name, export->path, &root, &usec);
 
+                    exports_sent++;
                     export->sent++;
 
                     if (root.fhandle3_len) {
@@ -1183,7 +1182,8 @@ int main(int argc, char **argv) {
         print_summary(targets, cfg.format, width, cfg.ip);
     }
 
-    if (exports_count && exports_count == exports_ok) {
+    /* check if all of the requests came back ok */
+    if (exports_sent && exports_sent == exports_ok) {
         return EXIT_SUCCESS;
     }
 
