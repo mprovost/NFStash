@@ -397,6 +397,7 @@ int main(int argc, char **argv) {
     CLIENT *client = NULL;
     struct sockaddr_in clnt_info;
     unsigned long version = 3;
+    struct timespec loop_start, loop_end, loop_elapsed, sleepy;
     struct timespec sleep_time;
     unsigned long hertz = NFS_HERTZ;
     struct timeval timeout = NFS_TIMEOUT;
@@ -598,6 +599,12 @@ int main(int argc, char **argv) {
         /* skip the first empty struct */
         current = filehandles->next;
 
+#ifdef CLOCK_MONOTONIC_RAW
+        clock_gettime(CLOCK_MONOTONIC_RAW, &loop_start);
+#else  
+        clock_gettime(CLOCK_MONOTONIC, &loop_start);
+#endif 
+
         while (current) {
             /* see if we can reuse the previous client connection */
             if (client) {
@@ -654,11 +661,28 @@ int main(int argc, char **argv) {
                 }
             }
 
-            if (loop) {
-                nanosleep(&sleep_time, NULL);
-            }
-
             current = current->next;
+        } /* while(current) */
+
+        if (loop) {
+            /* sleep between rounds */
+            /* measure how long the current round took, and subtract that from the sleep time */
+            /* this keeps us on the polling frequency */
+#ifdef CLOCK_MONOTONIC_RAW
+            clock_gettime(CLOCK_MONOTONIC_RAW, &loop_end);
+#else
+            clock_gettime(CLOCK_MONOTONIC, &loop_end);
+#endif
+            timespecsub(&loop_end, &loop_start, &loop_elapsed);
+            debug("Polling took %lld.%.9lds\n", (long long)loop_elapsed.tv_sec, loop_elapsed.tv_nsec);
+            /* don't sleep if we went over the sleep_time */
+            if (timespeccmp(&loop_elapsed, &sleep_time, >)) {
+            debug("Slow poll, not sleeping\n");
+            } else {
+                timespecsub(&sleep_time, &loop_elapsed, &sleepy);
+                debug("Sleeping for %lld.%.9lds\n", (long long)sleepy.tv_sec, sleepy.tv_nsec);
+                nanosleep(&sleepy, NULL);
+            }
         }
     } while (loop);
 
