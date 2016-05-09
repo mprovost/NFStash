@@ -480,7 +480,7 @@ void print_output(enum outputs format, const char *prefix, const int width, cons
         /* print "ping" style output */
         case ping:
         case fping: /* fping is only different in the summary at the end */
-            printf("%s:%-*s : [%u], %03.2f ms (%03.2f avg, %.0f%% loss)\n",
+            printf("%s:%-*s : [%lu], %03.2f ms (%03.2f avg, %.0f%% loss)\n",
                 display_name,
                 /* have to cast size_t to int for compiler warning */
                 /* printf only accepts ints for field widths with * */
@@ -560,7 +560,7 @@ void print_summary(targets_t *targets, enum outputs format, const int width, con
                         case unixtime:
                         case json: /* not sure if this makes sense? */
                             loss = (export->sent - export->received) / export->sent * 100.0;
-                            fprintf(stderr, " xmt/rcv/%%loss = %u/%u/%.0f%%",
+                            fprintf(stderr, " xmt/rcv/%%loss = %lu/%lu/%.0f%%",
                                 export->sent, export->received, loss);
                             /* only print times if we got any responses */
                             if (export->received) {
