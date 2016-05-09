@@ -3,7 +3,7 @@ nfsdf(8) -- report NFS server disk space usage
 
 ## SYNOPSIS
 
-`nfsdf` [`-bgGhiklmtTv`] [`-H` <hertz>] [`-p` <prefix>] [`-S` <source>] <filehandle...>
+`nfsdf` [`-bgGhiklmtTv`] [`-c` <count>][`-H` <hertz>] [`-p` <prefix>] [`-S` <source>] <filehandle...>
 
 ## DESCRIPTION
 
@@ -17,6 +17,9 @@ If the NFS server requires "secure" ports (<1024), `nfsdf` will have to be run a
 
 * `-b`:
   Report disk space in bytes.
+
+* `-c` <count>:
+  Count of FSSTAT requests to send to each input filehandle before exiting.
 
 * `-g`:
   Report disk space in gigabytes.
