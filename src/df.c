@@ -79,9 +79,19 @@ int verbose = 0;
 
 /* global config "object" */
 static struct config {
+    unsigned long count;
+    int loop;
     enum outputs format;
     int inodes;
 } cfg;
+
+/* default config */
+const struct config CONFIG_DEFAULT = {
+    .count  = 0,
+    .loop   = 0,
+    .format = unset,
+    .inodes = 0,
+};
 
 
 /* local prototypes */
@@ -391,18 +401,20 @@ int main(int argc, char **argv) {
     nfs_fh_list fh_dummy;
     nfs_fh_list *current     = &fh_dummy;
     nfs_fh_list *filehandles = current;
-    int loop = 0;
     unsigned int maxpath = 0;
     unsigned int maxhost = 0;
     CLIENT *client = NULL;
     struct sockaddr_in clnt_info;
     unsigned long version = 3;
-    struct timespec loop_start, loop_end, loop_elapsed, sleepy;
-    struct timespec sleep_time;
-    unsigned long hertz = NFS_HERTZ;
-    struct timeval timeout = NFS_TIMEOUT;
+    struct timespec loop_start, loop_end, loop_elapsed, sleepy, sleep_time;
+    unsigned long hertz       = NFS_HERTZ;
+    struct timeval timeout    = NFS_TIMEOUT;
     struct timespec call_start, call_end, call_elapsed, wall_clock;
     unsigned long usec = 0;
+    /* count of requests sent */
+    unsigned long df_sent = 0;
+    /* count of successful requests */
+    unsigned long df_ok   = 0;
     struct addrinfo hints = {
         .ai_family = AF_INET,
         /* default to UDP */
@@ -415,15 +427,10 @@ int main(int argc, char **argv) {
         .sin_addr = 0
     };
 
-    /* default config */
-    const struct config CONFIG_DEFAULT = {
-        .format = unset,
-        .inodes = 0,
-    };
-
+    /* set the default config "object" */
     cfg = CONFIG_DEFAULT;
 
-    while ((ch = getopt(argc, argv, "bgGhH:iklmp:S:tTv")) != -1) {
+    while ((ch = getopt(argc, argv, "bc:gGhH:iklmp:S:tTv")) != -1) {
         switch(ch) {
             /* display bytes */
             case 'b':
@@ -431,6 +438,19 @@ int main(int argc, char **argv) {
                     fatal("Can't specify multiple units!\n");
                 } else {
                     prefix = BYTE;
+                }
+                break;
+            /* loop count */
+            case 'c':
+                if (cfg.loop) {
+                    fatal("Can't specify both -l and -c!\n");
+                }
+                cfg.count = strtoul(optarg, NULL, 10);
+                if (cfg.count == 0 || cfg.count == ULONG_MAX) {
+                   fatal("Zero count, nothing to do!\n");
+                }
+                if (cfg.format == unset) {
+                    cfg.format = ping;
                 }
                 break;
             /* display gigabytes */
@@ -476,7 +496,10 @@ int main(int argc, char **argv) {
                 break;
             /* loop forever */
             case 'l':
-                loop = 1;
+                if (cfg.count) {
+                    fatal("Can't specify both -c and -l!\n");
+                }
+                cfg.loop = 1;
                 if (cfg.format == unset) {
                     cfg.format = ping;
                 }
@@ -584,6 +607,9 @@ int main(int argc, char **argv) {
         }
     }
 
+    /* set to start of list, skipping first dummy entry */
+    filehandles = filehandles->next;
+
     /* 
      * Print the header before sending any RPCs, this means we have to guess about the size of the results
      * but it lets the user know that the program is running. Then we can print the results as they come in
@@ -594,10 +620,10 @@ int main(int argc, char **argv) {
 
     print_header(maxhost, maxpath, prefix);
 
-    do {
+    /* the main loop */
+    while(1) {
         /* reset to start of list */
-        /* skip the first empty struct */
-        current = filehandles->next;
+        current = filehandles;
 
 #ifdef CLOCK_MONOTONIC_RAW
         clock_gettime(CLOCK_MONOTONIC_RAW, &loop_start);
@@ -644,12 +670,17 @@ int main(int argc, char **argv) {
 #else  
             clock_gettime(CLOCK_MONOTONIC, &call_end);
 #endif
+            df_sent++;
+            current->sent++;
 
             /* calculate elapsed microseconds */
             timespecsub(&call_end, &call_start, &call_elapsed);
             usec = ts2us(call_elapsed);
 
             if (fsstatres && fsstatres->status == NFS3_OK) {
+                df_ok++;
+                current->received++;
+
                 if (cfg.format == ping) {
                     if (cfg.inodes) {
                         print_inodes(maxpath, current->host, current->path, fsstatres, usec);
@@ -661,10 +692,14 @@ int main(int argc, char **argv) {
                 }
             }
 
+            /* don't pause between targets */
+
             current = current->next;
         } /* while(current) */
 
-        if (loop) {
+        /* only sleep if looping or counting */
+        /* check the count against the first target */
+        if (cfg.loop || (cfg.count && filehandles->sent < cfg.count)) {
             /* sleep between rounds */
             /* measure how long the current round took, and subtract that from the sleep time */
             /* this keeps us on the polling frequency */
@@ -683,8 +718,15 @@ int main(int argc, char **argv) {
                 debug("Sleeping for %lld.%.9lds\n", (long long)sleepy.tv_sec, sleepy.tv_nsec);
                 nanosleep(&sleepy, NULL);
             }
+        } else {
+            break;
         }
-    } while (loop);
+    } /* while (1) */
 
-    return EXIT_SUCCESS;
+    /* check if all the results came back ok */
+    if (df_sent && df_sent == df_ok) {
+        return EXIT_SUCCESS;
+    }
+
+    return EXIT_FAILURE;
 }
