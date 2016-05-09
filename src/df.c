@@ -107,7 +107,6 @@ static void print_format(enum outputs, char *, char *, char *, FSSTAT3res *, con
 
 void usage() {
     /* TODO:
-       -c for count
        -e for exabytes?
        -E for statsd
        -p for petabytes, but that is already used for the graphite prefix
@@ -117,6 +116,7 @@ void usage() {
      */
     printf("Usage: nfsdf [options] [filehandle...]\n\
     -b         display sizes in bytes\n\
+    -c n       count of requests to send for each filehandle\n\
     -g         display sizes in gigabytes\n\
     -G         Graphite format output (default human readable)\n\
     -h         display human readable sizes (default)\n\
