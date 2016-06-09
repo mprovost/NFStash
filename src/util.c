@@ -291,13 +291,11 @@ char* reverse_fqdn(char *fqdn) {
 
 
 /* allocate and initialise a target struct */
-/* TODO should we set the target name here at all or in make_target()? */
-targets_t *init_target(char *target_name, uint16_t port, unsigned long count, enum outputs format) {
+targets_t *init_target(uint16_t port, unsigned long count, enum outputs format) {
     targets_t *target;
     
     target = calloc(1, sizeof(targets_t));
     target->next = NULL;
-    target->name = target_name;
 
     /* set this so that the first comparison will always be smaller */
     target->min = ULONG_MAX;
@@ -320,31 +318,24 @@ targets_t *init_target(char *target_name, uint16_t port, unsigned long count, en
 
 /* make a new target, or list of targets if there are multiple DNS entries */
 /* return the head of the list */
-/*
- Always store the ip address string in target->ip_address.
- */
-//also look at setting hostname in make_target instead of init_target based on dns/ip
+/* Always store the ip address string in target->ip_address. */
 targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t port, int dns, int ip, int multiple, unsigned long count, enum outputs format) {
     targets_t *target, *first;
     struct addrinfo *addr;
     int getaddr;
 
     /* first build a blank target */
-    target = init_target(target_name, port, count, format);
+    target = init_target(port, count, format);
 
     /* save the head of the list in case of multiple DNS responses */
     first = target;
 
     /* first try treating the hostname as an IP address */
-    if (inet_pton(AF_INET, target->name, &((struct sockaddr_in *)target->client_sock)->sin_addr)) {
-        /* the name is already an IP address if inet_pton succeeded */
-        target->ip_address = target->name;
-
+    if (inet_pton(AF_INET, target_name, &((struct sockaddr_in *)target->client_sock)->sin_addr)) {
         /* reverse dns */
         if (dns) {
             /* don't free the old name because we're using it as the ip_address */
-            target->name = calloc(1, NI_MAXHOST);
-            getaddr = getnameinfo((struct sockaddr *)target->client_sock, sizeof(struct sockaddr_in), target->name, NI_MAXHOST, NULL, 0, NI_NAMEREQD);
+            getaddr = getnameinfo((struct sockaddr *)target->client_sock, sizeof(struct sockaddr_in), target_name, NI_MAXHOST, NULL, 0, NI_NAMEREQD);
 
             if (getaddr != 0) { /* failure! */
                 fprintf(stderr, "%s: %s\n", target_name, gai_strerror(getaddr));
@@ -352,41 +343,45 @@ targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t
             }
             target->ndqf = reverse_fqdn(target->name);
         } else {
+            /* the IP address is the only thing we have for a name */
+            strncpy(target->name, target_name, INET_ADDRSTRLEN);
             /* don't reverse IP addresses */
             target->ndqf = target->name;
         }
 
+        /* the name is already an IP address if inet_pton succeeded */
+        strncpy(target->ip_address, target_name, INET_ADDRSTRLEN);
     /* not an IP address, do a DNS lookup */
     } else {
         /* we don't call freeaddrinfo because we keep a pointer to the sin_addr in the target */
-        getaddr = getaddrinfo(target->name, "nfs", hints, &addr);
+        getaddr = getaddrinfo(target_name, "nfs", hints, &addr);
         if (getaddr == 0) { /* success! */
             /* loop through possibly multiple DNS responses */
             while (addr) {
                 target->client_sock->sin_addr = ((struct sockaddr_in *)addr->ai_addr)->sin_addr;
 
                 /* save the IP address as a string */
-                target->ip_address = calloc(1, INET_ADDRSTRLEN);
                 inet_ntop(AF_INET, &((struct sockaddr_in *)addr->ai_addr)->sin_addr, target->ip_address, INET_ADDRSTRLEN);
 
-                /* if using IP addresses */
-                if (ip) {
-                    target->name = target->ip_address;
-                    /* don't reverse IP addresses */
-                    target->ndqf = target->ip_address;
+                /*
+                 * always set the hostname
+                 * if we need to display IP addresses do that in display logic and use the ip_address
+                 */
                 /* if reverse lookups enabled */
-                } else if (dns) {
-                    target->name = calloc(1, NI_MAXHOST);
+                if (dns) {
                     getaddr = getnameinfo((struct sockaddr *)target->client_sock, sizeof(struct sockaddr_in), target->name, NI_MAXHOST, NULL, 0, NI_NAMEREQD);
                     /* check for DNS success */
                     if (getaddr == 0) {
                         target->ndqf = reverse_fqdn(target->name);
-                    /* just use the IP address */
+                    /* otherwise just use the IP address */
+                    /* TODO or use the original hostname? */
                     } else {
-                        target->name = target->ip_address;
+                        strncpy(target->name, target->ip_address, INET_ADDRSTRLEN);
+                        /* FIXME */
                         target->ndqf = target->name;
                     }
                 } else {
+                    strncpy(target->name, target_name, NI_MAXHOST);
                     target->ndqf = reverse_fqdn(target->name);
                 }
 
@@ -397,7 +392,7 @@ targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t
                 if (addr->ai_next) {
                     if (multiple) {
                         /* make the next target */
-                        target->next = init_target(target_name, port, count, format);
+                        target->next = init_target(port, count, format);
                         target = target->next;
                     } else {
                         fprintf(stderr, "Multiple addresses found for %s, using %s\n", target_name, target->ip_address);
