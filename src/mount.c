@@ -431,7 +431,16 @@ struct mount_exports *make_exports(targets_t *target) {
 }
 
 
-/* print a MOUNT filehandle as a series of hex bytes wrapped in a JSON object */
+/* print a MOUNT filehandle to stdout as a series of hex bytes wrapped in a JSON object */
+/* returns the length of the filehandle in bytes */
+/*
+ * Even though this duplicates some output, print each result on a
+ * separate line instead of making a single JSON object per IP address
+ * with an array of exports. This is because each filehandle is returned
+ * from a separate MOUNT call. Otherwise you have to wait for all the RPC
+ * calls to come back in and we could be piping this output into another
+ * program that's waiting for input.
+ */
 int print_fhandle3(JSON_Value *json_root, const fhandle3 file_handle, const unsigned long usec, const struct timespec wall_clock) {
     unsigned int i;
     /* two chars for each byte (FF in hex) plus terminating NULL */
@@ -445,7 +454,6 @@ int print_fhandle3(JSON_Value *json_root, const fhandle3 file_handle, const unsi
     /* walk through the NFS filehandle, print each byte as two hex characters */
     for (i = 0; i < file_handle.fhandle3_len; i++) {
         sprintf(&fh_string[i * 2], "%02hhx", file_handle.fhandle3_val[i]);
-    
     }
 
     json_object_set_string(json_obj, "filehandle", fh_string);

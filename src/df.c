@@ -577,11 +577,15 @@ int main(int argc, char **argv) {
     }
     
     /* first parse all of the input filehandles into a list 
-     * this gives us the longest path so we can lay out the output */
+     * this gives us the longest path so we can lay out the output
+     * TODO only for human readable output, otherwise do it line by line
+     */
     while (input_fh) {
 
         current->next = parse_fh(input_fh);
         current = current->next;
+
+        /* TODO build a separate list of client connections so we don't reconnect to the same server multiple times */
 
         /* save the longest host/paths for display formatting */
         if (current) {
@@ -633,6 +637,7 @@ int main(int argc, char **argv) {
 
         while (current) {
             /* see if we can reuse the previous client connection */
+            /* TODO make an array/linked list of connections and search through that */
             if (client) {
                 if (clnt_info.sin_addr.s_addr != current->client_sock->sin_addr.s_addr) {
                     client = destroy_rpc_client(client);
