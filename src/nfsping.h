@@ -61,11 +61,12 @@
 #define TIME_T_MAX_DIGITS 21
 
 typedef struct targets {
+    /* make the first field a pointer so that assigning to {0} works */
+    CLIENT *client; /* RPC client */
     char name[NI_MAXHOST]; /* from getnameinfo() */
     char *ndqf; /* reversed name, for Graphite etc */
     char ip_address[INET_ADDRSTRLEN]; /* the IP address as a string, from inet_ntop() */
     struct sockaddr_in *client_sock; /* used to store the port number and connect to the RPC client */
-    CLIENT *client; /* RPC client */
     /* for fping output when we need to store the individual results for the summary */
     unsigned long *results;
     unsigned int sent, received;
