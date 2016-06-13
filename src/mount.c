@@ -1009,7 +1009,7 @@ int main(int argc, char **argv) {
         }
 
         /* make possibly multiple new targets */
-        current->next = make_target(host, &hints, cfg.port, cfg.dns, cfg.ip, cfg.multiple, cfg.count, cfg.format);
+        current->next = make_target(host, &hints, cfg.port, cfg.dns, cfg.multiple, cfg.count, cfg.format);
         current = current->next;
 
         while (current) {

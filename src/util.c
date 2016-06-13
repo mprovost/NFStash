@@ -319,7 +319,7 @@ targets_t *init_target(uint16_t port, unsigned long count, enum outputs format) 
 /* make a new target, or list of targets if there are multiple DNS entries */
 /* return the head of the list */
 /* Always store the ip address string in target->ip_address. */
-targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t port, int dns, int ip, int multiple, unsigned long count, enum outputs format) {
+targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t port, int dns, int multiple, unsigned long count, enum outputs format) {
     targets_t *target, *first;
     struct addrinfo *addr;
     int getaddr;
@@ -338,8 +338,8 @@ targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t
             getaddr = getnameinfo((struct sockaddr *)target->client_sock, sizeof(struct sockaddr_in), target_name, NI_MAXHOST, NULL, 0, NI_NAMEREQD);
 
             if (getaddr != 0) { /* failure! */
-                fprintf(stderr, "%s: %s\n", target_name, gai_strerror(getaddr));
-                exit(2); /* ping and fping return 2 for name resolution failures */
+                /* ping and fping return 2 for name resolution failures */
+                fatalx(2, "%s: %s\n", target_name, gai_strerror(getaddr));
             }
             target->ndqf = reverse_fqdn(target->name);
         } else {
@@ -350,6 +350,7 @@ targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t
         }
 
         /* the name is already an IP address if inet_pton succeeded */
+        /* TODO should ip_address be a pointer in struct target so we don't have to make a copy in this one case? */
         strncpy(target->ip_address, target_name, INET_ADDRSTRLEN);
     /* not an IP address, do a DNS lookup */
     } else {
@@ -364,7 +365,7 @@ targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t
                 inet_ntop(AF_INET, &((struct sockaddr_in *)addr->ai_addr)->sin_addr, target->ip_address, INET_ADDRSTRLEN);
 
                 /*
-                 * always set the hostname
+                 * always set the hostname based on the original user input
                  * if we need to display IP addresses do that in display logic and use the ip_address
                  */
                 /* if reverse lookups enabled */

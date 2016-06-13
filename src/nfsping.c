@@ -658,7 +658,7 @@ int main(int argc, char **argv) {
 
     /* process the targets from the command line */
     for (index = optind; index < argc; index++) {
-        target->next = make_target(argv[index], &hints, port, dns, ip, multiple, count, format);
+        target->next = make_target(argv[index], &hints, port, dns, multiple, count, format);
         target = target->next;
     }
 
