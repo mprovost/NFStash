@@ -68,9 +68,17 @@ static const int prefix_width[] = {
 /* 20 is enough for 15 exabytes in bytes, plus three for the label and a trailing NUL */
 static const int max_prefix_width = 25;
 
+/* FSSTAT3res returns a size3(uint64) result for inodes which is 18446744073709551615 */
+/* that's way too big */
+/* it doesn't even make sense as a maximum - that's the same unit for number of available bytes, so each file would be 1 byte */
+/* but of course inodes themselves consume space so that's not possible */
+/* ext4 has 32 bit inodes */
 /* with 32 bit inodes you can have 2^32 per filesystem = 4294967296 = 10 digits */
 /* ZFS can have 2^48 inodes which is 15 digits */
-/* let's assume 32 bits is enough for now */
+/* Netapp creates 1 inode per 32Kb of filesystem space by default which would be 562949953421311 inodes for a 15EB filesystem */
+/* which is also 15 digits */
+/* that's a more sensible maximum */
+/* let's assume 32 bits is enough for now to keep formatting under control until we see >4 billion inode filesystems in the wild */
 /* add one extra space for a gap between columns */
 static const int max_inode_width = 11;
 
@@ -258,6 +266,10 @@ int prefix_print(size3 input, char *output, enum byte_prefix prefix) {
    /vol/vol0           4339168  1777824  2561344 41%      /vol/vol0
  */
 /* TODO should it also print inodes by default like OSX's df? The fsstat call already returns those results */
+/* OSX style:
+   Filesystem      Size   Used  Avail Capacity  iused    ifree %iused  Mounted on
+   /dev/disk0s2   112Gi   55Gi   57Gi    50% 14570638 14841730   50%   /
+ */
 int print_df(int offset, char *host, char *path, FSSTAT3res *fsstatres, const enum byte_prefix prefix, unsigned long usec) {
     /* just use static string arrays, they're not big enough to allocate memory dynamically */
     char total[max_prefix_width];
@@ -293,6 +305,8 @@ int print_df(int offset, char *host, char *path, FSSTAT3res *fsstatres, const en
 
 
 /* TODO human readable output ie 4M, use the -h flag */
+/* GNU df allows -h with inode output */
+/* TODO allow all prefixes to work with -i? */
 /* base 10 (SI units) vs base 2? (should this be an option for bytes as well?) */
 /* Netapp style output:
    toaster> df -i /vol/vol0
