@@ -93,9 +93,10 @@ struct mount_exports {
 
 /* a singly linked list of nfs filehandles */
 typedef struct nfs_fh_list {
-    char *host;
-    char *path;
     struct sockaddr_in *client_sock;
+    char host[NI_MAXHOST]; /* from getnameinfo() */
+    char ip_address[INET_ADDRSTRLEN]; /* the IP address as a string, from inet_ntop() */
+    char path[MNTPATHLEN];
     unsigned long sent, received;
     nfs_fh3 nfs_fh; /* generic name so we can include v2/v4 later */
 

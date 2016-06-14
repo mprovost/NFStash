@@ -118,7 +118,6 @@ int nfs_perror(nfsstat3 status) {
 nfs_fh_list *parse_fh(char *input) {
     unsigned int i;
     const char *tmp;
-    char *copy;
     u_int fh_len = 0;
     JSON_Value  *root_value;
     JSON_Object *filehandle;
@@ -130,13 +129,9 @@ nfs_fh_list *parse_fh(char *input) {
         return NULL;
     }
 
-    next = malloc(sizeof(nfs_fh_list));
+    next = calloc(1, sizeof(nfs_fh_list));
     next->client_sock = NULL;
     next->next = NULL;
-
-    /* keep a copy of the original input around for error messages */
-    /* TODO do we need this with parson? Might not eat input */
-    copy = strdup(input);
 
     root_value = json_parse_string(input);
     /* TODO if root isn't object, bail */
@@ -146,7 +141,7 @@ nfs_fh_list *parse_fh(char *input) {
     tmp = json_object_get_string(filehandle, "host");
 
     if (tmp) {
-        next->host = strndup(tmp, NI_MAXHOST);
+        strncpy(next->host, tmp, NI_MAXHOST);
 
         /* then find the IP */
         tmp = json_object_get_string(filehandle, "ip");
@@ -157,16 +152,20 @@ nfs_fh_list *parse_fh(char *input) {
             /* set up the socket */
             next->client_sock = malloc(sizeof(struct sockaddr_in));
             next->client_sock->sin_family = AF_INET;
-            next->client_sock->sin_port = 0; /* use portmapper */
+            /* TODO look for a port number in the JSON */
+            next->client_sock->sin_port = 0; /* use portmapper by default */
 
             /* convert the IP string back into a network address */
             if (inet_pton(AF_INET, tmp, &next->client_sock->sin_addr)) {
+                /* keep a copy of the string for output */
+                /* do it after inet_pton so we know it's valid and the length will be less than INET_ADDRSTRLEN */
+                strncpy(next->ip_address, tmp, INET_ADDRSTRLEN);
 
                 /* path is just used for display */
                 tmp = json_object_get_string(filehandle, "path");
 
                 if (tmp) {
-                    next->path = strndup(tmp, MNTPATHLEN);
+                    strncpy(next->path, tmp, MNTPATHLEN);
 
                     /* the root filehandle in hex */
                     tmp = json_object_get_string(filehandle, "filehandle");
@@ -186,35 +185,36 @@ nfs_fh_list *parse_fh(char *input) {
                                     sscanf(&tmp[i * 2], "%2hhx", &next->nfs_fh.data.data_val[i]);
                                 }
                             } else {
-                                fprintf(stderr, "Invalid filehandle: %s\n", copy);
-                                next->path = NULL;
+                                fprintf(stderr, "Invalid filehandle: %s\n", tmp);
+                                next->path[0] = 0;
                             }
                         } else {
-                            fprintf(stderr, "Invalid filehandle: %s\n", copy);
-                            next->path = NULL;
+                            fprintf(stderr, "Invalid filehandle: %s\n", tmp);
+                            next->path[0] = 0;
                         }
                     } else {
                         fprintf(stderr, "No filehandle found!\n");
-                        next->path = NULL;
+                        next->path[0] = 0;
                     }
                 } else {
                     fprintf(stderr, "No path found!\n");
-                    next->path = NULL;
+                    next->path[0] = 0;
                 }
             } else {
-                fprintf(stderr, "Invalid IP address: %s\n", copy);
-                next->path = NULL;
+                fprintf(stderr, "Invalid IP address: %s\n", tmp);
+                next->path[0] = 0;
             }
         } else {
             fprintf(stderr, "No ip found!\n");
-            next->path = NULL;
+            next->path[0] = 0;
         }
     } else {
         fprintf(stderr, "No host found!\n");
-        next->path = NULL;
+        next->path[0] = 0;
     }
 
-    if (next->host && next->path && fh_len) {
+    /* TODO find a better way of signalling an error than setting an empty path */
+    if (next->host && next->path[0] && fh_len) {
         return next;
     } else {
         if (next->client_sock) free(next->client_sock);
