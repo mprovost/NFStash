@@ -1010,11 +1010,15 @@ int main(int argc, char **argv) {
 
         /* make possibly multiple new targets */
         current->next = make_target(host, &hints, cfg.port, cfg.dns, cfg.multiple, cfg.count, cfg.format);
-        current = current->next;
 
-        while (current) {
+        /* go through the new targets and make a list of exports */
+        while (current->next) {
+            current = current->next;
+
+            /* if we've been passed a specific path */
             if (path) {
                 /* make a new blank export */
+                /* this doesn't check on the server that the path is valid */
                 current->exports = init_export(current, path);
             /* no path given, look up exports on server */
             } else {
@@ -1033,8 +1037,6 @@ int main(int argc, char **argv) {
                     current->exports = make_exports(current);
                 }
             }
-
-            current = current->next;
         }
 
         optind++;
