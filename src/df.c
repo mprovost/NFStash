@@ -83,6 +83,7 @@ static struct config {
     int loop;
     enum outputs format;
     int inodes;
+    int display_ips;
 } cfg;
 
 /* default config */
@@ -91,6 +92,7 @@ const struct config CONFIG_DEFAULT = {
     .loop   = 0,
     .format = unset,
     .inodes = 0,
+    .display_ips = 0,
 };
 
 
@@ -115,6 +117,7 @@ void usage() {
        -V for NFS version
      */
     printf("Usage: nfsdf [options] [filehandle...]\n\
+    -A         show IP addresses\n\
     -b         display sizes in bytes\n\
     -c n       count of requests to send for each filehandle\n\
     -g         display sizes in gigabytes\n\
@@ -430,8 +433,12 @@ int main(int argc, char **argv) {
     /* set the default config "object" */
     cfg = CONFIG_DEFAULT;
 
-    while ((ch = getopt(argc, argv, "bc:gGhH:iklmp:S:tTv")) != -1) {
+    while ((ch = getopt(argc, argv, "Abc:gGhH:iklmp:S:tTv")) != -1) {
         switch(ch) {
+            /* display IP addresses */
+            case 'A':
+                cfg.display_ips = 1;
+                break;
             /* display bytes */
             case 'b':
                 if (prefix != NONE) {
@@ -589,11 +596,20 @@ int main(int argc, char **argv) {
 
         /* save the longest host/paths for display formatting */
         if (current) {
-            if (strlen(current->path) > maxpath)
+            if (strlen(current->path) > maxpath) {
                 maxpath = strlen(current->path);
+            }
 
-            if (strlen(current->host) > maxhost)
-                maxhost = strlen(current->host);
+            /* check if we're displaying hostnames or IP addresses */
+            if (cfg.display_ips) {
+                if (strlen(current->ip_address) > maxhost) {
+                    maxhost = strlen(current->ip_address);
+                }
+            } else {
+                if (strlen(current->host) > maxhost) {
+                    maxhost = strlen(current->host);
+                }
+            }
         }
 
         /* parse next argument or line from stdin */
@@ -690,7 +706,13 @@ int main(int argc, char **argv) {
                     if (cfg.inodes) {
                         print_inodes(maxpath, current->host, current->path, fsstatres, usec);
                     } else {
-                        print_df(maxpath, current->host, current->path, fsstatres, prefix, usec);
+                        /* are we printing ip_addresses or hostnames */
+                        /* TODO move this logic into print_df? But then have to pass in the filehandle struct */
+                        if (cfg.display_ips) {
+                            print_df(maxpath, current->ip_address, current->path, fsstatres, prefix, usec);
+                        } else {
+                            print_df(maxpath, current->host, current->path, fsstatres, prefix, usec);
+                        }
                     }
                 } else {
                     print_format(cfg.format, output_prefix, current->host, current->path, fsstatres, wall_clock);

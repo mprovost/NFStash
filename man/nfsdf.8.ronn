@@ -3,7 +3,7 @@ nfsdf(8) -- report NFS server disk space usage
 
 ## SYNOPSIS
 
-`nfsdf` [`-bgGhiklmtTv`] [`-c` <count>][`-H` <hertz>] [`-p` <prefix>] [`-S` <source>] <filehandle...>
+`nfsdf` [`-AbgGhiklmtTv`] [`-c` <count>][`-H` <hertz>] [`-p` <prefix>] [`-S` <source>] <filehandle...>
 
 ## DESCRIPTION
 
@@ -14,6 +14,9 @@ Input filehandles are represented as a series of JSON objects (one per line) wit
 If the NFS server requires "secure" ports (<1024), `nfsdf` will have to be run as root.
 
 ## OPTIONS
+
+* `-A`:
+  Display IP addresses (instead of hostnames).
 
 * `-b`:
   Report disk space in bytes.
