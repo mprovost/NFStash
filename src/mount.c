@@ -309,7 +309,7 @@ fhandle3 *get_root_filehandle(CLIENT *client, char *hostname, char *path, fhandl
                 /* check if we get an access error, this probably means the server wants us to use a reserved port */
                 /* TODO do this check in mount_perror? */
                 if (mountres->fhs_status == MNT3ERR_ACCES && geteuid()) {
-                    fprintf(stderr, "Unable to mount filesystem, consider running as root\n");
+                    fprintf(stderr, "Access denied mounting filesystem, rerun with sudo\n");
                 } else {
                     mount_perror(mountres->fhs_status);
                 }
