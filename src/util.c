@@ -120,10 +120,6 @@ nfs_fh_list *parse_fh(char *input) {
     const char *tmp;
     char *copy;
     u_int fh_len = 0;
-    struct addrinfo *addr;
-    struct addrinfo hints = {
-        .ai_family = AF_INET,
-    };
     JSON_Value  *root_value;
     JSON_Object *filehandle;
     nfs_fh_list *next;
@@ -146,62 +142,77 @@ nfs_fh_list *parse_fh(char *input) {
     /* TODO if root isn't object, bail */
     filehandle = json_value_get_object(root_value);
 
-    /* first find the IP */
-    tmp = json_object_get_string(filehandle, "ip");
+    /* first find the hostname */
+    tmp = json_object_get_string(filehandle, "host");
 
     if (tmp) {
-        /* DNS lookup */
-        if (getaddrinfo(tmp, "nfs", &hints, &addr) == 0) {
+        next->host = strndup(tmp, NI_MAXHOST);
+
+        /* then find the IP */
+        tmp = json_object_get_string(filehandle, "ip");
+
+        /* TODO if there isn't an IP, try and resolve it from the hostname? */
+
+        if (tmp) {
+            /* set up the socket */
             next->client_sock = malloc(sizeof(struct sockaddr_in));
-            next->client_sock->sin_addr = ((struct sockaddr_in *)addr->ai_addr)->sin_addr;
             next->client_sock->sin_family = AF_INET;
             next->client_sock->sin_port = 0; /* use portmapper */
 
-            next->host = strdup(tmp);
+            /* convert the IP string back into a network address */
+            if (inet_pton(AF_INET, tmp, &next->client_sock->sin_addr)) {
 
-            /* path is just used for display */
-            tmp = json_object_get_string(filehandle, "path");
-
-            if (tmp) {
-                next->path = strdup(tmp);
-
-                /* the root filehandle in hex */
-                tmp = json_object_get_string(filehandle, "filehandle");
+                /* path is just used for display */
+                tmp = json_object_get_string(filehandle, "path");
 
                 if (tmp) {
-                    /* hex takes two characters for each byte */
-                    fh_len = strlen(tmp) / 2;
+                    next->path = strndup(tmp, MNTPATHLEN);
 
-                    if (fh_len && fh_len % 2 == 0 && fh_len <= FHSIZE3) {
-                        next->nfs_fh.data.data_len = fh_len;
-                        next->nfs_fh.data.data_val = malloc(fh_len);
+                    /* the root filehandle in hex */
+                    tmp = json_object_get_string(filehandle, "filehandle");
 
-                        /* convert from the hex string to a byte array */
-                        for (i = 0; i <= next->nfs_fh.data.data_len; i++) {
-                            sscanf(&tmp[i * 2], "%2hhx", &next->nfs_fh.data.data_val[i]);
+                    if (tmp) {
+                        /* hex takes two characters for each byte */
+                        /* check that it's an even number */
+                        if (strlen(tmp) % 2 == 0) {
+                            fh_len = strlen(tmp) / 2;
+
+                            if (fh_len && fh_len <= FHSIZE3) {
+                                next->nfs_fh.data.data_len = fh_len;
+                                next->nfs_fh.data.data_val = malloc(fh_len);
+
+                                /* convert from the hex string to a byte array */
+                                for (i = 0; i <= next->nfs_fh.data.data_len; i++) {
+                                    sscanf(&tmp[i * 2], "%2hhx", &next->nfs_fh.data.data_val[i]);
+                                }
+                            } else {
+                                fprintf(stderr, "Invalid filehandle: %s\n", copy);
+                                next->path = NULL;
+                            }
+                        } else {
+                            fprintf(stderr, "Invalid filehandle: %s\n", copy);
+                            next->path = NULL;
                         }
                     } else {
-                        fprintf(stderr, "Invalid filehandle: %s\n", copy);
+                        fprintf(stderr, "No filehandle found!\n");
                         next->path = NULL;
                     }
                 } else {
-                    fprintf(stderr, "Invalid filehandle: %s\n", copy);
+                    fprintf(stderr, "No path found!\n");
                     next->path = NULL;
                 }
             } else {
-                fprintf(stderr, "Invalid path: %s\n", copy);
+                fprintf(stderr, "Invalid IP address: %s\n", copy);
                 next->path = NULL;
             }
         } else {
-            fprintf(stderr, "Invalid hostname: %s\n", copy);
+            fprintf(stderr, "No ip found!\n");
             next->path = NULL;
         }
     } else {
-        fprintf(stderr, "Invalid input: %s\n", copy);
+        fprintf(stderr, "No host found!\n");
         next->path = NULL;
     }
-
-    /* TODO check for junk at end of input string */
 
     if (next->host && next->path && fh_len) {
         return next;
