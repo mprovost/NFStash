@@ -79,8 +79,7 @@ static const int max_prefix_width = 25;
 /* which is also 15 digits */
 /* that's a more sensible maximum */
 /* let's assume 32 bits is enough for now to keep formatting under control until we see >4 billion inode filesystems in the wild */
-/* add one extra space for a gap between columns */
-static const int max_inode_width = 11;
+static const int max_inode_width = 10;
 
 /* globals */
 int verbose = 0;
@@ -173,7 +172,21 @@ FSSTAT3res *get_fsstat(CLIENT *client, nfs_fh_list *fs) {
 }
 
 
-/* print a single header line in "ping" format */
+/*
+ * print a single header line in "ping" format
+ */
+/* Netapp style:
+   Filesystem          kbytes   used     avail   capacity Mounted on
+ */
+/* OSX style with inodes:
+   Filesystem      Size   Used  Avail Capacity  iused    ifree %iused  Mounted on
+ */
+/* Netapp inode style:
+   Filesystem          iused    ifree    %iused  Mounted on
+ */
+/* Our format, including inodes and ms for the RPC call time:
+   Filesystem                      size      used     avail capacity      iused     ifree %iused    ms
+ */
 /* TODO check max line length < 80 or truncate path (or -w option for wide?) */
 void print_header(int maxhost, int maxpath, enum byte_prefix prefix) {
     int width = 0;
@@ -194,8 +207,13 @@ void print_header(int maxhost, int maxpath, enum byte_prefix prefix) {
             }
 
             /* leave enough space for milliseconds */
-            printf("%-*s %*s %*s %*s capacity    ms\n",
-                maxhost + maxpath + 1, "Filesystem", width, header_label[prefix], width, "used", width, "avail");
+            printf("%-*s %*s %*s %*s capacity %*s %*s %%iused    ms\n",
+                /* host + export */
+                maxhost + maxpath + 1, "Filesystem",
+                /* size */
+                width, header_label[prefix], width, "used", width, "avail",
+                /* inodes */
+                width, "iused", width, "ifree");
         }
     }
 }
@@ -275,7 +293,10 @@ int print_df(int offset, char *host, char *path, FSSTAT3res *fsstatres, const en
     char total[max_prefix_width];
     char used[max_prefix_width];
     char avail[max_prefix_width];
+    char iused[max_inode_width];
+    char ifree[max_inode_width];
     double capacity;
+    double inode_capacity;
     /* extra space for gap between columns */
     int width = prefix_width[prefix] + 1;
 
@@ -286,15 +307,26 @@ int print_df(int offset, char *host, char *path, FSSTAT3res *fsstatres, const en
 
     if (fsstatres && fsstatres->status == NFS3_OK) {
         /* format results by prefix */
+        /* allow mixed prefixes for a single filesystem */
         prefix_print(fsstatres->FSSTAT3res_u.resok.tbytes, total, prefix);
         prefix_print(fsstatres->FSSTAT3res_u.resok.tbytes - fsstatres->FSSTAT3res_u.resok.fbytes, used, prefix);
         prefix_print(fsstatres->FSSTAT3res_u.resok.fbytes, avail, prefix);
+        /* there's no total inodes column in Netapp or OSX output */
+        /* calculate number of used inodes */
+        prefix_print(fsstatres->FSSTAT3res_u.resok.tfiles - fsstatres->FSSTAT3res_u.resok.ffiles, iused, prefix);
+        /* free inodes */
+        prefix_print(fsstatres->FSSTAT3res_u.resok.ffiles, ifree, prefix);
 
         /* percent full */
-        capacity = (1 - ((double)fsstatres->FSSTAT3res_u.resok.fbytes / fsstatres->FSSTAT3res_u.resok.tbytes)) * 100;
+        capacity       = (1 - ((double)fsstatres->FSSTAT3res_u.resok.fbytes / fsstatres->FSSTAT3res_u.resok.tbytes)) * 100;
+        inode_capacity = (1 - ((double)fsstatres->FSSTAT3res_u.resok.ffiles / fsstatres->FSSTAT3res_u.resok.tfiles)) * 100;
 
-        printf("%s:%-*s %*s %*s %*s %7.0f%% %5.2f\n",
-            host, offset, path, width, total, width, used, width, avail, capacity, usec / 1000.0);
+        printf("%s:%-*s %*s %*s %*s %7.0f%% %*s %*s %5.0f%% %5.2f\n",
+            host, offset, path,
+            width, total, width, used, width, avail, capacity,
+            width, iused, width, ifree, inode_capacity,
+            /* RPC call time in milliseconds */
+            usec / 1000.0);
     } else {
         /* get_fsstat will print the rpc error */
         return EXIT_FAILURE;
@@ -315,6 +347,7 @@ int print_df(int offset, char *host, char *path, FSSTAT3res *fsstatres, const en
 
    (Except right justify columns)
  */
+/* TODO add a total (GNU df calls it Inodes) column */
 void print_inodes(int offset, char *host, char *path, FSSTAT3res *fsstatres, const unsigned long usec) {
     double capacity;
 
