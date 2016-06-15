@@ -37,7 +37,7 @@ static const char *header_label[] = {
     [TERA]  = "tbytes",
     [PETA]  = "pbytes", /* not used */
     [EXA]   = "ebytes", /* not used */
-    [HUMAN] = "size"
+    [HUMAN] = "bytes"
 };
 
 /* the value returned by fsstat is a uint64 in bytes */
@@ -47,8 +47,8 @@ static const char *header_label[] = {
 /* TODO struct so we can put in a label and a width */
 static const int prefix_width[] = {
     /* if we're using human output the number will never be longer than 4 digits */
-    /* add two for per-filesystem size labels */
-    [HUMAN] = 6,
+    /* add one for per-filesystem size labels */
+    [HUMAN] = 5,
     /* 15EB in B  = 18446744073709551615 */
     [BYTE]  = 20,
     /* 15EB in KB = 18014398509481983 */
@@ -74,10 +74,11 @@ static const int max_prefix_width = 25;
 /* but of course inodes themselves consume space so that's not possible */
 /* ext4 has 32 bit inodes */
 /* with 32 bit inodes you can have 2^32 per filesystem = 4294967296 = 10 digits */
-/* ZFS can have 2^48 inodes which is 15 digits */
+/* ZFS can have 2^48 inodes (281474976710656) which is 15 digits */
 /* Netapp creates 1 inode per 32Kb of filesystem space by default which would be 562949953421311 inodes for a 15EB filesystem */
 /* which is also 15 digits */
 /* that's a more sensible maximum */
+
 /* let's assume 32 bits is enough for now to keep formatting under control until we see >4 billion inode filesystems in the wild */
 static const int max_inode_width = 10;
 
@@ -213,7 +214,7 @@ void print_header(int maxhost, int maxpath, enum byte_prefix prefix) {
                 /* size */
                 width, header_label[prefix], width, "used", width, "avail",
                 /* inodes */
-                width, "iused", width, "ifree");
+                max_inode_width, "iused", max_inode_width, "ifree");
         }
     }
 }
@@ -263,12 +264,10 @@ int prefix_print(size3 input, char *output, enum byte_prefix prefix) {
         /* don't print a blank space for bytes */
         if (shifted_prefix > BYTE) {
             output[index] = prefix_label[shifted_prefix];
-            index++;
         }
-
-        /* all of them end in B(ytes) */
-        output[index] = 'B';
     }
+
+    /* Don't print a B for bytes (ie KB, MB) because this is also used for inodes */
 
     /* terminate the string */
     output[++index] = '\0';
@@ -293,8 +292,6 @@ int print_df(int offset, char *host, char *path, FSSTAT3res *fsstatres, const en
     char total[max_prefix_width];
     char used[max_prefix_width];
     char avail[max_prefix_width];
-    char iused[max_inode_width];
-    char ifree[max_inode_width];
     double capacity;
     double inode_capacity;
     /* extra space for gap between columns */
@@ -311,20 +308,24 @@ int print_df(int offset, char *host, char *path, FSSTAT3res *fsstatres, const en
         prefix_print(fsstatres->FSSTAT3res_u.resok.tbytes, total, prefix);
         prefix_print(fsstatres->FSSTAT3res_u.resok.tbytes - fsstatres->FSSTAT3res_u.resok.fbytes, used, prefix);
         prefix_print(fsstatres->FSSTAT3res_u.resok.fbytes, avail, prefix);
+
+        /* don't use prefix_print() for inodes because the numbers get too small too quickly */
+        /* anything above -t gives a <0 */
+        /* just print the raw numbers */
+
         /* there's no total inodes column in Netapp or OSX output */
-        /* calculate number of used inodes */
-        prefix_print(fsstatres->FSSTAT3res_u.resok.tfiles - fsstatres->FSSTAT3res_u.resok.ffiles, iused, prefix);
-        /* free inodes */
-        prefix_print(fsstatres->FSSTAT3res_u.resok.ffiles, ifree, prefix);
 
         /* percent full */
         capacity       = (1 - ((double)fsstatres->FSSTAT3res_u.resok.fbytes / fsstatres->FSSTAT3res_u.resok.tbytes)) * 100;
         inode_capacity = (1 - ((double)fsstatres->FSSTAT3res_u.resok.ffiles / fsstatres->FSSTAT3res_u.resok.tfiles)) * 100;
 
-        printf("%s:%-*s %*s %*s %*s %7.0f%% %*s %*s %5.0f%% %5.2f\n",
+        printf("%s:%-*s %*s %*s %*s %7.0f%% %*" PRIu64 " %*" PRIu64 " %5.0f%% %5.2f\n",
             host, offset, path,
             width, total, width, used, width, avail, capacity,
-            width, iused, width, ifree, inode_capacity,
+            /* calculate number of used inodes */
+            max_inode_width, fsstatres->FSSTAT3res_u.resok.tfiles - fsstatres->FSSTAT3res_u.resok.ffiles,
+            max_inode_width, fsstatres->FSSTAT3res_u.resok.ffiles,
+            inode_capacity,
             /* RPC call time in milliseconds */
             usec / 1000.0);
     } else {
