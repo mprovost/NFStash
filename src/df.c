@@ -189,15 +189,17 @@ FSSTAT3res *get_fsstat(CLIENT *client, nfs_fh_list *fs) {
    Filesystem       bytes     used    avail capacity      iused      ifree  %iused    ms
  */
 /* only allow enough space for 99999 ms (100 seconds) */
+/* inode header format, includes an "inodes" column like GNU df for the total:
+   Filesystem       inodes      iused      ifree %iused    ms
+ */
 /* TODO check max line length < 80 or truncate path (or -w option for wide?) */
 void print_header(int maxhost, int maxpath, enum byte_prefix prefix) {
     int width = 0;
 
     if (cfg.format == ping) {
         if (cfg.inodes) {
-            width = max_inode_width;
-            printf("%-*s %*s %*s %%iused    ms\n",
-                maxhost + maxpath + 1, "Filesystem", width, "iused", width, "ifree");
+            printf("%-*s %*s %*s %*s %%iused    ms\n",
+                maxhost + maxpath + 1, "Filesystem", max_inode_width, "inodes", max_inode_width, "iused", max_inode_width, "ifree");
         } else {
             width = prefix_width[prefix];
             /* extra space for gap between columns */
@@ -351,16 +353,17 @@ int print_df(int offset, char *host, char *path, FSSTAT3res *fsstatres, const en
 
    (Except right justify columns)
  */
-/* TODO add a total (GNU df calls it Inodes) column */
 void print_inodes(int offset, char *host, char *path, FSSTAT3res *fsstatres, const unsigned long usec) {
     double capacity;
 
     /* percent used */
     capacity = (1 - ((double)fsstatres->FSSTAT3res_u.resok.ffiles / fsstatres->FSSTAT3res_u.resok.tfiles)) * 100;
 
-    printf("%s:%-*s %*" PRIu64 " %*" PRIu64 " %5.0f%% %5.2f\n",
+    printf("%s:%-*s %*" PRIu64 " %*" PRIu64 " %*" PRIu64 " %5.0f%% %5.2f\n",
         host,
         offset, path,
+        /* total number of inodes on filesystem */
+        max_inode_width, fsstatres->FSSTAT3res_u.resok.tfiles,
         /* calculate number of used inodes */
         max_inode_width, fsstatres->FSSTAT3res_u.resok.tfiles - fsstatres->FSSTAT3res_u.resok.ffiles,
         /* free inodes */
