@@ -82,11 +82,11 @@
 
 <h2 id="SYNOPSIS">SYNOPSIS</h2>
 
-<p><code>nfsdf</code> [<code>-AbgGhiklmtTv</code>] [<code>-c</code> <var>count</var>][<code>-H</code> <var>hertz</var>] [<code>-p</code> <var>prefix</var>] [<code>-S</code> <var>source</var>] &lt;filehandle...></p>
+<p><code>nfsdf</code> [<code>-AbgGhiklmtTv</code>] [<code>-c</code> <var>count</var>] [<code>-H</code> <var>hertz</var>] [<code>-p</code> <var>prefix</var>] [<code>-S</code> <var>source</var>] &lt;filehandle...></p>
 
 <h2 id="DESCRIPTION">DESCRIPTION</h2>
 
-<p><code>nfsdf</code> sends NFS version 3 FSSTAT RPC requests to an NFS server and reports the total, used and available amounts of disk space (or inodes with the <code>-i</code> option) for the filesystems specified in the filehandle argument(s), as well as the response time for the RPC requests in milliseconds. Alternatively, filehandles can be passed on <code>stdin</code>, in this case <code>nfsdf</code> waits until the end of input (EOF) before sending any requests so that the correct width header can be printed. The default output is human readable, similar to <code>df -h</code>, units can be specified with the <code>-b</code>, <code>-k</code>, <code>-m</code>, <code>-g</code>, or <code>-t</code> options. Any filehandle on the target filesystem can be used as an argument, including the root filehandle obtained from <code>nfsmount</code>.</p>
+<p><code>nfsdf</code> sends NFS version 3 FSSTAT RPC requests to an NFS server and reports the total, used and available amounts of disk space and files (inodes) for the filesystems specified in the filehandle argument(s), as well as the response time for each RPC request in milliseconds. Alternatively, filehandles can be passed on <code>stdin</code>, in this case <code>nfsdf</code> waits until the end of input (EOF) before sending any requests so that the correct width header can be printed. The default output is human readable, similar to <code>df -h</code>, units can be specified with the <code>-b</code>, <code>-k</code>, <code>-m</code>, <code>-g</code>, or <code>-t</code> options. Any filehandle on the target filesystem can be used as an argument, including the root filehandle obtained from <code>nfsmount</code>.</p>
 
 <p>Input filehandles are represented as a series of JSON objects (one per line) with the keys "host", "ip", "path", and "filehandle", where the value of the "filehandle" key is the hex representation of the file's NFS filehandle. As command line arguments they will need to be escaped from the shell with single quotes.</p>
 
@@ -100,16 +100,16 @@
 <dt><code>-c</code> <var>count</var></dt><dd><p>Count of FSSTAT requests to send to each input filehandle before exiting.</p></dd>
 <dt class="flush"><code>-g</code></dt><dd><p>Report disk space in gigabytes.</p></dd>
 <dt class="flush"><code>-G</code></dt><dd><p>Graphite format output. Default is human readable (<code>-h</code>).</p></dd>
-<dt class="flush"><code>-h</code></dt><dd><p>Report disk space in human readable format (default). This selects whichever unit is the most compact to display.</p></dd>
+<dt class="flush"><code>-h</code></dt><dd><p>Report disk space in human readable format (default). This selects whichever unit is the most compact to display in 4 digits of precision.</p></dd>
 <dt><code>-H</code> <var>hertz</var></dt><dd><p>The polling frequency in Hertz when in looping mode (<code>-l</code>). This is the number of requests sent to each target per second. Default = 1.</p></dd>
-<dt class="flush"><code>-i</code></dt><dd><p>Report inodes (files) instead of disk space.</p></dd>
+<dt class="flush"><code>-i</code></dt><dd><p>Report inodes (files) instead of disk space. Displays the total number of inodes on the filesystem, the amounts used and free, the capacity as a percentage and the time in milliseconds that each FSSTAT RPC call took.</p></dd>
 <dt class="flush"><code>-k</code></dt><dd><p>Report disk space in kilobytes.</p></dd>
 <dt class="flush"><code>-l</code></dt><dd><p>Loop forever. Exit loop with Ctrl-c.</p></dd>
 <dt class="flush"><code>-m</code></dt><dd><p>Report disk space in megabytes.</p></dd>
 <dt><code>-p</code> <var>prefix</var></dt><dd><p>Specify string prefix for Graphite metric names. Default = "nfs".</p></dd>
 <dt><code>-S</code> <var>source</var></dt><dd><p>Use the specified source IP address for request packets.</p></dd>
 <dt class="flush"><code>-t</code></dt><dd><p>Report disk space in terabytes.</p></dd>
-<dt class="flush"><code>-T</code></dt><dd><p>Use TCP to connect to server. Default = UDP.</p></dd>
+<dt class="flush"><code>-T</code></dt><dd><p>Use TCP to connect to servers. Default = UDP.</p></dd>
 <dt class="flush"><code>-v</code></dt><dd><p>Display debug output on <code>stderr</code>.</p></dd>
 </dl>
 
@@ -120,7 +120,7 @@
 
 <p>  <code>sudo sh -c "nfsmount server1 | nfsdf"</code></p>
 
-<p>Since both commands typically need root privileges (to bind to a "secure" port) they can be run with a single subshell under sudo.</p>
+<p>Since both commands typically need root privileges (to bind to a "secure" port) they can be run with a single subshell under <code>sudo</code>.</p>
 
 <p>If the check is being run repeatedly, there is no need to query the fileserver with <code>nfsmount</code> every time. Since the root filehandles shouldn't change, the output can be stored in a file:</p>
 
@@ -144,7 +144,7 @@ NFSv4 files Copyright IETF</p>
 
   <ol class='man-decor man-foot man foot'>
     <li class='tl'></li>
-    <li class='tc'>May 2016</li>
+    <li class='tc'>June 2016</li>
     <li class='tr'>nfsdf(8)</li>
   </ol>
 

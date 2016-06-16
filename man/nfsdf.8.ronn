@@ -3,11 +3,11 @@ nfsdf(8) -- report NFS server disk space usage
 
 ## SYNOPSIS
 
-`nfsdf` [`-AbgGhiklmtTv`] [`-c` <count>][`-H` <hertz>] [`-p` <prefix>] [`-S` <source>] <filehandle...>
+`nfsdf` [`-AbgGhiklmtTv`] [`-c` <count>] [`-H` <hertz>] [`-p` <prefix>] [`-S` <source>] <filehandle...>
 
 ## DESCRIPTION
 
-`nfsdf` sends NFS version 3 FSSTAT RPC requests to an NFS server and reports the total, used and available amounts of disk space (or inodes with the `-i` option) for the filesystems specified in the filehandle argument(s), as well as the response time for the RPC requests in milliseconds. Alternatively, filehandles can be passed on `stdin`, in this case `nfsdf` waits until the end of input (EOF) before sending any requests so that the correct width header can be printed. The default output is human readable, similar to `df -h`, units can be specified with the `-b`, `-k`, `-m`, `-g`, or `-t` options. Any filehandle on the target filesystem can be used as an argument, including the root filehandle obtained from `nfsmount`.
+`nfsdf` sends NFS version 3 FSSTAT RPC requests to an NFS server and reports the total, used and available amounts of disk space and files (inodes) for the filesystems specified in the filehandle argument(s), as well as the response time for each RPC request in milliseconds. Alternatively, filehandles can be passed on `stdin`, in this case `nfsdf` waits until the end of input (EOF) before sending any requests so that the correct width header can be printed. The default output is human readable, similar to `df -h`, units can be specified with the `-b`, `-k`, `-m`, `-g`, or `-t` options. Any filehandle on the target filesystem can be used as an argument, including the root filehandle obtained from `nfsmount`.
 
 Input filehandles are represented as a series of JSON objects (one per line) with the keys "host", "ip", "path", and "filehandle", where the value of the "filehandle" key is the hex representation of the file's NFS filehandle. As command line arguments they will need to be escaped from the shell with single quotes.
 
@@ -31,13 +31,13 @@ If the NFS server requires "secure" ports (<1024), `nfsdf` will have to be run a
   Graphite format output. Default is human readable (`-h`).
 
 * `-h`:
-  Report disk space in human readable format (default). This selects whichever unit is the most compact to display.
+  Report disk space in human readable format (default). This selects whichever unit is the most compact to display in 4 digits of precision.
 
 * `-H` <hertz>:
   The polling frequency in Hertz when in looping mode (`-l`). This is the number of requests sent to each target per second. Default = 1.
 
 * `-i`:
-  Report inodes (files) instead of disk space.
+  Report inodes (files) instead of disk space. Displays the total number of inodes on the filesystem, the amounts used and free, the capacity as a percentage and the time in milliseconds that each FSSTAT RPC call took.
 
 * `-k`:
   Report disk space in kilobytes.
@@ -58,7 +58,7 @@ If the NFS server requires "secure" ports (<1024), `nfsdf` will have to be run a
   Report disk space in terabytes.
 
 * `-T`:
-  Use TCP to connect to server. Default = UDP.
+  Use TCP to connect to servers. Default = UDP.
 
 * `-v`:
   Display debug output on `stderr`.
@@ -69,7 +69,7 @@ Typically `nfsdf` will use a filehandle obtained from the output of the `nfsmoun
 
   `sudo sh -c "nfsmount server1 | nfsdf"`
 
-Since both commands typically need root privileges (to bind to a "secure" port) they can be run with a single subshell under sudo.
+Since both commands typically need root privileges (to bind to a "secure" port) they can be run with a single subshell under `sudo`.
 
 If the check is being run repeatedly, there is no need to query the fileserver with `nfsmount` every time. Since the root filehandles shouldn't change, the output can be stored in a file:
 
