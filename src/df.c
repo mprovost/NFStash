@@ -186,8 +186,9 @@ FSSTAT3res *get_fsstat(CLIENT *client, nfs_fh_list *fs) {
    Filesystem          iused    ifree    %iused  Mounted on
  */
 /* Our format, including inodes and ms for the RPC call time:
-   Filesystem                      size      used     avail capacity      iused     ifree %iused    ms
+   Filesystem       bytes     used    avail capacity      iused      ifree  %iused    ms
  */
+/* only allow enough space for 99999 ms (100 seconds) */
 /* TODO check max line length < 80 or truncate path (or -w option for wide?) */
 void print_header(int maxhost, int maxpath, enum byte_prefix prefix) {
     int width = 0;
@@ -208,7 +209,7 @@ void print_header(int maxhost, int maxpath, enum byte_prefix prefix) {
             }
 
             /* leave enough space for milliseconds */
-            printf("%-*s %*s %*s %*s capacity %*s %*s %%iused    ms\n",
+            printf("%-*s %*s %*s %*s capacity %*s %*s  %%iused    ms\n",
                 /* host + export */
                 maxhost + maxpath + 1, "Filesystem",
                 /* size */
@@ -319,7 +320,9 @@ int print_df(int offset, char *host, char *path, FSSTAT3res *fsstatres, const en
         capacity       = (1 - ((double)fsstatres->FSSTAT3res_u.resok.fbytes / fsstatres->FSSTAT3res_u.resok.tbytes)) * 100;
         inode_capacity = (1 - ((double)fsstatres->FSSTAT3res_u.resok.ffiles / fsstatres->FSSTAT3res_u.resok.tfiles)) * 100;
 
-        printf("%s:%-*s %*s %*s %*s %7.0f%% %*" PRIu64 " %*" PRIu64 " %5.0f%% %5.2f\n",
+        /* TODO check usec is less than 99999400 otherwise the %g goes into %e mode (1e+05) */
+
+        printf("%s:%-*s %*s %*s %*s %7.0f%% %*" PRIu64 " %*" PRIu64 "  %5.0f%% %5.5g\n",
             host, offset, path,
             width, total, width, used, width, avail, capacity,
             /* calculate number of used inodes */
