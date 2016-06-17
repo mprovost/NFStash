@@ -1,3 +1,7 @@
+/*
+ * Check filesystem usage on an NFS server
+ */
+
 #include "nfsping.h"
 #include "rpc.h"
 #include "util.h"
@@ -27,7 +31,7 @@ static const char prefix_label[] = {
     [EXA]  = 'E'
 };
 
-/* we could include the "bytes" in the output string but if we're in Human mode then the header is "size" */
+/* we could include the "bytes" in the output string but easier just to keep it in one place */
 /* better to keep it in a constant than to have another branch statement in the code */
 static const char *header_label[] = {
     [BYTE]  = "bytes",
@@ -37,6 +41,7 @@ static const char *header_label[] = {
     [TERA]  = "tbytes",
     [PETA]  = "pbytes", /* not used */
     [EXA]   = "ebytes", /* not used */
+    /* in human mode we append a prefix to each number, so bytes still makes sense */
     [HUMAN] = "bytes"
 };
 
@@ -83,6 +88,7 @@ static const int max_prefix_width = 25;
 static const int max_inode_width = 10;
 
 /* globals */
+extern volatile sig_atomic_t quitting;
 int verbose = 0;
 
 /* global config "object" */
@@ -694,6 +700,10 @@ int main(int argc, char **argv) {
 
     print_header(maxhost, maxpath, prefix);
 
+    /* listen for ctrl-c */
+    quitting = 0;
+    signal(SIGINT, sigint_handler);
+
     /* the main loop */
     while(1) {
         /* reset to start of list */
@@ -778,22 +788,28 @@ int main(int argc, char **argv) {
             current = current->next;
         } /* while(current) */
 
+        /* measure how long the current round took, and subtract that from the sleep time */
+        /* this keeps us on the polling frequency */
+#ifdef CLOCK_MONOTONIC_RAW
+        clock_gettime(CLOCK_MONOTONIC_RAW, &loop_end);
+#else
+        clock_gettime(CLOCK_MONOTONIC, &loop_end);
+#endif
+        timespecsub(&loop_end, &loop_start, &loop_elapsed);
+        debug("Polling took %lld.%.9lds\n", (long long)loop_elapsed.tv_sec, loop_elapsed.tv_nsec);
+
+        /* ctrl-c */
+        if (quitting) {
+            break;
+        }
+
         /* only sleep if looping or counting */
         /* check the count against the first target */
         if (cfg.loop || (cfg.count && filehandles->sent < cfg.count)) {
-            /* sleep between rounds */
-            /* measure how long the current round took, and subtract that from the sleep time */
-            /* this keeps us on the polling frequency */
-#ifdef CLOCK_MONOTONIC_RAW
-            clock_gettime(CLOCK_MONOTONIC_RAW, &loop_end);
-#else
-            clock_gettime(CLOCK_MONOTONIC, &loop_end);
-#endif
-            timespecsub(&loop_end, &loop_start, &loop_elapsed);
-            debug("Polling took %lld.%.9lds\n", (long long)loop_elapsed.tv_sec, loop_elapsed.tv_nsec);
             /* don't sleep if we went over the sleep_time */
             if (timespeccmp(&loop_elapsed, &sleep_time, >)) {
-            debug("Slow poll, not sleeping\n");
+                debug("Slow poll, not sleeping\n");
+            /* sleep between rounds */
             } else {
                 timespecsub(&sleep_time, &loop_elapsed, &sleepy);
                 debug("Sleeping for %lld.%.9lds\n", (long long)sleepy.tv_sec, sleepy.tv_nsec);
