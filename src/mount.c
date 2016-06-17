@@ -1154,6 +1154,16 @@ int main(int argc, char **argv) {
 
         } /* while(current) */
 
+        /* measure how long the current round took, and subtract that from the sleep time */
+        /* this keeps us on the polling frequency */
+#ifdef CLOCK_MONOTONIC_RAW
+        clock_gettime(CLOCK_MONOTONIC_RAW, &loop_end);
+#else
+        clock_gettime(CLOCK_MONOTONIC, &loop_end);
+#endif
+        timespecsub(&loop_end, &loop_start, &loop_elapsed);
+        debug("Polling took %lld.%.9lds\n", (long long)loop_elapsed.tv_sec, loop_elapsed.tv_nsec);
+
         /* ctrl-c */
         if (quitting) {
             break;
@@ -1163,19 +1173,10 @@ int main(int argc, char **argv) {
         /* check the first export of the first target */
         /* TODO do we even need to store the sent number for each target or just once globally? */
         if (cfg.loop || (cfg.count && targets->exports->sent < cfg.count)) {
-            /* sleep between rounds */
-            /* measure how long the current round took, and subtract that from the sleep time */
-            /* this keeps us on the polling frequency */
-#ifdef CLOCK_MONOTONIC_RAW
-            clock_gettime(CLOCK_MONOTONIC_RAW, &loop_end);
-#else
-            clock_gettime(CLOCK_MONOTONIC, &loop_end);
-#endif
-            timespecsub(&loop_end, &loop_start, &loop_elapsed);
-            debug("Polling took %lld.%.9lds\n", (long long)loop_elapsed.tv_sec, loop_elapsed.tv_nsec);
             /* don't sleep if we went over the sleep_time */
             if (timespeccmp(&loop_elapsed, &sleep_time, >)) {
                 debug("Slow poll, not sleeping\n");
+            /* sleep between rounds */
             } else {
                 timespecsub(&sleep_time, &loop_elapsed, &sleepy);
                 debug("Sleeping for %lld.%.9lds\n", (long long)sleepy.tv_sec, sleepy.tv_nsec);
