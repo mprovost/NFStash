@@ -118,7 +118,7 @@ static int prefix_print(size3, char *, enum byte_prefix);
 static int print_df(int, char *, char *, FSSTAT3res *, const enum byte_prefix, const unsigned long);
 static void print_inodes(int, char *, char *, FSSTAT3res *, const unsigned long);
 static char *replace_char(const char *, const char *, const char *);
-static void print_format(enum outputs, char *, char *, char *, FSSTAT3res *, const struct timespec);
+static void print_format(enum outputs, char *, char *, char *, FSSTAT3res *, const unsigned long, const struct timespec);
 
 
 void usage() {
@@ -418,7 +418,7 @@ char *replace_char(const char *str, const char *old, const char *new)
 
 /* formatted output ie graphite */
 /* TODO escape dots and spaces (replace with underscores) in paths */
-void print_format(enum outputs format, char *prefix, char *host, char *path, FSSTAT3res *fsstatres, const struct timespec now) {
+void print_format(enum outputs format, char *prefix, char *host, char *path, FSSTAT3res *fsstatres, const unsigned long usec, const struct timespec now) {
     char *ndqf;
     char *bad_characters[] = {
         " ", ".", "-", "/"
@@ -448,6 +448,7 @@ void print_format(enum outputs format, char *prefix, char *host, char *path, FSS
             printf("%s.%s.df.%s.fbytes %" PRIu64 " %li\n", prefix, ndqf, path, fsstatres->FSSTAT3res_u.resok.fbytes, now.tv_sec);
             printf("%s.%s.df.%s.tfiles %" PRIu64 " %li\n", prefix, ndqf, path, fsstatres->FSSTAT3res_u.resok.tfiles, now.tv_sec);
             printf("%s.%s.df.%s.ffiles %" PRIu64 " %li\n", prefix, ndqf, path, fsstatres->FSSTAT3res_u.resok.ffiles, now.tv_sec);
+            printf("%s.%s.df.%s.usec %lu %li\n", prefix, ndqf, path, usec, now.tv_sec);
             break;
         default:
             fatal("Unsupported format\n");
@@ -779,7 +780,7 @@ int main(int argc, char **argv) {
                         }
                     }
                 } else {
-                    print_format(cfg.format, output_prefix, current->host, current->path, fsstatres, wall_clock);
+                    print_format(cfg.format, output_prefix, current->host, current->path, fsstatres, usec, wall_clock);
                 }
             }
 
