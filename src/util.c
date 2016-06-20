@@ -121,7 +121,7 @@ nfs_fh_list *parse_fh(char *input) {
     u_int fh_len = 0;
     JSON_Value  *root_value;
     JSON_Object *filehandle;
-    nfs_fh_list *next;
+    nfs_fh_list *current;
     struct sockaddr_in sock;
 
     /* sanity check */
@@ -130,9 +130,10 @@ nfs_fh_list *parse_fh(char *input) {
         return NULL;
     }
 
-    next = calloc(1, sizeof(nfs_fh_list));
-    next->client_sock = NULL;
-    next->next = NULL;
+    current = calloc(1, sizeof(nfs_fh_list));
+    current->client_sock = NULL;
+    current->next = NULL;
+
 
     root_value = json_parse_string(input);
     /* TODO if root isn't object, bail */
@@ -142,14 +143,14 @@ nfs_fh_list *parse_fh(char *input) {
     tmp = json_object_get_string(filehandle, "host");
 
     if (tmp) {
-        strncpy(next->host, tmp, NI_MAXHOST);
+        strncpy(current->host, tmp, NI_MAXHOST);
 
         /* first try treating the hostname as an IP address */
-        if (inet_pton(AF_INET, next->host, &(sock.sin_addr))) {
+        if (inet_pton(AF_INET, current->host, &(sock.sin_addr))) {
             /* don't reverse an IP address */
-            next->ndqf = next->host;
+            current->ndqf = current->host;
         } else {
-            next->ndqf = reverse_fqdn(next->host);
+            current->ndqf = reverse_fqdn(current->host);
         }
 
         /* then find the IP */
@@ -159,22 +160,22 @@ nfs_fh_list *parse_fh(char *input) {
 
         if (tmp) {
             /* set up the socket */
-            next->client_sock = malloc(sizeof(struct sockaddr_in));
-            next->client_sock->sin_family = AF_INET;
+            current->client_sock = malloc(sizeof(struct sockaddr_in));
+            current->client_sock->sin_family = AF_INET;
             /* TODO look for a port number in the JSON */
-            next->client_sock->sin_port = 0; /* use portmapper by default */
+            current->client_sock->sin_port = 0; /* use portmapper by default */
 
             /* convert the IP string back into a network address */
-            if (inet_pton(AF_INET, tmp, &next->client_sock->sin_addr)) {
+            if (inet_pton(AF_INET, tmp, &current->client_sock->sin_addr)) {
                 /* keep a copy of the string for output */
                 /* do it after inet_pton so we know it's valid and the length will be less than INET_ADDRSTRLEN */
-                strncpy(next->ip_address, tmp, INET_ADDRSTRLEN);
+                strncpy(current->ip_address, tmp, INET_ADDRSTRLEN);
 
                 /* path is just used for display */
                 tmp = json_object_get_string(filehandle, "path");
 
                 if (tmp) {
-                    strncpy(next->path, tmp, MNTPATHLEN);
+                    strncpy(current->path, tmp, MNTPATHLEN);
 
                     /* the root filehandle in hex */
                     tmp = json_object_get_string(filehandle, "filehandle");
@@ -186,48 +187,48 @@ nfs_fh_list *parse_fh(char *input) {
                             fh_len = strlen(tmp) / 2;
 
                             if (fh_len && fh_len <= FHSIZE3) {
-                                next->nfs_fh.data.data_len = fh_len;
-                                next->nfs_fh.data.data_val = malloc(fh_len);
+                                current->nfs_fh.data.data_len = fh_len;
+                                current->nfs_fh.data.data_val = malloc(fh_len);
 
                                 /* convert from the hex string to a byte array */
-                                for (i = 0; i <= next->nfs_fh.data.data_len; i++) {
-                                    sscanf(&tmp[i * 2], "%2hhx", &next->nfs_fh.data.data_val[i]);
+                                for (i = 0; i <= current->nfs_fh.data.data_len; i++) {
+                                    sscanf(&tmp[i * 2], "%2hhx", &current->nfs_fh.data.data_val[i]);
                                 }
                             } else {
                                 fprintf(stderr, "Invalid filehandle: %s\n", tmp);
-                                next->path[0] = 0;
+                                current->path[0] = 0;
                             }
                         } else {
                             fprintf(stderr, "Invalid filehandle: %s\n", tmp);
-                            next->path[0] = 0;
+                            current->path[0] = 0;
                         }
                     } else {
                         fprintf(stderr, "No filehandle found!\n");
-                        next->path[0] = 0;
+                        current->path[0] = 0;
                     }
                 } else {
                     fprintf(stderr, "No path found!\n");
-                    next->path[0] = 0;
+                    current->path[0] = 0;
                 }
             } else {
                 fprintf(stderr, "Invalid IP address: %s\n", tmp);
-                next->path[0] = 0;
+                current->path[0] = 0;
             }
         } else {
             fprintf(stderr, "No ip found!\n");
-            next->path[0] = 0;
+            current->path[0] = 0;
         }
     } else {
         fprintf(stderr, "No host found!\n");
-        next->path[0] = 0;
+        current->path[0] = 0;
     }
 
     /* TODO find a better way of signalling an error than setting an empty path */
-    if (next->host && next->path[0] && fh_len) {
-        return next;
+    if (current->host && current->path[0] && fh_len) {
+        return current;
     } else {
-        if (next->client_sock) free(next->client_sock);
-        free(next);
+        if (current->client_sock) free(current->client_sock);
+        free(current);
         return NULL;
     }
 }
