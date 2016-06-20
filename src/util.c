@@ -122,6 +122,7 @@ nfs_fh_list *parse_fh(char *input) {
     JSON_Value  *root_value;
     JSON_Object *filehandle;
     nfs_fh_list *next;
+    struct sockaddr_in sock;
 
     /* sanity check */
     if (strlen(input) == 0) {
@@ -142,6 +143,14 @@ nfs_fh_list *parse_fh(char *input) {
 
     if (tmp) {
         strncpy(next->host, tmp, NI_MAXHOST);
+
+        /* first try treating the hostname as an IP address */
+        if (inet_pton(AF_INET, next->host, &(sock.sin_addr))) {
+            /* don't reverse an IP address */
+            next->ndqf = next->host;
+        } else {
+            next->ndqf = reverse_fqdn(next->host);
+        }
 
         /* then find the IP */
         tmp = json_object_get_string(filehandle, "ip");

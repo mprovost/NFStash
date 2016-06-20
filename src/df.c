@@ -418,8 +418,7 @@ char *replace_char(const char *str, const char *old, const char *new)
 
 /* formatted output ie graphite */
 /* TODO escape dots and spaces (replace with underscores) in paths */
-void print_format(enum outputs format, char *prefix, char *host, char *path, FSSTAT3res *fsstatres, const unsigned long usec, const struct timespec now) {
-    char *ndqf;
+void print_format(enum outputs format, char *prefix, char *ndqf, char *path, FSSTAT3res *fsstatres, const unsigned long usec, const struct timespec now) {
     char *bad_characters[] = {
         " ", ".", "-", "/"
     };
@@ -428,16 +427,6 @@ void print_format(enum outputs format, char *prefix, char *host, char *path, FSS
 
     for (index = 0; index < number_of_chars; index++) {
         path = replace_char(path, bad_characters[index], "_");
-    }
-
-    struct sockaddr_in sock;
-
-    /* first try treating the hostname as an IP address */
-    if (inet_pton(AF_INET, host, &(sock.sin_addr))) {
-        /* don't reverse an IP address */
-        ndqf = host;
-    } else {
-        ndqf = reverse_fqdn(host);
     }
 
     /* TODO round seconds up to next whole second? */
@@ -780,7 +769,7 @@ int main(int argc, char **argv) {
                         }
                     }
                 } else {
-                    print_format(cfg.format, output_prefix, current->host, current->path, fsstatres, usec, wall_clock);
+                    print_format(cfg.format, output_prefix, current->ndqf, current->path, fsstatres, usec, wall_clock);
                 }
             }
 
