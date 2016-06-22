@@ -451,13 +451,12 @@ int main(int argc, char **argv) {
     char output_prefix[255] = "nfs";
     char *input_fh = NULL;
     size_t n = 0; /* for getline() */
-    nfs_fh_list fh_dummy;
-    nfs_fh_list *current     = &fh_dummy;
-    nfs_fh_list *filehandles = current;
+    targets_t dummy = { 0 };
+    targets_t *current = &dummy;
+    targets_t *targets = current;
+    nfs_fh_list *filehandle;
     unsigned int maxpath = 0;
     unsigned int maxhost = 0;
-    CLIENT *client = NULL;
-    struct sockaddr_in clnt_info;
     unsigned long version = 3;
     struct timespec loop_start, loop_end, loop_elapsed, sleepy, sleep_time;
     unsigned long hertz       = NFS_HERTZ;
@@ -639,15 +638,13 @@ int main(int argc, char **argv) {
      */
     while (input_fh) {
 
-        current->next = parse_fh(input_fh);
-        current = current->next;
-
-        /* TODO build a separate list of client connections so we don't reconnect to the same server multiple times */
+        current = parse_fh(targets, input_fh, 0, cfg.count, cfg.format);
+        //current = current->next;
 
         /* save the longest host/paths for display formatting */
         if (current) {
-            if (strlen(current->path) > maxpath) {
-                maxpath = strlen(current->path);
+            if (strlen(current->filehandles->path) > maxpath) {
+                maxpath = strlen(current->filehandles->path);
             }
 
             /* check if we're displaying hostnames or IP addresses */
@@ -656,8 +653,8 @@ int main(int argc, char **argv) {
                     maxhost = strlen(current->ip_address);
                 }
             } else {
-                if (strlen(current->host) > maxhost) {
-                    maxhost = strlen(current->host);
+                if (strlen(current->name) > maxhost) {
+                    maxhost = strlen(current->name);
                 }
             }
         }
@@ -678,7 +675,7 @@ int main(int argc, char **argv) {
     }
 
     /* set to start of list, skipping first dummy entry */
-    filehandles = filehandles->next;
+    targets = targets->next;
 
     /* 
      * Print the header before sending any RPCs, this means we have to guess about the size of the results
@@ -697,7 +694,7 @@ int main(int argc, char **argv) {
     /* the main loop */
     while(1) {
         /* reset to start of list */
-        current = filehandles;
+        current = targets;
 
 #ifdef CLOCK_MONOTONIC_RAW
         clock_gettime(CLOCK_MONOTONIC_RAW, &loop_start);
@@ -706,72 +703,69 @@ int main(int argc, char **argv) {
 #endif 
 
         while (current) {
-            /* see if we can reuse the previous client connection */
-            /* TODO make an array/linked list of connections and search through that */
-            if (client) {
-                if (clnt_info.sin_addr.s_addr != current->client_sock->sin_addr.s_addr) {
-                    client = destroy_rpc_client(client);
-                }
-            }
-
-            /* otherwise make a new connection */
-            if (client == NULL) {
-                current->client_sock->sin_family = AF_INET;
-                current->client_sock->sin_port = htons(NFS_PORT);
-
-                client = create_rpc_client(current->client_sock, &hints, NFS_PROGRAM, version, timeout, src_ip);
+            /* make a new connection if needed */
+            if (current->client == NULL) {
+                current->client = create_rpc_client(current->client_sock, &hints, NFS_PROGRAM, version, timeout, src_ip);
                 /* don't use default AUTH_NONE */
-                auth_destroy(client->cl_auth);
-                /* set up AUTH_SYS */
-                client->cl_auth = authunix_create_default();
-
-                /* look up the address that was used to connect to the server */
-                clnt_control(client, CLGET_SERVER_ADDR, (char *)&clnt_info);
+                auth_destroy(current->client->cl_auth);
+                /* set up AUTH_SYS instead */
+                current->client->cl_auth = authunix_create_default();
             }
 
-            /* get the current timestamp */
-            clock_gettime(CLOCK_REALTIME, &wall_clock);
+            /* loop through the filehandles for each target */
 
-#ifdef CLOCK_MONOTONIC_RAW
-            clock_gettime(CLOCK_MONOTONIC_RAW, &call_start);
-#else  
-            clock_gettime(CLOCK_MONOTONIC, &call_start);
-#endif 
-            /* the actual RPC call */
-            fsstatres = get_fsstat(client, current);
-            /* second time marker */
-#ifdef CLOCK_MONOTONIC_RAW
-            clock_gettime(CLOCK_MONOTONIC_RAW, &call_end);
-#else  
-            clock_gettime(CLOCK_MONOTONIC, &call_end);
-#endif
-            df_sent++;
-            current->sent++;
+            filehandle = current->filehandles;
 
-            /* calculate elapsed microseconds */
-            timespecsub(&call_end, &call_start, &call_elapsed);
-            usec = ts2us(call_elapsed);
+            while (filehandle) {
 
-            if (fsstatres && fsstatres->status == NFS3_OK) {
-                df_ok++;
-                current->received++;
+                /* get the current timestamp */
+                clock_gettime(CLOCK_REALTIME, &wall_clock);
 
-                if (cfg.format == ping) {
-                    if (cfg.inodes) {
-                        print_inodes(maxpath, current->host, current->path, fsstatres, usec);
-                    } else {
-                        /* are we printing ip_addresses or hostnames */
-                        /* TODO move this logic into print_df? But then have to pass in the filehandle struct */
-                        if (cfg.display_ips) {
-                            print_df(maxpath, current->ip_address, current->path, fsstatres, prefix, usec);
+    #ifdef CLOCK_MONOTONIC_RAW
+                clock_gettime(CLOCK_MONOTONIC_RAW, &call_start);
+    #else  
+                clock_gettime(CLOCK_MONOTONIC, &call_start);
+    #endif 
+                /* the actual RPC call */
+                fsstatres = get_fsstat(current->client, filehandle);
+                /* second time marker */
+    #ifdef CLOCK_MONOTONIC_RAW
+                clock_gettime(CLOCK_MONOTONIC_RAW, &call_end);
+    #else  
+                clock_gettime(CLOCK_MONOTONIC, &call_end);
+    #endif
+                df_sent++;
+                current->sent++;
+
+                /* calculate elapsed microseconds */
+                timespecsub(&call_end, &call_start, &call_elapsed);
+                usec = ts2us(call_elapsed);
+
+                if (fsstatres && fsstatres->status == NFS3_OK) {
+                    df_ok++;
+                    current->received++;
+
+                    if (cfg.format == ping) {
+                        if (cfg.inodes) {
+                            print_inodes(maxpath, current->name, filehandle->path, fsstatres, usec);
                         } else {
-                            print_df(maxpath, current->host, current->path, fsstatres, prefix, usec);
+                            /* are we printing ip_addresses or hostnames */
+                            /* TODO move this logic into print_df? But then have to pass in the filehandle struct */
+                            if (cfg.display_ips) {
+                                print_df(maxpath, current->ip_address, filehandle->path, fsstatres, prefix, usec);
+                            } else {
+                                print_df(maxpath, current->name, filehandle->path, fsstatres, prefix, usec);
+                            }
                         }
+                    } else {
+                        print_format(cfg.format, output_prefix, current->ndqf, filehandle->path, fsstatres, usec, wall_clock);
                     }
-                } else {
-                    print_format(cfg.format, output_prefix, current->ndqf, current->path, fsstatres, usec, wall_clock);
                 }
-            }
+
+                /* TODO pause between requests to same target? */
+
+                filehandle = filehandle->next;
+            } /* while(filehandle) */
 
             /* don't pause between targets */
 
@@ -794,8 +788,8 @@ int main(int argc, char **argv) {
         }
 
         /* only sleep if looping or counting */
-        /* check the count against the first target */
-        if (cfg.loop || (cfg.count && filehandles->sent < cfg.count)) {
+        /* check the count against the first filehandle in the first target */
+        if (cfg.loop || (cfg.count && targets->filehandles->sent < cfg.count)) {
             /* don't sleep if we went over the sleep_time */
             if (timespeccmp(&loop_elapsed, &sleep_time, >)) {
                 debug("Slow poll, not sleeping\n");

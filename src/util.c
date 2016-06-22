@@ -115,13 +115,15 @@ int nfs_perror(nfsstat3 status) {
 
 /* break up a JSON filehandle into parts */
 /* this uses parson */
-nfs_fh_list *parse_fh(char *input) {
+targets_t *parse_fh(targets_t *head, char *input, uint16_t port, unsigned long count, enum outputs format) {
     unsigned int i;
     const char *tmp;
     u_int fh_len = 0;
     JSON_Value  *root_value;
     JSON_Object *filehandle;
-    nfs_fh_list *current;
+    targets_t *current = NULL;
+    targets_t *retval = NULL; /* return this */
+    struct nfs_fh_list *fh;
     struct sockaddr_in sock;
 
     /* sanity check */
@@ -130,107 +132,99 @@ nfs_fh_list *parse_fh(char *input) {
         return NULL;
     }
 
-    current = calloc(1, sizeof(nfs_fh_list));
-    current->client_sock = NULL;
-    current->next = NULL;
-
-
     root_value = json_parse_string(input);
     /* TODO if root isn't object, bail */
     filehandle = json_value_get_object(root_value);
 
-    /* first find the hostname */
-    tmp = json_object_get_string(filehandle, "host");
+    /* first find the IP address so we can find or create a new target */
+    tmp = json_object_get_string(filehandle, "ip");
 
     if (tmp) {
-        strncpy(current->host, tmp, NI_MAXHOST);
+        /* convert the IP string back into a network address */
+        if (inet_pton(AF_INET, tmp, &sock.sin_addr)) {
+            /* see if there's already a target for this IP, or make a new one */
+            current = find_or_make_target(head, &sock, port, count, format);
 
-        /* first try treating the hostname as an IP address */
-        if (inet_pton(AF_INET, current->host, &(sock.sin_addr))) {
-            /* don't reverse an IP address */
-            current->ndqf = current->host;
-        } else {
-            current->ndqf = reverse_fqdn(current->host);
-        }
+            /* TODO reverse DNS lookup? */
 
-        /* then find the IP */
-        tmp = json_object_get_string(filehandle, "ip");
+            /* then find the hostname */
+            /* don't do any DNS resolution, so the hostname is used for display only */
+            tmp = json_object_get_string(filehandle, "host");
 
-        /* TODO if there isn't an IP, try and resolve it from the hostname? */
+            /* TODO if there isn't a hostname, try and resolve it from the IP? */
 
-        if (tmp) {
-            /* set up the socket */
-            current->client_sock = malloc(sizeof(struct sockaddr_in));
-            current->client_sock->sin_family = AF_INET;
-            /* TODO look for a port number in the JSON */
-            current->client_sock->sin_port = 0; /* use portmapper by default */
+            if (tmp) {
+                /* TODO check length against NI_MAXHOST */
+                strncpy(current->name, tmp, NI_MAXHOST);
 
-            /* convert the IP string back into a network address */
-            if (inet_pton(AF_INET, tmp, &current->client_sock->sin_addr)) {
-                /* keep a copy of the string for output */
-                /* do it after inet_pton so we know it's valid and the length will be less than INET_ADDRSTRLEN */
-                strncpy(current->ip_address, tmp, INET_ADDRSTRLEN);
+                /* first try treating the hostname as an IP address */
+                if (inet_pton(AF_INET, current->name, &(sock.sin_addr))) {
+                    /* TODO compare it to the IP address from JSON input and error if they don't match? */
+                    /* don't reverse an IP address */
+                    current->ndqf = current->name;
+                } else {
+                    current->ndqf = reverse_fqdn(current->name);
+                }
 
                 /* path is just used for display */
                 tmp = json_object_get_string(filehandle, "path");
 
                 if (tmp) {
-                    strncpy(current->path, tmp, MNTPATHLEN);
+                    /* allocate a new filehandle struct */
+                    fh = nfs_fh_list_new(current);
+
+                    /* TODO check length aginst MNTPATHLEN */
+                    strncpy(fh->path, tmp, MNTPATHLEN);
 
                     /* the root filehandle in hex */
                     tmp = json_object_get_string(filehandle, "filehandle");
 
                     if (tmp) {
+                        /* TODO break this out into a function string_to_nfs_fh3() */
+
                         /* hex takes two characters for each byte */
+                        fh_len = strlen(tmp) / 2;
+
                         /* check that it's an even number */
-                        if (strlen(tmp) % 2 == 0) {
-                            fh_len = strlen(tmp) / 2;
+                        if (fh_len && fh_len <= FHSIZE3 && (strlen(tmp) % 2 == 0)) {
+                            fh->nfs_fh.data.data_len = fh_len;
+                            fh->nfs_fh.data.data_val = malloc(fh_len);
 
-                            if (fh_len && fh_len <= FHSIZE3) {
-                                current->nfs_fh.data.data_len = fh_len;
-                                current->nfs_fh.data.data_val = malloc(fh_len);
-
-                                /* convert from the hex string to a byte array */
-                                for (i = 0; i <= current->nfs_fh.data.data_len; i++) {
-                                    sscanf(&tmp[i * 2], "%2hhx", &current->nfs_fh.data.data_val[i]);
-                                }
-                            } else {
-                                fprintf(stderr, "Invalid filehandle: %s\n", tmp);
-                                current->path[0] = 0;
+                            /* convert from the hex string to a byte array */
+                            for (i = 0; i <= fh->nfs_fh.data.data_len; i++) {
+                                sscanf(&tmp[i * 2], "%2hhx", &fh->nfs_fh.data.data_val[i]);
                             }
+
+                            /* set the return value */
+                            retval = current;
                         } else {
                             fprintf(stderr, "Invalid filehandle: %s\n", tmp);
-                            current->path[0] = 0;
                         }
                     } else {
                         fprintf(stderr, "No filehandle found!\n");
-                        current->path[0] = 0;
                     }
                 } else {
                     fprintf(stderr, "No path found!\n");
-                    current->path[0] = 0;
                 }
             } else {
-                fprintf(stderr, "Invalid IP address: %s\n", tmp);
-                current->path[0] = 0;
+                /* TODO reverse DNS lookup? */
+                fprintf(stderr, "No host found!\n");
             }
         } else {
-            fprintf(stderr, "No ip found!\n");
-            current->path[0] = 0;
+            fprintf(stderr, "Invalid IP address: %s\n", tmp);
         }
     } else {
-        fprintf(stderr, "No host found!\n");
-        current->path[0] = 0;
+        fprintf(stderr, "No ip found!\n");
     }
 
-    /* TODO find a better way of signalling an error than setting an empty path */
-    if (current->host && current->path[0] && fh_len) {
-        return current;
-    } else {
+    /* cleanup if we allocated a result but failed to set a return value */
+    if (retval == NULL && current) {
+        /* TODO need a free_target() function! */
         if (current->client_sock) free(current->client_sock);
         free(current);
-        return NULL;
     }
+
+    return retval;
 }
 
 
@@ -258,6 +252,8 @@ int print_nfs_fh3(struct sockaddr *host, char *path, char *file_name, nfs_fh3 fi
 
     /* get the IP address as a string */
     inet_ntop(AF_INET, &((struct sockaddr_in *)host)->sin_addr, ip, INET_ADDRSTRLEN);
+
+    /* TODO build one string and printf it once instead of multiple calls to printf */
 
     printf("{ \"ip\": \"%s\", \"path\": \"%s", ip, path);
     /* if the path doesn't already end in /, print one now */
@@ -337,7 +333,7 @@ targets_t *init_target(uint16_t port, unsigned long count, enum outputs format) 
 }
 
 
-/* make a new target, or list of targets if there are multiple DNS entries */
+/* take a string hostname and make a new target, or list of targets if there are multiple DNS entries */
 /* return the head of the list */
 /* Always store the ip address string in target->ip_address. */
 targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t port, int dns, int multiple, unsigned long count, enum outputs format) {
@@ -380,6 +376,7 @@ targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t
         if (getaddr == 0) { /* success! */
             /* loop through possibly multiple DNS responses */
             while (addr) {
+                /* copy the IP address */
                 target->client_sock->sin_addr = ((struct sockaddr_in *)addr->ai_addr)->sin_addr;
 
                 /* save the IP address as a string */
@@ -437,6 +434,7 @@ targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t
 
 
 /* copy a target struct safely */
+/* FIXME needs to deep copy the data (mounts, filehandle, etc) */
 /* TODO const */
 targets_t *copy_target(targets_t *target, unsigned long count, enum outputs format) {
     struct targets *new_target = calloc(1, sizeof(struct targets));
@@ -474,9 +472,88 @@ targets_t *append_target(targets_t **head, targets_t *new_target) {
         *head = new_target;
     }
 
-    /* go to the end of the list */
-    while (current->next) {
-        current = current->next;
+    return new_target;
+}
+
+
+/* create a new empty filehandle struct at the end of the current filehandle list in a target */
+/* return a pointer to the newly added filehandle */
+nfs_fh_list *nfs_fh_list_new(targets_t *target) {
+    /* head of the list */
+    nfs_fh_list *current = target->filehandles;
+    nfs_fh_list *new_fh = calloc(1, sizeof(struct nfs_fh_list));
+   
+    if (current) {
+        /* find the last fh in the list */
+        while (current->next) {
+            current = current->next;
+        }
+        /* append */
+        current->next = new_fh;
+    } else {
+        target->filehandles = new_fh;
+    }
+
+    return new_fh;
+}
+
+
+/* take the head of a list of targets, search for a match by IP address */
+/* return NULL pointer if no match */
+targets_t *find_target_by_ip(targets_t *head, struct sockaddr_in *ip_address) {
+    struct targets *current = head;
+
+    while (current) {
+        /* compare the IP addresses */
+        if (current->client_sock && current->client_sock->sin_addr.s_addr == ip_address->sin_addr.s_addr) {
+            return current;
+        } else {
+            current = current->next;
+        }
+    }
+
+    return NULL;
+}
+
+
+/*
+    take a hostname argument, so have to figure out if it's an IP or resolve to possibly multiple hostnames
+    once we have an IP address, check the current list to see if there's a match
+    so, what if there are multiple IPs? have to do the DNS resolution outside so we can loop through and return each one
+    then need separate functions (or a function that understands different formats like ping/mount/filehandle) to create specific data structures
+    this can happen multiple times if we have multiple filehandles with the same hostname
+    so maybe match on hostname and not IP address so we can skip doing DNS resolution each time?
+    but then we'd need another level of data structure: hostname-> IPs -> filehandles
+    and once the main loop is running we don't actually care about hostnames
+    or just use the IP address from the JSON
+    in that case we still need a different function to do the DNS resolution for nfsping and nfsmount
+    shortcut that function if there's an IP address in the JSON
+    maybe init_target()?
+    move the data structure initialisation into that function
+    two top level functions: make_target_by_ip and make_target_by_name
+    have make_target append to existing target list?
+    make_target_by_name just does DNS resolution and then calls make_target_by_ip?
+    separate function to find target by IP in list
+ */
+targets_t *find_or_make_target(targets_t *head, struct sockaddr_in *ip_address, uint16_t port, unsigned long count, enum outputs format) {
+    targets_t *current;
+    
+    /* first look for a duplicate in the target list */
+    current = find_target_by_ip(head, ip_address);
+
+    /* not found */
+    if (current == NULL) {
+        /* make a blank one */
+        current = init_target(port, count, format);
+
+        /* copy the IP address */
+        current->client_sock->sin_addr = ip_address->sin_addr;
+
+        /* save the IP address as a string */
+        inet_ntop(AF_INET, &((struct sockaddr_in *)ip_address)->sin_addr, current->ip_address, INET_ADDRSTRLEN);
+
+        /* add it to the end of the target list */
+        append_target(&head, current);
     }
 
     return current;

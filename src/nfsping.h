@@ -66,14 +66,20 @@ typedef struct targets {
     char name[NI_MAXHOST]; /* from getnameinfo() */
     char *ndqf; /* reversed name, for Graphite etc */
     char ip_address[INET_ADDRSTRLEN]; /* the IP address as a string, from inet_ntop() */
+    /* TODO statically allocate */
     struct sockaddr_in *client_sock; /* used to store the port number and connect to the RPC client */
     /* for fping output when we need to store the individual results for the summary */
     unsigned long *results;
     unsigned int sent, received;
     unsigned long min, max;
     float avg;
-    /* list of filesystem exports */
-    struct mount_exports *exports;
+    /* anonymous union to store different types of target data */
+    /* TODO make for ping and fping (results etc) */
+    /* TODO enum to specify type */
+    union {
+        struct mount_exports *exports;
+        struct nfs_fh_list   *filehandles;
+    };
 
     struct targets *next;
 } targets_t;
