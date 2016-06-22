@@ -639,7 +639,6 @@ int main(int argc, char **argv) {
     while (input_fh) {
 
         current = parse_fh(targets, input_fh, 0, cfg.count, cfg.format);
-        //current = current->next;
 
         /* save the longest host/paths for display formatting */
         if (current) {
@@ -735,7 +734,7 @@ int main(int argc, char **argv) {
                 clock_gettime(CLOCK_MONOTONIC, &call_end);
     #endif
                 df_sent++;
-                current->sent++;
+                filehandle->sent++;
 
                 /* calculate elapsed microseconds */
                 timespecsub(&call_end, &call_start, &call_elapsed);
