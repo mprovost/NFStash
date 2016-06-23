@@ -11,7 +11,7 @@ int verbose = 0;
 
 
 void usage() {
-    printf("Usage: nfslock [options] [filehandle...]\n\
+    printf("Usage: nfslock [options]\n\
     -c n     count of lock requests to send to target\n\
     -h       display this help and exit\n\
     -H n     frequency in Hertz (requests per second, default %i)\n\
@@ -24,6 +24,7 @@ void usage() {
 }
 
 
+/* TODO take a nfs_fh3 instead of nfs_fh_list */
 int do_nlm_test(CLIENT *client, char *nodename, pid_t mypid, nfs_fh_list *current) {
     /* default to failed */
     int status = nlm4_failed;
@@ -110,16 +111,18 @@ int main(int argc, char **argv) {
     int ch;
     char *input_fh;
     size_t n = 0; /* for getline() */
-    nfs_fh_list *filehandles, *current, fh_dummy;
+    targets_t dummy = { 0 };
+    targets_t *targets = &dummy;
+    targets_t *current = targets;
+    nfs_fh_list *filehandle;
     struct addrinfo hints = {
         .ai_family = AF_INET,
         /* default to UDP */
         .ai_socktype = SOCK_DGRAM,
     };
-    CLIENT *client = NULL;
     struct sockaddr_in clnt_info;
     int version = 4;
-    unsigned long count = 0;
+    unsigned long count = 1;
     int loop = 0;
     unsigned int sent = 0;
     struct timespec sleep_time;
@@ -131,7 +134,8 @@ int main(int argc, char **argv) {
         .sin_addr = 0
     };
     int status = 0;
-    pid_t mypid;
+    /* get the pid of the current process to use in the lock request(s) */
+    pid_t mypid = getpid();
     int getaddr;
     char nodename[NI_MAXHOST];
 
@@ -186,139 +190,60 @@ int main(int argc, char **argv) {
     }
 
     /* no arguments, use stdin */
-    if (optind == argc) {
-        if (getline(&input_fh, &n, stdin) == -1) {
-            input_fh = NULL;
-        }
-    /* first argument */
-    } else {
-        input_fh = argv[optind];
+    while (getline(&input_fh, &n, stdin) != -1) {
+        current = parse_fh(targets, input_fh, 0, 0, ping);
     }
 
-    /* pointer to head of list */
-    current = &fh_dummy;
-    filehandles = current;
+    targets = targets->next;
 
-    /* get the pid of the current process to use in the lock request(s) */
-    mypid = getpid();
-
-    /* first loop through all of the inputs, either arguments or stdin */
-    /* ping each one as we see it, don't wait for the full list to come in on stdin */
-    while (input_fh) {
-
-        current->next = parse_fh(input_fh);
-        current = current->next;
-
-        if (current) {
-            /* check if we can use the same client connection as the previous target */
-            /* get the server address out of the client */
-            if (client) {
-                if (clnt_info.sin_addr.s_addr != current->client_sock->sin_addr.s_addr) {
-                    client = destroy_rpc_client(client);
-                }
-            }
-
-            if (client == NULL) {
-                current->client_sock->sin_family = AF_INET;
-                current->client_sock->sin_port = 0;
-                /* connect to server */
-                client = create_rpc_client(current->client_sock, &hints, NLM_PROG, version, timeout, src_ip);
-                if (client) {
-                    auth_destroy(client->cl_auth);
-                    client->cl_auth = authunix_create_default();
-
-                    /* look up the address that was used to connect to the server */
-                    clnt_control(client, CLGET_SERVER_ADDR, (char *)&clnt_info);
-
-                    /* do a reverse lookup to find our client name */
-                    /* we need this to populate the nlm test arguments */
-                    getaddr = getnameinfo((struct sockaddr *)&clnt_info, sizeof(struct sockaddr_in), nodename, NI_MAXHOST, NULL, 0, 0);
-                    if (getaddr > 0) { /* failure! */
-                        fprintf(stderr, "%s: %s\n", current->host, gai_strerror(getaddr));
-                        /* use something that doesn't overlap with values in nlm4_testres.stat */
-                        exit(10);
-                    }
-                }
-            }
-
-            /* the RPC */
-            if (client) {
-                status = do_nlm_test(client, nodename, mypid, current);
-            }
-
-        } /* TODO else (bad filehandle) */
-
-        /* get the next filehandle*/
-        if (optind == argc) {
-            if (getline(&input_fh, &n, stdin) == -1) {
-                input_fh = NULL;
-            }
-        } else {
-            optind++;
-            if (optind < argc) {
-                input_fh = argv[optind];
-            } else {
-                input_fh = NULL;
-            }
-        }
-    }
-
-    /* at this point we've sent one request to each target */
-    sent++;
-
-    /* skip the first dummy entry */
-    filehandles = filehandles->next;
-
-    /* now check if we're looping through the filehandles */
     while ((sent < count) || loop) {
-        /* sleep between requests */
-        nanosleep(&sleep_time, NULL);
-
         /* reset to start of list */
-        current = filehandles;
+        current = targets;
 
         while (current) {
-            /* check if we can use the same client connection as the previous target */
-            /* get the server address out of the client */
-            if (client) {
-                if (clnt_info.sin_addr.s_addr != current->client_sock->sin_addr.s_addr) {
-                    client = destroy_rpc_client(client);
-                }
-            }
-
-            if (client == NULL) {
-                current->client_sock->sin_family = AF_INET;
-                current->client_sock->sin_port = 0;
+            if (current->client == NULL) {
                 /* connect to server */
-                client = create_rpc_client(current->client_sock, &hints, NLM_PROG, version, timeout, src_ip);
-                if (client) {
-                    auth_destroy(client->cl_auth);
-                    client->cl_auth = authunix_create_default();
+                current->client = create_rpc_client(current->client_sock, &hints, NLM_PROG, version, timeout, src_ip);
+
+                if (current->client) {
+                    auth_destroy(current->client->cl_auth);
+                    current->client->cl_auth = authunix_create_default();
 
                     /* look up the address that was used to connect to the server */
-                    clnt_control(client, CLGET_SERVER_ADDR, (char *)&clnt_info);
+                    /* TODO just use current->client_sock? */
+                    clnt_control(current->client, CLGET_SERVER_ADDR, (char *)&clnt_info);
 
                     /* do a reverse lookup to find our client name */
                     /* we need this to populate the nlm test arguments */
+                    /* TODO store this in the target_t struct? */
                     getaddr = getnameinfo((struct sockaddr *)&clnt_info, sizeof(struct sockaddr_in), nodename, NI_MAXHOST, NULL, 0, 0);
                     if (getaddr > 0) { /* failure! */
-                        fprintf(stderr, "%s: %s\n", current->host, gai_strerror(getaddr));
                         /* use something that doesn't overlap with values in nlm4_testres.stat */
-                        exit(10);
+                        fatalx(10, "%s: %s\n", current->name, gai_strerror(getaddr));
                     }
                 }
             }
 
-            /* the RPC */
-            if (client) {
-                status = do_nlm_test(client, nodename, mypid, current);
+            filehandle = current->filehandles;
+
+            while (filehandle) {
+                /* the RPC */
+                if (current->client) {
+                    status = do_nlm_test(current->client, nodename, mypid, filehandle);
+                }
+
+                filehandle = filehandle->next;
             }
 
             current = current->next;
-        }
+        } /* while (current) */
 
-        /* just increment this once for all targets */
+        /* at this point we've sent one request to each target/filehandle */
         sent++;
+
+        /* sleep between requests */
+        /* TODO don't sleep on last round */
+        nanosleep(&sleep_time, NULL);
     }
 
     /* this is zero if everything worked, or the last error code seen */
