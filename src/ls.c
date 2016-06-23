@@ -95,7 +95,6 @@ int main(int argc, char **argv) {
         /* default to UDP */
         .ai_socktype = SOCK_DGRAM,
     };
-    struct sockaddr_in clnt_info;
     unsigned long version = 3;
     struct timeval timeout = NFS_TIMEOUT;
     entryplus3 *entries;
@@ -178,7 +177,7 @@ int main(int argc, char **argv) {
                             file_name = entries->name;
                         }
 
-                        print_nfs_fh3((struct sockaddr *)current->client_sock, filehandle->path, file_name, entries->name_handle.post_op_fh3_u.handle);
+                        print_nfs_fh3(current->name, current->ip_address, filehandle->path, file_name, entries->name_handle.post_op_fh3_u.handle);
 
                         /* TODO free(file_name) */
                     }

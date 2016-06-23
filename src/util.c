@@ -241,16 +241,13 @@ int nfs_fh3_to_string(char *str, nfs_fh3 file_handle) {
 
 /* same function as above, but for NFS filehandles */
 /* maybe make a generic struct like sockaddr? */
-int print_nfs_fh3(struct sockaddr *host, char *path, char *file_name, nfs_fh3 file_handle) {
+/* TODO parson! */
+int print_nfs_fh3(char *host, char *ip_address, char *path, char *file_name, nfs_fh3 file_handle) {
     unsigned int i;
-    char ip[INET_ADDRSTRLEN];
-
-    /* get the IP address as a string */
-    inet_ntop(AF_INET, &((struct sockaddr_in *)host)->sin_addr, ip, INET_ADDRSTRLEN);
 
     /* TODO build one string and printf it once instead of multiple calls to printf */
 
-    printf("{ \"ip\": \"%s\", \"path\": \"%s", ip, path);
+    printf("{ \"host\": \"%s\", \"ip\": \"%s\", \"path\": \"%s", host, ip_address, path);
     /* if the path doesn't already end in /, print one now */
     if (path[strlen(path) - 1] != '/') {
         printf("/");
