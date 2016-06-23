@@ -152,19 +152,14 @@ targets_t *parse_fh(targets_t *head, char *input, uint16_t port, unsigned long c
             tmp = json_object_get_string(filehandle, "host");
 
             /* TODO if there isn't a hostname, try and resolve it from the IP? */
+            /* TODO compare it to the IP address from JSON input and error if they don't match? */
 
             if (tmp) {
                 /* TODO check length against NI_MAXHOST */
                 strncpy(current->name, tmp, NI_MAXHOST);
 
-                /* first try treating the hostname as an IP address */
-                if (inet_pton(AF_INET, current->name, &(sock.sin_addr))) {
-                    /* TODO compare it to the IP address from JSON input and error if they don't match? */
-                    /* don't reverse an IP address */
-                    current->ndqf = current->name;
-                } else {
-                    current->ndqf = reverse_fqdn(current->name);
-                }
+                /* reverse the hostname */
+                current->ndqf = reverse_fqdn(current->name);
 
                 /* path is just used for display */
                 tmp = json_object_get_string(filehandle, "path");
@@ -273,35 +268,43 @@ int print_nfs_fh3(struct sockaddr *host, char *path, char *file_name, nfs_fh3 fi
 
 
 /* reverse a FQDN */
+/* check to see if it's an IP address and if so, don't reverse it */
+/* TODO const */
 char* reverse_fqdn(char *fqdn) {
     int pos;
     char *copy;
     char *ndqf;
     char *tmp;
+    struct sockaddr_in sock; /* for inet_pton */
 
-    /* make a copy of the input so strtok doesn't clobber it */
-    copy = strdup(fqdn);
+    /* check for IP addresses */
+    if (inet_pton(AF_INET, fqdn, &(sock.sin_addr))) {
+        ndqf = fqdn;
+    } else {
+        /* make a copy of the input so strtok doesn't clobber it */
+        copy = strdup(fqdn);
 
-    pos = strlen(copy) + 1;
-    ndqf = (char *)malloc(sizeof(char *) * pos);
-    if (ndqf) {
-        pos--;
-        ndqf[pos] = '\0';
+        pos = strlen(copy) + 1;
+        ndqf = (char *)malloc(sizeof(char *) * pos);
+        if (ndqf) {
+            pos--;
+            ndqf[pos] = '\0';
 
-        tmp = strtok(copy, ".");
+            tmp = strtok(copy, ".");
 
-        while (tmp) {
-            pos = pos - strlen(tmp);
-            memcpy(&ndqf[pos], tmp, strlen(tmp));
-            tmp = strtok(NULL, ".");
-            if (pos) {
-                pos--;
-                ndqf[pos] = '.';
+            while (tmp) {
+                pos = pos - strlen(tmp);
+                memcpy(&ndqf[pos], tmp, strlen(tmp));
+                tmp = strtok(NULL, ".");
+                if (pos) {
+                    pos--;
+                    ndqf[pos] = '.';
+                }
             }
         }
-    }
 
-    free(copy);
+        free(copy);
+    }
 
     return ndqf;
 }
@@ -547,6 +550,7 @@ targets_t *find_or_make_target(targets_t *head, struct sockaddr_in *ip_address, 
         current = init_target(port, count, format);
 
         /* copy the IP address */
+        /* TODO should this be another argument to init_target()? */
         current->client_sock->sin_addr = ip_address->sin_addr;
 
         /* save the IP address as a string */
