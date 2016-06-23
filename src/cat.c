@@ -101,15 +101,16 @@ int main(int argc, char **argv) {
     int ch;
     char *input_fh;
     size_t n = 0; /* for getline() */
-    CLIENT *client = NULL;
-    nfs_fh_list *current;
+    targets_t dummy = { 0 };
+    targets_t *targets = &dummy;
+    targets_t *current = targets;
+    nfs_fh_list *filehandle;
     READ3res *res;
     struct addrinfo hints = {
         .ai_family = AF_INET,
         /* default to UDP */
         .ai_socktype = SOCK_DGRAM,
     };
-    struct sockaddr_in clnt_info;
     unsigned long version = 3;
     offset3 offset = 0;
     unsigned long blocksize = 8192;
@@ -201,126 +202,98 @@ int main(int argc, char **argv) {
     }
 
     /* no arguments, use stdin */
-    if (optind == argc) {
-        if (getline(&input_fh, &n, stdin) == -1) {
-            input_fh = NULL;
-        }
-    /* first argument */
-    } else {
-        input_fh = argv[optind];
+    while (getline(&input_fh, &n, stdin) != -1) {
+        current = parse_fh(targets, input_fh, 0, 0, ping);
     }
 
-    while (input_fh) {
+    targets = targets->next;
+    current = targets;
 
-        current = parse_fh(input_fh);
-
-        /* check if we can use the same client connection as the previous target */
-        if (client) {
-            /* get the server address out of the client */
-            clnt_control(client, CLGET_SERVER_ADDR, (char *)&clnt_info);
-            /* ok to reuse client connection if it's the same target address */
-            if (clnt_info.sin_addr.s_addr != current->client_sock->sin_addr.s_addr) {
-                /* different client address, close the connection */
-                client = destroy_rpc_client(client);
-            }
-        }
-
+    while (current) {
         /* no client connection */
-        if (client == NULL) {
-            current->client_sock->sin_family = AF_INET;
-            current->client_sock->sin_port = htons(NFS_PORT);
+        if (current->client == NULL) {
             /* connect to server */
-            client = create_rpc_client(current->client_sock, &hints, NFS_PROGRAM, version, timeout, src_ip);
+            current->client = create_rpc_client(current->client_sock, &hints, NFS_PROGRAM, version, timeout, src_ip);
             /* don't use default AUTH_NONE */
-            auth_destroy(client->cl_auth);
+            auth_destroy(current->client->cl_auth);
             /* set up AUTH_SYS */
-            client->cl_auth = authunix_create_default();
+            current->client->cl_auth = authunix_create_default();
         }
 
-        if (client) {
+        if (current->client) {
             /* start at the beginning of the file */
             offset = 0;
             sent = received = 0;
-            do {
-                /* grab the starting time of each loop */
-#ifdef CLOCK_MONOTONIC_RAW
-               clock_gettime(CLOCK_MONOTONIC_RAW, &loop_start);
-#else
-               clock_gettime(CLOCK_MONOTONIC, &loop_start);
-#endif
-                /* grab the wall clock time for output */
-                /* use the start time of the request */
-                /* the call_start timer is more important so do this first so we're not measuring the time this call takes */
-                clock_gettime(CLOCK_REALTIME, &wall_clock);
 
-                res = do_read(client, current, offset, blocksize, &us);
-                sent++;
-                if (res && res->status == NFS3_OK) {
-                    received++;
-                    /* TODO the final read could be short and take less time, discard? */
-                    /* what about files that come back in a single RPC? */
-                    if (us < min) min = us;
-                    if (us > max) max = us;
-                    /* calculate the average time */
-                    avg = (avg * (received - 1) + us) / received;
+            filehandle = current->filehandles;
 
-                    if (count) {
+            while (filehandle) {
+                do {
+                    /* grab the starting time of each loop */
+    #ifdef CLOCK_MONOTONIC_RAW
+                   clock_gettime(CLOCK_MONOTONIC_RAW, &loop_start);
+    #else
+                   clock_gettime(CLOCK_MONOTONIC, &loop_start);
+    #endif
+                    /* grab the wall clock time for output */
+                    /* use the start time of the request */
+                    /* the call_start timer is more important so do this first so we're not measuring the time this call takes */
+                    clock_gettime(CLOCK_REALTIME, &wall_clock);
 
-                        print_output(format, prefix, current->host, current->path, res->READ3res_u.resok.count, min, max, avg, sent, received, wall_clock, us);
+                    res = do_read(current->client, filehandle, offset, blocksize, &us);
+                    sent++;
+                    if (res && res->status == NFS3_OK) {
+                        received++;
+                        /* TODO the final read could be short and take less time, discard? */
+                        /* what about files that come back in a single RPC? */
+                        if (us < min) min = us;
+                        if (us > max) max = us;
+                        /* calculate the average time */
+                        avg = (avg * (received - 1) + us) / received;
 
-                    } else {
-                        /* write to stdout */
-                        fwrite(res->READ3res_u.resok.data.data_val, 1, res->READ3res_u.resok.data.data_len, stdout);
+                        if (count) {
+
+                            print_output(format, prefix, current->name, filehandle->path, res->READ3res_u.resok.count, min, max, avg, sent, received, wall_clock, us);
+
+                        } else {
+                            /* write to stdout */
+                            fwrite(res->READ3res_u.resok.data.data_val, 1, res->READ3res_u.resok.data.data_len, stdout);
+                        }
+
+                        offset += res->READ3res_u.resok.count;
                     }
-
-                    offset += res->READ3res_u.resok.count;
-                }
-                /* check count argument */
-                if (count && sent >= count) {
-                    break;
-                } else {
-                    /* sleep between rounds */
-                    /* measure how long the current round took, and subtract that from the sleep time */
-                    /* this tries to ensure that each polling round takes the same time */
-#ifdef CLOCK_MONOTONIC_RAW
-                    clock_gettime(CLOCK_MONOTONIC_RAW, &loop_end);
-#else
-                    clock_gettime(CLOCK_MONOTONIC, &loop_end);
-#endif
-                    timespecsub(&loop_end, &loop_start, &loop_elapsed);
-                    debug("Polling took %lld.%.9lds\n", (long long)loop_elapsed.tv_sec, loop_elapsed.tv_nsec);
-                    /* don't sleep if we went over the sleep_time */
-                    if (timespeccmp(&loop_elapsed, &sleep_time, >)) {
-                       debug("Slow poll, not sleeping\n");
+                    /* check count argument */
+                    if (count && sent >= count) {
+                        break;
                     } else {
-                       timespecsub(&sleep_time, &loop_elapsed, &sleepy);
-                       debug("Sleeping for %lld.%.9lds\n", (long long)sleepy.tv_sec, sleepy.tv_nsec);
-                       nanosleep(&sleepy, NULL);
+                        /* sleep between rounds */
+                        /* measure how long the current round took, and subtract that from the sleep time */
+                        /* this tries to ensure that each polling round takes the same time */
+    #ifdef CLOCK_MONOTONIC_RAW
+                        clock_gettime(CLOCK_MONOTONIC_RAW, &loop_end);
+    #else
+                        clock_gettime(CLOCK_MONOTONIC, &loop_end);
+    #endif
+                        timespecsub(&loop_end, &loop_start, &loop_elapsed);
+                        debug("Polling took %lld.%.9lds\n", (long long)loop_elapsed.tv_sec, loop_elapsed.tv_nsec);
+                        /* don't sleep if we went over the sleep_time */
+                        if (timespeccmp(&loop_elapsed, &sleep_time, >)) {
+                           debug("Slow poll, not sleeping\n");
+                        } else {
+                           timespecsub(&sleep_time, &loop_elapsed, &sleepy);
+                           debug("Sleeping for %lld.%.9lds\n", (long long)sleepy.tv_sec, sleepy.tv_nsec);
+                           nanosleep(&sleepy, NULL);
+                        }
                     }
-                }
-            /* check for errors or end of file */
-            } while (res && res->status == NFS3_OK && res->READ3res_u.resok.eof == 0);
+                /* check for errors or end of file */
+                } while (res && res->status == NFS3_OK && res->READ3res_u.resok.eof == 0);
+
+                filehandle = filehandle->next;
+            } /* while (filehandle) */
         }
 
-        /* cleanup */
-        free(current->client_sock);
-        free(current);
-
-        /* get the next filehandle */
-        if (optind == argc) {
-            if (getline(&input_fh, &n, stdin) == -1) {
-                input_fh = NULL;
-            }
-        } else {
-            optind++;
-            if (optind < argc) {
-                input_fh = argv[optind];
-            } else {
-                input_fh = NULL;
-            }
-        }
-
-    } /* while(input_fh) */
+        current = current->next;
+    } /* while(current) */
 
     return(0);
 }
