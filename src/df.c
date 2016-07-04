@@ -146,11 +146,13 @@ void usage() {
     -k         display sizes in kilobytes\n\
     -l         loop forever\n\
     -m         display sizes in megabytes\n\
+    -M         use the portmapper (default: %i)\n\
     -p string  prefix for graphite metric names\n\
     -S addr    set source address\n\
     -t         display sizes in terabytes\n\
     -T         use TCP (default UDP)\n\
-    -v         verbose output\n");
+    -v         verbose output\n",
+    NFS_PORT);
 
     exit(3);
 }
@@ -486,7 +488,7 @@ int main(int argc, char **argv) {
     /* set the default config "object" */
     cfg = CONFIG_DEFAULT;
 
-    while ((ch = getopt(argc, argv, "Abc:gGhH:iklmp:S:tTv")) != -1) {
+    while ((ch = getopt(argc, argv, "Abc:gGhH:iklmMp:S:tTv")) != -1) {
         switch(ch) {
             /* display IP addresses */
             case 'A':
@@ -571,6 +573,10 @@ int main(int argc, char **argv) {
                 } else {
                     prefix = MEGA;
                 }
+                break;
+            /* portmapper */
+            case 'M':
+                cfg.port = 0;
                 break;
             /* prefix to use for graphite metrics */
             case 'p':
