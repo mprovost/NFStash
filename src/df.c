@@ -127,7 +127,7 @@ void usage() {
        -E for statsd
        -p for petabytes, but that is already used for the graphite prefix
        -g is already used for gigabytes so can't use that for graphite prefix
-       -P for the port number
+       -P for the port number (or does this get passed via JSON filehandle?)
        -V for NFS version
        -n to only display the header once (like vmstat)
      */
@@ -624,20 +624,12 @@ int main(int argc, char **argv) {
         sleep_time.tv_nsec = 1000000000 / hertz;
     }
 
-    /* check if we don't have any command line targets */
-    if (optind == argc) {
-        if (getline(&input_fh, &n, stdin) == -1) {
-            input_fh = NULL;
-        }
-    } else {
-        input_fh = argv[optind];
-    }
     
-    /* first parse all of the input filehandles into a list 
+    /* first parse all of the input filehandles into a list  from stdin, one per line
      * this gives us the longest path so we can lay out the output
      * TODO only for human readable output, otherwise do it line by line
      */
-    while (input_fh) {
+    while (getline(&input_fh, &n, stdin) != -1) {
 
         current = parse_fh(targets, input_fh, 0, cfg.count, cfg.format);
 
@@ -656,20 +648,6 @@ int main(int argc, char **argv) {
                 if (strlen(current->name) > maxhost) {
                     maxhost = strlen(current->name);
                 }
-            }
-        }
-
-        /* parse next argument or line from stdin */
-        if (optind == argc) {
-            if (getline(&input_fh, &n, stdin) == -1) {
-                input_fh = NULL;
-            }
-        } else {
-            optind++;
-            if (optind < argc) {
-                input_fh = argv[optind];
-            } else {
-                input_fh = NULL;
             }
         }
     }
