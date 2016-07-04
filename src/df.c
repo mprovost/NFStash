@@ -93,6 +93,7 @@ int verbose = 0;
 
 /* global config "object" */
 static struct config {
+    uint16_t port;
     unsigned long count;
     int loop;
     enum outputs format;
@@ -102,6 +103,8 @@ static struct config {
 
 /* default config */
 const struct config CONFIG_DEFAULT = {
+    /* default to the standard NFS port */
+    .port   = NFS_PORT,
     .count  = 0,
     .loop   = 0,
     .format = unset,
@@ -127,11 +130,11 @@ void usage() {
        -E for statsd
        -p for petabytes, but that is already used for the graphite prefix
        -g is already used for gigabytes so can't use that for graphite prefix
-       -P for the port number (or does this get passed via JSON filehandle?)
+       -P for the port number (the filehandle comes from nfsmount which doesn't know which port NFS is listening on)
        -V for NFS version
        -n to only display the header once (like vmstat)
      */
-    printf("Usage: nfsdf [options] [filehandle...]\n\
+    printf("Usage: nfsdf [options]\n\
     -A         show IP addresses\n\
     -b         display sizes in bytes\n\
     -c n       count of requests to send for each filehandle\n\
@@ -631,7 +634,7 @@ int main(int argc, char **argv) {
      */
     while (getline(&input_fh, &n, stdin) != -1) {
 
-        current = parse_fh(targets, input_fh, 0, cfg.count, cfg.format);
+        current = parse_fh(targets, input_fh, cfg.port, cfg.count, cfg.format);
 
         /* save the longest host/paths for display formatting */
         if (current) {
