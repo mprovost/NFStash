@@ -44,6 +44,27 @@ static struct config {
     unsigned long hertz;
 } cfg;
 
+/* default config */
+const struct config CONFIG_DEFAULT = {
+    /* default to unset so we can check in getopt */
+    .format    = unset,
+    .prefix    = "nfsmount",
+    /* default to version 3 for NFSv3 */
+    .version   = 3,
+    .timeout   = NFS_TIMEOUT,
+    .hertz     = NFS_HERTZ,
+    .count     = 0,
+    .port      = 0, /* 0 = use portmapper */
+    /* reverse DNS lookups */
+    .dns       = 0,
+    .ip        = 0,
+    .loop      = 0,
+    .multiple  = 0,
+    .reconnect = 1,
+    .quiet     = 0,
+};
+
+
 /* MOUNT protocol function pointers */
 /* EXPORT procedure */
 typedef exports *(*proc_export_t)(void *, CLIENT *);
@@ -653,26 +674,6 @@ int main(int argc, char **argv) {
     /* printf requires an int for %*s formats */
     int width    = 0;
     int tmpwidth = 0;
-
-    /* default config */
-    const struct config CONFIG_DEFAULT = {
-        /* default to unset so we can check in getopt */
-        .format    = unset,
-        .prefix    = "nfsmount",
-        /* default to version 3 for NFSv3 */
-        .version   = 3,
-        .timeout   = NFS_TIMEOUT,
-        .hertz     = NFS_HERTZ,
-        .count     = 0,
-        .port      = 0, /* 0 = use portmapper */
-        /* reverse DNS lookups */
-        .dns       = 0,
-        .ip        = 0,
-        .loop      = 0,
-        .multiple  = 0,
-        .reconnect = 1,
-        .quiet     = 0,
-    };
 
     cfg = CONFIG_DEFAULT;
 
