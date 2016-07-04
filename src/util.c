@@ -115,6 +115,7 @@ int nfs_perror(nfsstat3 status) {
 
 /* break up a JSON filehandle into parts */
 /* this uses parson */
+/* port should be in host byte order (ie 2049) */
 targets_t *parse_fh(targets_t *head, char *input, uint16_t port, unsigned long count, enum outputs format) {
     unsigned int i;
     const char *tmp;
@@ -308,6 +309,7 @@ char* reverse_fqdn(char *fqdn) {
 
 
 /* allocate and initialise a target struct */
+/* port should be in host byte order (ie 2049) */
 targets_t *init_target(uint16_t port, unsigned long count, enum outputs format) {
     targets_t *target;
     
@@ -327,7 +329,8 @@ targets_t *init_target(uint16_t port, unsigned long count, enum outputs format) 
 
     target->client_sock = calloc(1, sizeof(struct sockaddr_in));
     target->client_sock->sin_family = AF_INET;
-    target->client_sock->sin_port = port;
+    /* convert the port to network byte order */
+    target->client_sock->sin_port = htons(port);
 
     return target;
 }
@@ -336,6 +339,7 @@ targets_t *init_target(uint16_t port, unsigned long count, enum outputs format) 
 /* take a string hostname and make a new target, or list of targets if there are multiple DNS entries */
 /* return the head of the list */
 /* Always store the ip address string in target->ip_address. */
+/* port should be in host byte order (ie 2049) */
 targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t port, int dns, int multiple, unsigned long count, enum outputs format) {
     targets_t *target, *first;
     struct addrinfo *addr;
@@ -535,6 +539,7 @@ targets_t *find_target_by_ip(targets_t *head, struct sockaddr_in *ip_address) {
     make_target_by_name just does DNS resolution and then calls make_target_by_ip?
     separate function to find target by IP in list
  */
+/* port should be in host byte order (ie 2049) */
 targets_t *find_or_make_target(targets_t *head, struct sockaddr_in *ip_address, uint16_t port, unsigned long count, enum outputs format) {
     targets_t *current;
     
