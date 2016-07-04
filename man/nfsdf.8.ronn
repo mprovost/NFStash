@@ -3,7 +3,7 @@ nfsdf(8) -- report NFS server disk space usage
 
 ## SYNOPSIS
 
-`nfsdf` [`-AbgGhiklmtTv`] [`-c` <count>] [`-H` <hertz>] [`-p` <prefix>] [`-S` <source>] <filehandle...>
+`nfsdf` [`-AbgGhiklmMtTv`] [`-c` <count>] [`-H` <hertz>] [`-p` <prefix>] [`-S` <source>] <filehandle...>
 
 ## DESCRIPTION
 
@@ -47,6 +47,9 @@ If the NFS server requires "secure" ports (<1024), `nfsdf` will have to be run a
 
 * `-m`:
   Report disk space in megabytes.
+
+* `-M`:
+  Query the RPC portmapper on the server to lookup the NFS port. Otherwise connect directly to the standard port (2049). Uses UDP by default or TCP if the `-T` option is specified.
 
 * `-p` <prefix>:
   Specify string prefix for Graphite metric names. Default = "nfs".
