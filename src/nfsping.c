@@ -212,7 +212,7 @@ int main(int argc, char **argv) {
     /* polling frequency */
     unsigned long hertz = NFS_HERTZ;
     struct timespec wait_time = NFS_WAIT;
-    uint16_t port = htons(NFS_PORT);
+    uint16_t port = NFS_PORT;
     unsigned long prognum = NFS_PROGRAM;
     unsigned long prognum_offset = NFS_PROGRAM - 100000;
     struct addrinfo hints = {
@@ -512,7 +512,7 @@ int main(int argc, char **argv) {
                     fatal("Portmap can't use portmapper!\n");
                 } else {
                     /* check if it's been changed from the default by the -P option */
-                    if (port == htons(NFS_PORT)) {
+                    if (port == NFS_PORT) {
                         port = 0;
                     } else {
                         fatal("Can't specify both port and portmapper!\n");
@@ -534,7 +534,7 @@ int main(int argc, char **argv) {
                 }
                 if (prognum == NFS_PROGRAM) {
                     prognum = PMAPPROG;
-                    port = htons(PMAPPORT); /* 111 */
+                    port = PMAPPORT; /* 111 */
                 } else {
                     fatal("Only one protocol!\n");
                 }
@@ -545,7 +545,8 @@ int main(int argc, char **argv) {
                 if (port == 0) {
                     fatal("Can't specify both port and portmapper!\n");
                 }
-                port = htons(strtoul(optarg, NULL, 10));
+                /* leave port in host byte order */
+                port = strtoul(optarg, NULL, 10);
                 break;
             /* quiet, only print summary */
             /* TODO error if output also specified? */
