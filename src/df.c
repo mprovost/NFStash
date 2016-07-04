@@ -129,6 +129,7 @@ void usage() {
        -g is already used for gigabytes so can't use that for graphite prefix
        -P for the port number
        -V for NFS version
+       -n to only display the header once (like vmstat)
      */
     printf("Usage: nfsdf [options] [filehandle...]\n\
     -A         show IP addresses\n\
@@ -684,6 +685,7 @@ int main(int argc, char **argv) {
      * columns since the results may change over time.
      */
 
+    /* TODO print this periodically like vmstat */
     print_header(maxhost, maxpath, prefix);
 
     /* listen for ctrl-c */
@@ -720,19 +722,19 @@ int main(int argc, char **argv) {
                 /* get the current timestamp */
                 clock_gettime(CLOCK_REALTIME, &wall_clock);
 
-    #ifdef CLOCK_MONOTONIC_RAW
+#ifdef CLOCK_MONOTONIC_RAW
                 clock_gettime(CLOCK_MONOTONIC_RAW, &call_start);
-    #else  
+#else  
                 clock_gettime(CLOCK_MONOTONIC, &call_start);
-    #endif 
+#endif 
                 /* the actual RPC call */
                 fsstatres = get_fsstat(current->client, filehandle);
                 /* second time marker */
-    #ifdef CLOCK_MONOTONIC_RAW
+#ifdef CLOCK_MONOTONIC_RAW
                 clock_gettime(CLOCK_MONOTONIC_RAW, &call_end);
-    #else  
+#else  
                 clock_gettime(CLOCK_MONOTONIC, &call_end);
-    #endif
+#endif
                 df_sent++;
                 filehandle->sent++;
 
