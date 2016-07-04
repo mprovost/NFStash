@@ -137,8 +137,7 @@ CLIENT *create_rpc_client(struct sockaddr_in *client_sock, struct addrinfo *hint
         client = destroy_rpc_client(client);
 
         /* by this point we should know which port we're talking to */
-        /* TODO print IP address */
-        debug("portmapper = %u\n", ntohs(client_sock->sin_port));
+        debug("portmapper = %s:%u\n", dst, ntohs(client_sock->sin_port));
     }
 
     /* now make the client connection */
