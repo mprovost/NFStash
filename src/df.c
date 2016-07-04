@@ -748,7 +748,11 @@ int main(int argc, char **argv) {
 
                     if (cfg.format == ping) {
                         if (cfg.inodes) {
-                            print_inodes(maxpath, current->name, filehandle->path, fsstatres, usec);
+                            if (cfg.display_ips) {
+                                print_inodes(maxpath, current->ip_address, filehandle->path, fsstatres, usec);
+                            } else {
+                                print_inodes(maxpath, current->name, filehandle->path, fsstatres, usec);
+                            }
                         } else {
                             /* are we printing ip_addresses or hostnames */
                             /* TODO move this logic into print_df? But then have to pass in the filehandle struct */
