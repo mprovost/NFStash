@@ -12,7 +12,7 @@ static void print_output(enum outputs format, char *prefix, char* host, char* pa
 int verbose = 0;
 
 void usage() {
-    printf("Usage: nfscat [options] [targets...]\n\
+    printf("Usage: nfscat [options]\n\
     -b n      blocksize (in bytes, default 8192)\n\
     -c n      count of read requests to send to target\n\
     -E        StatsD format output (default human readable)\n\
