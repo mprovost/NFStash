@@ -89,6 +89,9 @@ static const struct export_procs export_dispatch[4] = {
 
 
 void usage() {
+    /* TODO:
+       -P for port number
+     */
     printf("Usage: nfsmount [options] host[:mountpoint]\n\
     -A       show IP addresses\n\
     -c n     count of mount requests to send to target\n\
