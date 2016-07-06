@@ -3,13 +3,13 @@ nfscat(8) -- read a file over NFS and print to stdout
 
 ## SYNOPSIS
 
-`nfscat` [`-hTv`] [`-b` <blocksize>] [`-c` <count>] [`-H` <hertz>] [`-S` <source>] <filehandle...>
+`nfscat` [`-hTv`] [`-b` <blocksize>] [`-c` <count>] [`-H` <hertz>] [`-S` <source>]
 
 ## DESCRIPTION
 
-`nfscat` sends NFS version 3 READ RPC requests to an NFS server and prints the file contents in the responses to `stdout`. It starts at the beginning of the file and will read it until the end unless a number of requests is specified with the `-c` option. Filehandles can either be specified as arguments or accepted on `stdin`.
+`nfscat` sends NFS version 3 READ RPC requests to an NFS server and prints the file contents in the responses to `stdout`. It starts at the beginning of the file and will read it until the end unless a number of requests is specified with the `-c` option.
 
-Input filehandles are represented as a series of JSON objects (one per line) with the keys "host", "ip", "path", and "filehandle", where the value of the "filehandle" key is the hex representation of the file's NFS filehandle. As command line arguments they will need to be escaped from the shell with single quotes.
+The filehandles to be read are passed on `stdin` as a series of JSON objects (one per line) with the keys "host", "ip", "path", and "filehandle", where the value of the "filehandle" key is the hex representation of the file's NFS filehandle.
 
 If the NFS server requires "secure" ports (<1024), `nfscat` will have to be run as root.
 
@@ -35,6 +35,12 @@ If the NFS server requires "secure" ports (<1024), `nfscat` will have to be run 
 
 * `-v`:
   Display debug output on `stderr`.
+
+## EXAMPLES
+
+Here is a pipeline of commands which demonstrates using `nfsmount` to obtain the root filehandle, then using `nfsls` to find the filehandle for `/etc/hosts` and finally `nfscat` to print the contents:
+
+  `sudo sh -c "nfsmount dumpy:/ | nfsls | grep etc | nfsls | grep hosts | nfscat"`
 
 ## RETURN VALUES
 

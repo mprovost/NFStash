@@ -3,13 +3,13 @@ nfsdf(8) -- report NFS server disk space usage
 
 ## SYNOPSIS
 
-`nfsdf` [`-AbgGhiklmMtTv`] [`-c` <count>] [`-H` <hertz>] [`-p` <prefix>] [`-S` <source>] <filehandle...>
+`nfsdf` [`-AbgGhiklmMtTv`] [`-c` <count>] [`-H` <hertz>] [`-p` <prefix>] [`-S` <source>]
 
 ## DESCRIPTION
 
-`nfsdf` sends NFS version 3 FSSTAT RPC requests to an NFS server and reports the total, used and available amounts of disk space and files (inodes) for the filesystems specified in the filehandle argument(s), as well as the response time for each RPC request in milliseconds. Alternatively, filehandles can be passed on `stdin`, in this case `nfsdf` waits until the end of input (EOF) before sending any requests so that the correct width header can be printed. The default output is human readable, similar to `df -h`, units can be specified with the `-b`, `-k`, `-m`, `-g`, or `-t` options. Any filehandle on the target filesystem can be used as an argument, including the root filehandle obtained from `nfsmount`.
+`nfsdf` accepts NFS filehandles on `stdin` and sends NFS version 3 FSSTAT RPC requests to each NFS server and reports the total, used and available amounts of disk space and files (inodes) for the filesystems specified, as well as the response time for each RPC request in milliseconds. `nfsdf` waits until the end of input (EOF) before sending any requests so that the correct width header can be printed. The default output is human readable, similar to `df -h`, units can be specified with the `-b`, `-k`, `-m`, `-g`, or `-t` options. Any filehandle on the target filesystem can be used as an argument, including the root filehandle obtained from `nfsmount`.
 
-Input filehandles are represented as a series of JSON objects (one per line) with the keys "host", "ip", "path", and "filehandle", where the value of the "filehandle" key is the hex representation of the file's NFS filehandle. As command line arguments they will need to be escaped from the shell with single quotes.
+Input filehandles are represented as a series of JSON objects (one per line) with the keys "host", "ip", "path", and "filehandle", where the value of the "filehandle" key is the hex representation of the file's NFS filehandle.
 
 If the NFS server requires "secure" ports (<1024), `nfsdf` will have to be run as root.
 
@@ -70,14 +70,14 @@ If the NFS server requires "secure" ports (<1024), `nfsdf` will have to be run a
 
 Typically `nfsdf` will use a filehandle obtained from the output of the `nfsmount` command:
 
-  `sudo sh -c "nfsmount server1 | nfsdf"`
+  `sudo sh -c "nfsmount dumpy | nfsdf"`
 
 Since both commands typically need root privileges (to bind to a "secure" port) they can be run with a single subshell under `sudo`.
 
 If the check is being run repeatedly, there is no need to query the fileserver with `nfsmount` every time. Since the root filehandles shouldn't change, the output can be stored in a file:
 
-  `sudo nfsmount server1 > server1.nfs`  
-  `sudo nfsdf < server1.nfs`  
+  `sudo nfsmount dumpy > dumpy.nfs`  
+  `sudo nfsdf < dumpy.nfs`  
 
 ## RETURN VALUES
 
