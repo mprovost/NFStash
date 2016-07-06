@@ -100,6 +100,7 @@ static struct config {
     enum outputs format;
     int inodes;
     int display_ips;
+    int one_header;
 } cfg;
 
 /* default config */
@@ -111,6 +112,7 @@ const struct config CONFIG_DEFAULT = {
     .format = unset,
     .inodes = 0,
     .display_ips = 0,
+    .one_header = 0,
 };
 
 
@@ -133,7 +135,6 @@ void usage() {
        -g is already used for gigabytes so can't use that for graphite prefix
        -P for the port number (the filehandle comes from nfsmount which doesn't know which port NFS is listening on)
        -V for NFS version
-       -n to only display the header once (like vmstat)
        -J for JSON output
      */
     printf("Usage: nfsdf [options]\n\
@@ -148,6 +149,7 @@ void usage() {
     -k         display sizes in kilobytes\n\
     -l         loop forever\n\
     -m         display sizes in megabytes\n\
+    -n         only display the header once\n\
     -M         use the portmapper (default: %i)\n\
     -p string  prefix for graphite metric names\n\
     -S addr    set source address\n\
@@ -492,7 +494,7 @@ int main(int argc, char **argv) {
     /* set the default config "object" */
     cfg = CONFIG_DEFAULT;
 
-    while ((ch = getopt(argc, argv, "Abc:gGhH:iklmMp:S:tTv")) != -1) {
+    while ((ch = getopt(argc, argv, "Abc:gGhH:iklmMnp:S:tTv")) != -1) {
         switch(ch) {
             /* display IP addresses */
             case 'A':
@@ -581,6 +583,10 @@ int main(int argc, char **argv) {
             /* portmapper */
             case 'M':
                 cfg.port = 0;
+                break;
+            /* just display the header once */
+            case 'n':
+                cfg.one_header = 1;
                 break;
             /* prefix to use for graphite metrics */
             case 'p':
@@ -676,7 +682,7 @@ int main(int argc, char **argv) {
      * columns since the results may change over time.
      */
 
-    /* print one header at the start */
+    /* always print one header at the start */
     print_header(maxhost, maxpath, prefix);
 
     /* listen for ctrl-c */
@@ -743,7 +749,7 @@ int main(int argc, char **argv) {
 
                     /* print header once per screen like vmstat */
                     /* TODO maybe a better number than df_ok? What about errors? Or the header line itself? */
-                    if (df_ok % rows == 0) {
+                    if (cfg.one_header == 0 && (df_ok % rows == 0)) {
                         print_header(maxhost, maxpath, prefix);
                     }
 
