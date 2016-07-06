@@ -5,6 +5,7 @@
 #include "nfsping.h"
 #include "rpc.h"
 #include "util.h"
+#include <sys/ioctl.h> /* for checking terminal size */
 
 /* for shifting */
 enum byte_prefix {
@@ -133,6 +134,7 @@ void usage() {
        -P for the port number (the filehandle comes from nfsmount which doesn't know which port NFS is listening on)
        -V for NFS version
        -n to only display the header once (like vmstat)
+       -J for JSON output
      */
     printf("Usage: nfsdf [options]\n\
     -A         show IP addresses\n\
@@ -463,6 +465,8 @@ int main(int argc, char **argv) {
     nfs_fh_list *filehandle;
     unsigned int maxpath = 0;
     unsigned int maxhost = 0;
+    struct winsize winsz;
+    unsigned short rows  = 0; /* number of rows in terminal window */
     unsigned long version = 3;
     struct timespec loop_start, loop_end, loop_elapsed, sleepy, sleep_time;
     unsigned long hertz       = NFS_HERTZ;
@@ -672,7 +676,7 @@ int main(int argc, char **argv) {
      * columns since the results may change over time.
      */
 
-    /* TODO print this periodically like vmstat */
+    /* print one header at the start */
     print_header(maxhost, maxpath, prefix);
 
     /* listen for ctrl-c */
@@ -681,6 +685,10 @@ int main(int argc, char **argv) {
 
     /* the main loop */
     while(1) {
+        /* find the current number of rows in the terminal for printing the header once per screen */
+        ioctl(STDOUT_FILENO, TIOCGWINSZ, &winsz);
+        rows = winsz.ws_row;
+
         /* reset to start of list */
         current = targets;
 
@@ -732,6 +740,12 @@ int main(int argc, char **argv) {
                 if (fsstatres && fsstatres->status == NFS3_OK) {
                     df_ok++;
                     current->received++;
+
+                    /* print header once per screen like vmstat */
+                    /* TODO maybe a better number than df_ok? What about errors? Or the header line itself? */
+                    if (df_ok % rows == 0) {
+                        print_header(maxhost, maxpath, prefix);
+                    }
 
                     if (cfg.format == ping) {
                         if (cfg.inodes) {
