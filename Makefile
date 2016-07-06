@@ -116,7 +116,7 @@ bin/clear_locks: config/clock_gettime.opt $(clear_locks_objs) | bin
 
 tests: tests/util_tests
 tests/util_tests: tests/util_tests.c tests/minunit.h src/util.o obj/parson.o src/util.h | rpcgen
-	gcc ${CFLAGS} $^ -o $@
+	gcc ${CFLAGS} tests/util_tests.c obj/util.o obj/parson.o -o $@
 	tests/util_tests
 
 # man pages
