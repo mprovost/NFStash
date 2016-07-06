@@ -1,6 +1,5 @@
-#include <stdio.h>
 #include "minunit.h"
-#include "util.h"
+#include "src/util.h"
 
 int tests_run = 0;
 
@@ -8,8 +7,6 @@ static char *test_reverse_fqdn() {
     char *fqdn = "www.test.com";
     char *ndqf;
     char *reverse = "com.test.www";
-
-    char *result;
 
     ndqf = reverse_fqdn(fqdn);
     printf("%s -> %s\n", fqdn, ndqf);
@@ -54,7 +51,7 @@ static char *all_tests() {
     return 0;
 }
 
-int main(int argc, char **argv) {
+int main(int __attribute__((unused)) argc, __attribute__((unused)) char **argv) {
     char *result = all_tests();
 
     if (result != 0)
