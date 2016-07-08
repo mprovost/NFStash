@@ -9,10 +9,21 @@ static entryplus3 *do_readdirplus(CLIENT *, char *, char *, nfs_fh3);
 /* globals */
 int verbose = 0;
 
+/* global config "object" */
+static struct config {
+    int long_listing;
+} cfg;
+
+/* default config */
+const struct config CONFIG_DEFAULT = {
+    .long_listing = 0,
+};
+
 void usage() {
-    printf("Usage: nfsls [options] [filehandle...]\n\
+    printf("Usage: nfsls [options]\n\
     -a       print hidden files\n\
     -h       display this help and exit\n\
+    -l       print long listing\n\
     -S addr  set source address\n\
     -T       use TCP (default UDP)\n\
     -v       verbose output\n"); 
@@ -104,11 +115,15 @@ int main(int argc, char **argv) {
         .sin_addr = 0
     };
 
-    while ((ch = getopt(argc, argv, "ahS:Tv")) != -1) {
+    while ((ch = getopt(argc, argv, "ahlS:Tv")) != -1) {
         switch(ch) {
             /* list hidden files */
             case 'a':
                 all = 1;
+                break;
+            /* long listing */
+            case 'l':
+                cfg.long_listing = 1;
                 break;
             /* source ip address for packets */
             case 'S':
@@ -177,7 +192,11 @@ int main(int argc, char **argv) {
                             file_name = entries->name;
                         }
 
-                        print_nfs_fh3(current->name, current->ip_address, filehandle->path, file_name, entries->name_handle.post_op_fh3_u.handle);
+                        if (cfg.long_listing) {
+                            printf("%s %" PRIu64 "\n", file_name, entries->name_attributes.post_op_attr_u.attributes.size);
+                        } else {
+                            print_nfs_fh3(current->name, current->ip_address, filehandle->path, file_name, entries->name_handle.post_op_fh3_u.handle);
+                        }
 
                         /* TODO free(file_name) */
                     }
