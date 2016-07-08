@@ -11,11 +11,15 @@ int verbose = 0;
 
 /* global config "object" */
 static struct config {
+    /* ls -a */
+    int all;
+    /* ls -l */
     int long_listing;
 } cfg;
 
 /* default config */
 const struct config CONFIG_DEFAULT = {
+    .all = 0,
     .long_listing = 0,
 };
 
@@ -92,7 +96,6 @@ entryplus3 *do_readdirplus(CLIENT *client, char *host, char *path, nfs_fh3 dir) 
 
 int main(int argc, char **argv) {
     int ch;
-    int all = 0;
     int count = 0;
     char   *input_fh  = NULL;
     size_t  input_len = 0;
@@ -115,11 +118,13 @@ int main(int argc, char **argv) {
         .sin_addr = 0
     };
 
+    cfg = CONFIG_DEFAULT;
+
     while ((ch = getopt(argc, argv, "ahlS:Tv")) != -1) {
         switch(ch) {
             /* list hidden files */
             case 'a':
-                all = 1;
+                cfg.all = 1;
                 break;
             /* long listing */
             case 'l':
@@ -171,7 +176,7 @@ int main(int argc, char **argv) {
                 while (entries) {
                     count++;
                     /* first check for hidden files */
-                    if (all == 0) {
+                    if (cfg.all == 0) {
                         if (entries->name[0] == '.') {
                             entries = entries->nextentry;
                             continue;
