@@ -6,8 +6,7 @@
 /* local prototypes */
 static void usage(void);
 static entryplus3 *do_readdirplus(CLIENT *, char *, char *, nfs_fh3);
-static char *lsperms(mode3);
-static char *filetypeletter(ftype3);
+static char *lsperms(ftype3, mode3);
 
 /* globals */
 int verbose = 0;
@@ -98,56 +97,52 @@ entryplus3 *do_readdirplus(CLIENT *client, char *host, char *path, nfs_fh3 dir) 
 
 
 /* based on http://stackoverflow.com/questions/10323060/printing-file-permissions-like-ls-l-using-stat2-in-c */
-static char *lsperms(mode3 mode) {
+/* TODO also take the ftype3 */
+/* TODO accept a string to use for output */
+static char *lsperms(ftype3 type, mode3 mode) {
     static const char *rwx[] = {"---", "--x", "-w-", "-wx",
     "r--", "r-x", "rw-", "rwx"};
-    static char bits[10];
-
-    strcpy(&bits[0], rwx[(mode >> 6)& 7]);
-    strcpy(&bits[3], rwx[(mode >> 3)& 7]);
-    strcpy(&bits[6], rwx[(mode & 7)]);
-    if (mode & S_ISUID)
-        bits[2] = (mode & S_IXUSR) ? 's' : 'S';
-    if (mode & S_ISGID)
-        bits[5] = (mode & S_IXGRP) ? 's' : 'l';
-    if (mode & S_ISVTX)
-        bits[8] = (mode & S_IXUSR) ? 't' : 'T';
-    bits[9] = '\0';
-    return(bits);
-};
-
-
-static char *filetypeletter(ftype3 type) {
-    static char    c[2];
+    /* TODO needs to be 11 with the type */
+    static char bits[11];
 
     switch (type) {
         case NF3REG:
-            c[0] = '-';
+            bits[0] = '-';
             break;
         case NF3DIR:
-            c[0] = 'd';
+            bits[0] = 'd';
             break;
         case NF3BLK:
-            c[0] = 'b';
+            bits[0] = 'b';
             break;
         case NF3CHR:
-            c[0] = 'c';
+            bits[0] = 'c';
             break;
         case NF3LNK:
-            c[0] = 'l';
+            bits[0] = 'l';
             break;
         case NF3SOCK:
-            c[0] = 's';
+            bits[0] = 's';
             break;
         case NF3FIFO:
-            c[0] = 'p';
+            bits[0] = 'p';
             break;
         default:
             /* Unknown type -- possibly a regular file? */
-            c[0] = '?';
+            bits[0] = '?';
     }
-    c[1] = '\0';
-    return(c);
+
+    strcpy(&bits[1], rwx[(mode >> 6)& 7]);
+    strcpy(&bits[4], rwx[(mode >> 3)& 7]);
+    strcpy(&bits[7], rwx[(mode & 7)]);
+    if (mode & S_ISUID)
+        bits[3] = (mode & S_IXUSR) ? 's' : 'S';
+    if (mode & S_ISGID)
+        bits[6] = (mode & S_IXGRP) ? 's' : 'l';
+    if (mode & S_ISVTX)
+        bits[9] = (mode & S_IXUSR) ? 't' : 'T';
+    bits[10] = '\0';
+    return(bits);
 };
 
 
@@ -256,7 +251,7 @@ int main(int argc, char **argv) {
 
                         if (cfg.long_listing) {
                             /* TODO find the longest size and justify that column */
-                            printf("%s%s %" PRIu64 " %s\n", filetypeletter(entries->name_attributes.post_op_attr_u.attributes.type), lsperms(entries->name_attributes.post_op_attr_u.attributes.mode), entries->name_attributes.post_op_attr_u.attributes.size, file_name);
+                            printf("%s %" PRIu64 " %s\n", lsperms(entries->name_attributes.post_op_attr_u.attributes.type, entries->name_attributes.post_op_attr_u.attributes.mode), entries->name_attributes.post_op_attr_u.attributes.size, file_name);
                         } else {
                             print_nfs_fh3(current->name, current->ip_address, filehandle->path, file_name, entries->name_handle.post_op_fh3_u.handle);
                         }
