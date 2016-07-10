@@ -17,12 +17,17 @@ static struct config {
     int all;
     /* ls -l */
     int long_listing;
+    /* NFS version */
+    unsigned long version;
+    struct timeval timeout;
 } cfg;
 
 /* default config */
 const struct config CONFIG_DEFAULT = {
     .all = 0,
     .long_listing = 0,
+    .version = 3,
+    .timeout = NFS_TIMEOUT,
 };
 
 void usage() {
@@ -96,6 +101,7 @@ entryplus3 *do_readdirplus(CLIENT *client, char *host, char *path, nfs_fh3 dir) 
 }
 
 
+/* generate a string of the file type and permissions bits of a file like ls -l */
 /* based on http://stackoverflow.com/questions/10323060/printing-file-permissions-like-ls-l-using-stat2-in-c */
 char *lsperms(char *bits, ftype3 type, mode3 mode) {
     const char *rwx[] = {"---", "--x", "-w-", "-wx", "r--", "r-x", "rw-", "rwx"};
@@ -159,8 +165,6 @@ int main(int argc, char **argv) {
         /* default to UDP */
         .ai_socktype = SOCK_DGRAM,
     };
-    unsigned long version = 3;
-    struct timeval timeout = NFS_TIMEOUT;
     entryplus3 *entries;
     /* source ip address for packets */
     struct sockaddr_in src_ip = {
@@ -215,7 +219,7 @@ int main(int argc, char **argv) {
     while (current) {
         if (current->client == NULL) {
             /* connect to server */
-            current->client = create_rpc_client(current->client_sock, &hints, NFS_PROGRAM, version, timeout, src_ip);
+            current->client = create_rpc_client(current->client_sock, &hints, NFS_PROGRAM, cfg.version, cfg.timeout, src_ip);
             auth_destroy(current->client->cl_auth);
             current->client->cl_auth = authunix_create_default();
         }
