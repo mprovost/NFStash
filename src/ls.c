@@ -153,13 +153,18 @@ char *lsperms(char *bits, ftype3 type, mode3 mode) {
 
 /* ls -l */
 /* TODO -F to print trailing slash for directories */
+/* TODO find the longest size and justify that column */
 int print_long_listing(entryplus3 *entries) {
     /* string for storing permissions bits */
     /* needs to be 11 with the file type */
     char bits[11];
 
-    return printf("%s %" PRIu64 " %s\n",
+    return printf("%s %lu %" PRIu64 " %s\n",
+        /* permissions bits */
         lsperms(bits, entries->name_attributes.post_op_attr_u.attributes.type, entries->name_attributes.post_op_attr_u.attributes.mode),
+        /* number of links */
+        entries->name_attributes.post_op_attr_u.attributes.nlink,
+        /* file size */
         entries->name_attributes.post_op_attr_u.attributes.size,
         entries->name);
 }
@@ -258,7 +263,6 @@ int main(int argc, char **argv) {
                     /* TODO unless -a ? */
                     if (entries->name_handle.post_op_fh3_u.handle.data.data_len) {
                         if (cfg.long_listing) {
-                            /* TODO find the longest size and justify that column */
                             print_long_listing(entries);
                         } else {
                             /* if it's a directory print a trailing slash */
