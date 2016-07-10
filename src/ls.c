@@ -7,6 +7,7 @@
 static void usage(void);
 static entryplus3 *do_readdirplus(CLIENT *, char *, char *, nfs_fh3);
 char *lsperms(char *, ftype3, mode3);
+int print_long_listing(entryplus3 *);
 
 /* globals */
 int verbose = 0;
@@ -150,6 +151,20 @@ char *lsperms(char *bits, ftype3 type, mode3 mode) {
 };
 
 
+/* ls -l */
+/* TODO -F to print trailing slash for directories */
+int print_long_listing(entryplus3 *entries) {
+    /* string for storing permissions bits */
+    /* needs to be 11 with the file type */
+    char bits[11];
+
+    return printf("%s %" PRIu64 " %s\n",
+        lsperms(bits, entries->name_attributes.post_op_attr_u.attributes.type, entries->name_attributes.post_op_attr_u.attributes.mode),
+        entries->name_attributes.post_op_attr_u.attributes.size,
+        entries->name);
+}
+
+
 int main(int argc, char **argv) {
     int ch;
     int count = 0;
@@ -171,9 +186,6 @@ int main(int argc, char **argv) {
         .sin_family = AF_INET,
         .sin_addr = 0
     };
-    /* string for storing permissions bits */
-    /* needs to be 11 with the file type */
-    char bits[11];
 
     cfg = CONFIG_DEFAULT;
 
@@ -232,6 +244,7 @@ int main(int argc, char **argv) {
 
                 while (entries) {
                     count++;
+
                     /* first check for hidden files */
                     if (cfg.all == 0) {
                         if (entries->name[0] == '.') {
@@ -239,25 +252,26 @@ int main(int argc, char **argv) {
                             continue;
                         }
                     }
+
                     /* if there is no filehandle (/dev, /proc, etc) don't print */
                     /* none of the other utilities can do anything without a filehandle */
                     /* TODO unless -a ? */
                     if (entries->name_handle.post_op_fh3_u.handle.data.data_len) {
-                        /* if it's a directory print a trailing slash */
-                        /* TODO this seems to be 0 sometimes */
-                        if (entries->name_attributes.post_op_attr_u.attributes.type == NF3DIR) {
-                            /* NUL + / */
-                            file_name = malloc(strlen(entries->name) + 2);
-                            strncpy(file_name, entries->name, strlen(entries->name));
-                            file_name[strlen(file_name)] = '/';
-                        } else {
-                            file_name = entries->name;
-                        }
-
                         if (cfg.long_listing) {
                             /* TODO find the longest size and justify that column */
-                            printf("%s %" PRIu64 " %s\n", lsperms(bits, entries->name_attributes.post_op_attr_u.attributes.type, entries->name_attributes.post_op_attr_u.attributes.mode), entries->name_attributes.post_op_attr_u.attributes.size, file_name);
+                            print_long_listing(entries);
                         } else {
+                            /* if it's a directory print a trailing slash */
+                            /* TODO this seems to be 0 sometimes */
+                            if (entries->name_attributes.post_op_attr_u.attributes.type == NF3DIR) {
+                                /* NUL + / */
+                                file_name = malloc(strlen(entries->name) + 2);
+                                strncpy(file_name, entries->name, strlen(entries->name));
+                                file_name[strlen(file_name)] = '/';
+                            } else {
+                                file_name = entries->name;
+                            }
+
                             print_nfs_fh3(current->name, current->ip_address, filehandle->path, file_name, entries->name_handle.post_op_fh3_u.handle);
                         }
 
