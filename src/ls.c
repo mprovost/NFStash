@@ -6,7 +6,7 @@
 /* local prototypes */
 static void usage(void);
 static entryplus3 *do_readdirplus(CLIENT *, char *, char *, nfs_fh3);
-static char *lsperms(ftype3, mode3);
+char *lsperms(char *, ftype3, mode3);
 
 /* globals */
 int verbose = 0;
@@ -97,13 +97,8 @@ entryplus3 *do_readdirplus(CLIENT *client, char *host, char *path, nfs_fh3 dir) 
 
 
 /* based on http://stackoverflow.com/questions/10323060/printing-file-permissions-like-ls-l-using-stat2-in-c */
-/* TODO also take the ftype3 */
-/* TODO accept a string to use for output */
-static char *lsperms(ftype3 type, mode3 mode) {
-    static const char *rwx[] = {"---", "--x", "-w-", "-wx",
-    "r--", "r-x", "rw-", "rwx"};
-    /* TODO needs to be 11 with the type */
-    static char bits[11];
+char *lsperms(char *bits, ftype3 type, mode3 mode) {
+    const char *rwx[] = {"---", "--x", "-w-", "-wx", "r--", "r-x", "rw-", "rwx"};
 
     switch (type) {
         case NF3REG:
@@ -135,13 +130,16 @@ static char *lsperms(ftype3 type, mode3 mode) {
     strcpy(&bits[1], rwx[(mode >> 6)& 7]);
     strcpy(&bits[4], rwx[(mode >> 3)& 7]);
     strcpy(&bits[7], rwx[(mode & 7)]);
+
     if (mode & S_ISUID)
         bits[3] = (mode & S_IXUSR) ? 's' : 'S';
     if (mode & S_ISGID)
         bits[6] = (mode & S_IXGRP) ? 's' : 'l';
     if (mode & S_ISVTX)
         bits[9] = (mode & S_IXUSR) ? 't' : 'T';
+
     bits[10] = '\0';
+
     return(bits);
 };
 
@@ -169,6 +167,9 @@ int main(int argc, char **argv) {
         .sin_family = AF_INET,
         .sin_addr = 0
     };
+    /* string for storing permissions bits */
+    /* needs to be 11 with the file type */
+    char bits[11];
 
     cfg = CONFIG_DEFAULT;
 
@@ -251,7 +252,7 @@ int main(int argc, char **argv) {
 
                         if (cfg.long_listing) {
                             /* TODO find the longest size and justify that column */
-                            printf("%s %" PRIu64 " %s\n", lsperms(entries->name_attributes.post_op_attr_u.attributes.type, entries->name_attributes.post_op_attr_u.attributes.mode), entries->name_attributes.post_op_attr_u.attributes.size, file_name);
+                            printf("%s %" PRIu64 " %s\n", lsperms(bits, entries->name_attributes.post_op_attr_u.attributes.type, entries->name_attributes.post_op_attr_u.attributes.mode), entries->name_attributes.post_op_attr_u.attributes.size, file_name);
                         } else {
                             print_nfs_fh3(current->name, current->ip_address, filehandle->path, file_name, entries->name_handle.post_op_fh3_u.handle);
                         }
