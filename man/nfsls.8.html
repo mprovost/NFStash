@@ -81,13 +81,13 @@
 
 <h2 id="SYNOPSIS">SYNOPSIS</h2>
 
-<p><code>nfsls</code> [<code>-ahTv</code>] [<code>-S</code> <var>source</var>] &lt;filehandle...></p>
+<p><code>nfsls</code> [<code>-ahlTv</code>] [<code>-S</code> <var>source</var>]</p>
 
 <h2 id="DESCRIPTION">DESCRIPTION</h2>
 
-<p><code>nfsls</code> sends an NFS version 3 READDIRPLUS RPC request to an NFS server and lists the contents of each directory filehandle argument. Filehandles can either be specified as arguments or accepted on <code>stdin</code>. If the filehandle does not represent a directory an error will be returned. Filehandles can either be specified as arguments or accepted on <code>stdin</code>. To perform the initial directory listing at the root of an NFS export, pass the output filehandle(s) from the <code>nfsmount</code> command. Recursive directory lookups can be performed by piping the output of <code>nfsls</code> to another <code>nfsls</code> command, possibly with filters (<code>grep</code>, <code>jq</code> etc) in between.</p>
+<p><code>nfsls</code> sends NFS version 3 READDIRPLUS RPC requests to an NFS server and lists the contents of each directory filehandle passed to it on <code>stdin</code>. Multiple RPC requests are sent to retrieve the entire directory listing, if required. If the filehandle does not represent a directory an error will be returned. To perform the initial directory listing at the root of an NFS export, pipe the output filehandle(s) from the <code>nfsmount</code> command. Recursive directory lookups can be performed by piping the output of <code>nfsls</code> to another <code>nfsls</code> command, possibly with filters (<code>grep</code>, <code>jq</code> etc) in between.</p>
 
-<p>Input and output filehandles are represented as a series of JSON objects (one per line) with the keys "ip", "path", and "filehandle", where the value of the "filehandle" key is the hex representation of the directory's NFS filehandle. As command line arguments they will need to be escaped from the shell with single quotes.</p>
+<p>Input and output filehandles are represented as a series of JSON objects (one per line) with the keys "host", "ip", "path", and "filehandle", where the value of the "filehandle" key is the hex representation of the directory's NFS filehandle.</p>
 
 <p>If the NFS server requires "secure" ports (&lt;1024), <code>nfsls</code> will have to be run as root.</p>
 
@@ -96,6 +96,7 @@
 <dl>
 <dt class="flush"><code>-a</code></dt><dd><p>Display hidden files and directories (names starting with <code>.</code>) These are not displayed by default.</p></dd>
 <dt class="flush"><code>-h</code></dt><dd><p>Display a help message and exit.</p></dd>
+<dt class="flush"><code>-l</code></dt><dd><p>Display a long listing similar to <code>ls -l</code>. This includes the file type and permissions bits, the number of links to the file, the owner's user and group names, the size in bytes, the date and time in ISO 8601 format and the filename.</p></dd>
 <dt><code>-S</code> <var>source</var></dt><dd><p>Use the specified source IP address for request packets.</p></dd>
 <dt class="flush"><code>-T</code></dt><dd><p>Use TCP to connect to server. Default = UDP.</p></dd>
 <dt class="flush"><code>-v</code></dt><dd><p>Display debug output on <code>stderr</code>.</p></dd>
