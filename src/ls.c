@@ -155,7 +155,8 @@ char *lsperms(char *bits, ftype3 type, mode3 mode) {
 
 /* ls -l */
 /* TODO -F to print trailing slash for directories */
-/* TODO find the longest size and justify that column */
+/* TODO justify columns to longest size */
+/* have to move the loop through entries into this function */
 int print_long_listing(entryplus3 *entries) {
     /* shortcut */
     struct fattr3 attributes = entries->name_attributes.post_op_attr_u.attributes;
@@ -164,11 +165,19 @@ int print_long_listing(entryplus3 *entries) {
     char bits[11];
     struct passwd *passwd;
     struct group  *group;
+    struct tm     *mtime;
+    char buf[255];
 
+    /* look up username and group locally */
+    /* TODO -n option to keep uid/gid */
     passwd = getpwuid(attributes.uid);
     group  = getgrgid(attributes.gid);
 
-    return printf("%s %lu %s %s %" PRIu64 " %s\n",
+    mtime = localtime(&attributes.mtime.seconds);
+
+    strftime(buf, 255, "%Y-%m-%d %H:%M:%S", mtime);
+
+    return printf("%s %lu %s %s %" PRIu64 " %s %s\n",
         /* permissions bits */
         lsperms(bits, attributes.type, attributes.mode),
         /* number of links */
@@ -179,6 +188,8 @@ int print_long_listing(entryplus3 *entries) {
         group->gr_name,
         /* file size */
         attributes.size,
+        /* date */
+        buf,
         entries->name);
 }
 
