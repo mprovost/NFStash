@@ -3,6 +3,7 @@
 #include "util.h"
 #include <sys/stat.h> /* for file mode bits */
 #include <pwd.h> /* getpwuid() */
+#include <grp.h> /* getgrgid() */
 
 /* local prototypes */
 static void usage(void);
@@ -162,16 +163,20 @@ int print_long_listing(entryplus3 *entries) {
     /* needs to be 11 with the file type */
     char bits[11];
     struct passwd *passwd;
+    struct group  *group;
 
     passwd = getpwuid(attributes.uid);
+    group  = getgrgid(attributes.gid);
 
-    return printf("%s %lu %s %" PRIu64 " %s\n",
+    return printf("%s %lu %s %s %" PRIu64 " %s\n",
         /* permissions bits */
         lsperms(bits, attributes.type, attributes.mode),
         /* number of links */
         attributes.nlink,
         /* username */
         passwd->pw_name,
+        /* group */
+        group->gr_name,
         /* file size */
         attributes.size,
         entries->name);
