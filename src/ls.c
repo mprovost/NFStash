@@ -2,6 +2,7 @@
 #include "rpc.h"
 #include "util.h"
 #include <sys/stat.h> /* for file mode bits */
+#include <pwd.h> /* getpwuid() */
 
 /* local prototypes */
 static void usage(void);
@@ -155,17 +156,24 @@ char *lsperms(char *bits, ftype3 type, mode3 mode) {
 /* TODO -F to print trailing slash for directories */
 /* TODO find the longest size and justify that column */
 int print_long_listing(entryplus3 *entries) {
+    /* shortcut */
+    struct fattr3 attributes = entries->name_attributes.post_op_attr_u.attributes;
     /* string for storing permissions bits */
     /* needs to be 11 with the file type */
     char bits[11];
+    struct passwd *passwd;
 
-    return printf("%s %lu %" PRIu64 " %s\n",
+    passwd = getpwuid(attributes.uid);
+
+    return printf("%s %lu %s %" PRIu64 " %s\n",
         /* permissions bits */
-        lsperms(bits, entries->name_attributes.post_op_attr_u.attributes.type, entries->name_attributes.post_op_attr_u.attributes.mode),
+        lsperms(bits, attributes.type, attributes.mode),
         /* number of links */
-        entries->name_attributes.post_op_attr_u.attributes.nlink,
+        attributes.nlink,
+        /* username */
+        passwd->pw_name,
         /* file size */
-        entries->name_attributes.post_op_attr_u.attributes.size,
+        attributes.size,
         entries->name);
 }
 
