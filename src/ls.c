@@ -166,15 +166,19 @@ int print_long_listing(entryplus3 *entries) {
     struct passwd *passwd;
     struct group  *group;
     struct tm     *mtime;
-    char buf[255];
+    /* timestamp in ISO 8601 format */
+    char buf[20];
 
     /* look up username and group locally */
     /* TODO -n option to keep uid/gid */
     passwd = getpwuid(attributes.uid);
     group  = getgrgid(attributes.gid);
 
+    /* format to ISO 8601 timestamp */
+    tzset();
+    /* this converts an unsigned 32 bit seconds to a signed 32 bit time_t which doesn't always do what is expected! */
+    /* TODO detect values greater than 32 bit signed max and treat them as signed? */
     mtime = localtime(&attributes.mtime.seconds);
-
     strftime(buf, 255, "%Y-%m-%d %H:%M:%S", mtime);
 
     return printf("%s %lu %s %s %" PRIu64 " %s %s\n",
@@ -188,8 +192,9 @@ int print_long_listing(entryplus3 *entries) {
         group->gr_name,
         /* file size */
         attributes.size,
-        /* date */
+        /* date + time */
         buf,
+        /* filename */
         entries->name);
 }
 
