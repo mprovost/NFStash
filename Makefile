@@ -97,7 +97,8 @@ bin/nfsdf: config/clock_gettime.opt $(nfsdf_objs) | bin
 
 nfsls: bin/nfsls
 bin/nfsls: $(addprefix obj/, ls.o nfs_prot_clnt.o nfs_prot_xdr.o $(common_objs)) | bin
-	gcc ${CFLAGS} $^ -o $@
+    # needs math library for log10() etc
+	gcc ${CFLAGS} -lm $^ -o $@
 
 nfscat: bin/nfscat
 nfscat_objs = $(addprefix obj/, $(addsuffix .o, cat nfs_prot_clnt nfs_prot_xdr) $(common_objs))

@@ -4,6 +4,7 @@
 #include <sys/stat.h> /* for file mode bits */
 #include <pwd.h> /* getpwuid() */
 #include <grp.h> /* getgrgid() */
+#include <math.h> /* for log10() */
 
 /* local prototypes */
 static void usage(void);
@@ -158,8 +159,9 @@ char *lsperms(char *bits, ftype3 type, mode3 mode) {
 /* TODO justify columns to longest size */
 /* have to move the loop through entries into this function */
 int print_long_listing(entryplus3 *entries) {
+    entryplus3 *current = entries;
     /* shortcut */
-    struct fattr3 attributes = entries->name_attributes.post_op_attr_u.attributes;
+    struct fattr3 attributes;
     /* string for storing permissions bits */
     /* needs to be 11 with the file type */
     char bits[11];
@@ -168,34 +170,73 @@ int print_long_listing(entryplus3 *entries) {
     struct tm     *mtime;
     /* timestamp in ISO 8601 format */
     char buf[20];
+    unsigned long maxlinks = 0;
+    size_t        maxuser  = 0;
+    size_t        maxgroup = 0;
+    size3         maxsize  = 0;
 
-    /* look up username and group locally */
-    /* TODO -n option to keep uid/gid */
-    passwd = getpwuid(attributes.uid);
-    group  = getgrgid(attributes.gid);
+    /* first loop through to find the longest strings for justifying columns */
+    while (current) {
+        attributes = current->name_attributes.post_op_attr_u.attributes;
 
-    /* format to ISO 8601 timestamp */
-    tzset();
-    /* this converts an unsigned 32 bit seconds to a signed 32 bit time_t which doesn't always do what is expected! */
-    /* TODO detect values greater than 32 bit signed max and treat them as signed? */
-    mtime = localtime(&attributes.mtime.seconds);
-    strftime(buf, 255, "%Y-%m-%d %H:%M:%S", mtime);
+        maxlinks = attributes.nlink > maxlinks ? attributes.nlink : maxlinks;
 
-    return printf("%s %lu %s %s %" PRIu64 " %s %s\n",
-        /* permissions bits */
-        lsperms(bits, attributes.type, attributes.mode),
-        /* number of links */
-        attributes.nlink,
-        /* username */
-        passwd->pw_name,
-        /* group */
-        group->gr_name,
-        /* file size */
-        attributes.size,
-        /* date + time */
-        buf,
-        /* filename */
-        entries->name);
+        maxsize = attributes.size > maxsize ? attributes.size : maxsize;
+
+        /* TODO cache this ! */
+        passwd = getpwuid(attributes.uid);
+        maxuser = strlen(passwd->pw_name) > maxuser ? strlen(passwd->pw_name) : maxuser;
+
+        /* TODO cache this ! */
+        group  = getgrgid(attributes.gid);
+        maxgroup = strlen(group->gr_name) > maxgroup ? strlen(group->gr_name) : maxgroup;
+
+        current = current->nextentry;
+    }
+
+    /* calculate the maximum string widths */
+    maxlinks = floor(log10(abs(maxlinks))) + 1;
+    maxsize  = floor(log10(abs(maxsize))) + 1;
+
+    /* reset back to the start of the list */
+    current = entries;
+
+    while (current) {
+        attributes = current->name_attributes.post_op_attr_u.attributes;
+
+        /* look up username and group locally */
+        /* TODO -n option to keep uid/gid */
+        /* TODO check for NULL return value */
+        passwd = getpwuid(attributes.uid);
+        group  = getgrgid(attributes.gid);
+
+        /* format to ISO 8601 timestamp */
+        /* this converts an unsigned 32 bit seconds to a signed 32 bit time_t which doesn't always do what is expected! */
+        /* TODO detect values greater than 32 bit signed max and treat them as signed? */
+        mtime = localtime(&attributes.mtime.seconds);
+        strftime(buf, 255, "%Y-%m-%d %H:%M:%S", mtime);
+
+        printf("%s %*lu %-*s %-*s %*" PRIu64 " %s %s\n",
+            /* permissions bits */
+            lsperms(bits, attributes.type, attributes.mode),
+            /* number of links */
+            maxlinks, attributes.nlink,
+            /* username */
+            maxuser, passwd->pw_name,
+            /* group */
+            maxgroup, group->gr_name,
+            /* file size */
+            maxsize, attributes.size,
+            /* date + time */
+            buf,
+            /* filename */
+            current->name);
+
+        current = current->nextentry;
+    }
+
+    /* TODO return line count? */
+    return 1;
 }
 
 
@@ -262,6 +303,10 @@ int main(int argc, char **argv) {
     targets = targets->next;
     current = targets;
 
+    /* set timezone for date output */
+    /* TODO only with long_listing set? */
+    tzset();
+
     while (current) {
         if (current->client == NULL) {
             /* connect to server */
@@ -276,24 +321,25 @@ int main(int argc, char **argv) {
             while (filehandle) {
                 entries = do_readdirplus(current->client, current->name, filehandle->path, filehandle->nfs_fh);
 
-                while (entries) {
-                    count++;
+                /* pass the whole list for printing long listing */
+                if (cfg.long_listing) {
+                    print_long_listing(entries);
+                } else {
+                    while (entries) {
+                        count++;
 
-                    /* first check for hidden files */
-                    if (cfg.all == 0) {
-                        if (entries->name[0] == '.') {
-                            entries = entries->nextentry;
-                            continue;
+                        /* first check for hidden files */
+                        if (cfg.all == 0) {
+                            if (entries->name[0] == '.') {
+                                entries = entries->nextentry;
+                                continue;
+                            }
                         }
-                    }
 
-                    /* if there is no filehandle (/dev, /proc, etc) don't print */
-                    /* none of the other utilities can do anything without a filehandle */
-                    /* TODO unless -a ? */
-                    if (entries->name_handle.post_op_fh3_u.handle.data.data_len) {
-                        if (cfg.long_listing) {
-                            print_long_listing(entries);
-                        } else {
+                        /* if there is no filehandle (/dev, /proc, etc) don't print */
+                        /* none of the other utilities can do anything without a filehandle */
+                        /* TODO unless -a ? */
+                        if (entries->name_handle.post_op_fh3_u.handle.data.data_len) {
                             /* if it's a directory print a trailing slash */
                             /* TODO this seems to be 0 sometimes */
                             if (entries->name_attributes.post_op_attr_u.attributes.type == NF3DIR) {
@@ -306,14 +352,11 @@ int main(int argc, char **argv) {
                             }
 
                             print_nfs_fh3(current->name, current->ip_address, filehandle->path, file_name, entries->name_handle.post_op_fh3_u.handle);
+                            /* TODO free(file_name) */
                         }
-
-                        /* TODO free(file_name) */
+                        entries = entries->nextentry;
                     }
-
-                    entries = entries->nextentry;
                 }
-
                 filehandle = filehandle->next;
             } /* while (filehandle) */
         }
