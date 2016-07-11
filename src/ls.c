@@ -170,10 +170,13 @@ int print_long_listing(entryplus3 *entries) {
     struct tm     *mtime;
     /* timestamp in ISO 8601 format */
     char buf[20];
-    unsigned long maxlinks = 0;
+    /* sizes for justifying columns */
+    /* set these to 1 so log10() doesn't have 0 as an input and returns -HUGE_VAL */
+    /* we're always going to need one space to output "0" */
+    unsigned long maxlinks = 1;
+    size3         maxsize  = 1;
     size_t        maxuser  = 0;
     size_t        maxgroup = 0;
-    size3         maxsize  = 0;
 
     /* first loop through to find the longest strings for justifying columns */
     while (current) {
