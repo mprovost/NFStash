@@ -182,6 +182,14 @@ int print_long_listing(entryplus3 *entries) {
     while (current) {
         attributes = current->name_attributes.post_op_attr_u.attributes;
 
+        /* first check for hidden files */
+        if (cfg.all == 0) {
+            if (current->name[0] == '.') {
+                current = current->nextentry;
+                continue;
+            }
+        }
+
         maxlinks = attributes.nlink > maxlinks ? attributes.nlink : maxlinks;
 
         maxsize = attributes.size > maxsize ? attributes.size : maxsize;
@@ -206,6 +214,14 @@ int print_long_listing(entryplus3 *entries) {
 
     while (current) {
         attributes = current->name_attributes.post_op_attr_u.attributes;
+
+        /* first check for hidden files */
+        if (cfg.all == 0) {
+            if (current->name[0] == '.') {
+                current = current->nextentry;
+                continue;
+            }
+        }
 
         /* look up username and group locally */
         /* TODO -n option to keep uid/gid */
