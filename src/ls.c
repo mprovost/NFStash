@@ -155,9 +155,11 @@ char *lsperms(char *bits, ftype3 type, mode3 mode) {
 
 
 /* ls -l */
+/* loop through a list of directory entries printing a long listing for each */
 /* TODO -F to print trailing slash for directories */
-/* TODO justify columns to longest size */
-/* have to move the loop through entries into this function */
+/* TODO cache/memoise uid/gid lookups */
+/* BSD has functions user_from_uid() and group_from_gid() */
+/* gnulib has getuser() and getgroup() */
 int print_long_listing(entryplus3 *entries) {
     entryplus3 *current = entries;
     /* shortcut */
