@@ -237,17 +237,19 @@ int print_long_listing(entryplus3 *entries) {
         mtime = localtime(&attributes.mtime.seconds);
         strftime(buf, 255, "%Y-%m-%d %H:%M:%S", mtime);
 
+        /* have to cast size_t to int for compiler warning (-Wformat) */
+        /* printf only accepts ints for field widths with * */
         printf("%s %*lu %-*s %-*s %*" PRIu64 " %s %s\n",
             /* permissions bits */
             lsperms(bits, attributes.type, attributes.mode),
             /* number of links */
-            maxlinks, attributes.nlink,
+            (int)maxlinks, attributes.nlink,
             /* username */
-            maxuser, passwd->pw_name,
+            (int)maxuser, passwd->pw_name,
             /* group */
-            maxgroup, group->gr_name,
+            (int)maxgroup, group->gr_name,
             /* file size */
-            maxsize, attributes.size,
+            (int)maxsize, attributes.size,
             /* date + time */
             buf,
             /* filename */
