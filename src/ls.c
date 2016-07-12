@@ -171,6 +171,7 @@ int print_long_listing(entryplus3 *entries) {
     struct group  *group;
     struct tm     *mtime;
     /* timestamp in ISO 8601 format */
+    /* 2000-12-25 22:23:34 + terminating NULL */
     char buf[20];
     /* sizes for justifying columns */
     /* set these to 1 so log10() doesn't have 0 as an input and returns -HUGE_VAL */
@@ -234,8 +235,10 @@ int print_long_listing(entryplus3 *entries) {
         /* format to ISO 8601 timestamp */
         /* this converts an unsigned 32 bit seconds to a signed 32 bit time_t which doesn't always do what is expected! */
         /* TODO detect values greater than 32 bit signed max and treat them as signed? */
+        /* Solaris has a setting nfs_allow_preepoch_time for this, make it into an option? */
         mtime = localtime(&attributes.mtime.seconds);
-        strftime(buf, 255, "%Y-%m-%d %H:%M:%S", mtime);
+        /* TODO check return value, should always be 19 */
+        strftime(buf, 20, "%Y-%m-%d %H:%M:%S", mtime);
 
         /* have to cast size_t to int for compiler warning (-Wformat) */
         /* printf only accepts ints for field widths with * */
