@@ -106,6 +106,7 @@ entryplus3 *do_readdirplus(CLIENT *client, char *host, char *path, nfs_fh3 dir) 
                     }
                 }
             } else {
+                /* TODO handle NFS3ERR_NOTDIR differently? Do a getattr? */
                 fprintf(stderr, "%s:%s: ", host, path);
                 clnt_geterr(client, &clnt_err);
                 if (clnt_err.re_status)
@@ -182,6 +183,8 @@ int print_long_listing(entryplus3 *entries) {
     entryplus3 *current = entries;
     /* shortcut */
     struct fattr3 attributes;
+    /* number of lines of output */
+    int count = 0;
     /* string for storing permissions bits */
     /* needs to be 11 with the file type */
     char bits[11];
@@ -226,6 +229,8 @@ int print_long_listing(entryplus3 *entries) {
     current = entries;
 
     while (current) {
+        count++;
+
         attributes = current->name_attributes.post_op_attr_u.attributes;
 
         /* look up username and group locally */
@@ -263,8 +268,7 @@ int print_long_listing(entryplus3 *entries) {
         current = current->nextentry;
     }
 
-    /* TODO return line count? */
-    return 1;
+    return count;
 }
 
 
