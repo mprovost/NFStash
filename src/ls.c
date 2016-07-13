@@ -11,6 +11,7 @@ static void usage(void);
 static entryplus3 *do_readdirplus(CLIENT *, char *, char *, nfs_fh3);
 char *lsperms(char *, ftype3, mode3);
 int print_long_listing(entryplus3 *);
+int print_filehandles(entryplus3 *, char *, char *, char *);
 
 /* globals */
 int verbose = 0;
@@ -267,12 +268,51 @@ int print_long_listing(entryplus3 *entries) {
 }
 
 
+/* loop through a list of directory entries printing a JSON filehandle for each */
+int print_filehandles(entryplus3 *entries, char *host, char *ip_address, char *path) {
+    entryplus3 *current = entries;
+    int count = 0;
+    /* space for a string in case it's a directory and we add a trailing slash */
+    /* leave room for NULL + / */
+    char file_name[NFS_MAXNAMLEN + 2];
+    /* pointer to which filename string to use */
+    char *file_name_p;
+
+    while (current) {
+        count++;
+
+        /* if there is no filehandle (/dev, /proc, etc) don't print */
+        /* none of the other utilities can do anything without a filehandle */
+        if (current->name_handle.post_op_fh3_u.handle.data.data_len) {
+            /* if it's a directory print a trailing slash */
+            /* TODO do we even need to do this (unless -F?)? print_nfs_fh3 already adds a / after the path */
+            /* TODO this seems to be 0 sometimes */
+            if (current->name_attributes.post_op_attr_u.attributes.type == NF3DIR) {
+                /* filename should only be max plus null, leave room for the extra / */
+                strncpy(file_name, current->name, NFS_MAXNAMLEN + 1);
+                file_name[strlen(file_name)] = '/';
+                file_name_p = file_name;
+            /* not a directory, just use the received filename */
+            } else {
+                file_name_p = current->name;
+            }
+
+            /* TODO print milliseconds */
+            print_nfs_fh3(host, ip_address, path, file_name_p, current->name_handle.post_op_fh3_u.handle);
+        }
+
+        current = current->nextentry;
+    }
+
+    return count;
+}
+
+
 int main(int argc, char **argv) {
     int ch;
     int count = 0;
     char   *input_fh  = NULL;
     size_t  input_len = 0;
-    char *file_name;
     targets_t dummy = { 0 };
     targets_t *targets = &dummy;
     targets_t *current;
@@ -359,32 +399,7 @@ int main(int argc, char **argv) {
                 if (cfg.long_listing) {
                     print_long_listing(entries);
                 } else {
-                    while (entries) {
-                        count++;
-
-                        /* if there is no filehandle (/dev, /proc, etc) don't print */
-                        /* none of the other utilities can do anything without a filehandle */
-                        /* TODO unless -a ? */
-                        if (entries->name_handle.post_op_fh3_u.handle.data.data_len) {
-                            /* if it's a directory print a trailing slash */
-                            /* TODO this seems to be 0 sometimes */
-                            if (entries->name_attributes.post_op_attr_u.attributes.type == NF3DIR) {
-                                /* NUL + / */
-                                file_name = malloc(strlen(entries->name) + 2);
-                                strncpy(file_name, entries->name, strlen(entries->name));
-                                file_name[strlen(file_name)] = '/';
-                            } else {
-                                file_name = entries->name;
-                            }
-
-                            /* TODO print milliseconds */
-                            print_nfs_fh3(current->name, current->ip_address, filehandle->path, file_name, entries->name_handle.post_op_fh3_u.handle);
-                            /* TODO free(file_name) */
-                        }
-
-
-                        entries = entries->nextentry;
-                    }
+                    print_filehandles(entries, current->name, current->ip_address, filehandle->path);
                 }
                 filehandle = filehandle->next;
             } /* while (filehandle) */
