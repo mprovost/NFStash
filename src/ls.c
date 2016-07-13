@@ -18,7 +18,7 @@ int verbose = 0;
 /* global config "object" */
 static struct config {
     /* ls -a */
-    int all;
+    int listdot;
     /* ls -l */
     int long_listing;
     /* NFS version */
@@ -28,7 +28,7 @@ static struct config {
 
 /* default config */
 const struct config CONFIG_DEFAULT = {
-    .all = 0,
+    .listdot = 0,
     .long_listing = 0,
     .version = 3,
     .timeout = NFS_TIMEOUT,
@@ -70,22 +70,39 @@ entryplus3 *do_readdirplus(CLIENT *client, char *host, char *path, nfs_fh3 dir) 
         while (res) {
             if (res->status == NFS3_OK) {
                 res_entry = res->READDIRPLUS3res_u.resok.reply.entries;
+
+                /* loop through the directory entries in the RPC result */
                 while (res_entry) {
-                    current->nextentry = malloc(sizeof(entryplus3));
+                    /* first check for hidden files */
+                    if (cfg.listdot == 0 && res_entry->name[0] == '.') {
+                        /* terminate the list in case this is the last entry */
+                        current->nextentry = NULL;
+                        /* skip adding it to the list */
+                        res_entry = res_entry->nextentry;
+                        continue;
+                    }
+
+                    current->nextentry = calloc(1, sizeof(entryplus3));
                     current = current->nextentry;
-                    current->nextentry = NULL;
                     current = memcpy(current, res_entry, sizeof(entryplus3));
 
                     args.cookie = res_entry->cookie;
 
                     res_entry = res_entry->nextentry;
                 }
+
+                /* check for the end of directory */
                 if (res->READDIRPLUS3res_u.resok.reply.eof) {
                     break;
+                /* do another RPC call for more entries */
                 } else {
                     /* TODO does this need a copy? */
                     memcpy(args.cookieverf, res->READDIRPLUS3res_u.resok.cookieverf, NFS3_COOKIEVERFSIZE);
                     res = nfsproc3_readdirplus_3(&args, client);
+
+                    if (res == NULL) {
+                        clnt_perror(client, "nfsproc3_readdirplus_3");
+                    }
                 }
             } else {
                 fprintf(stderr, "%s:%s: ", host, path);
@@ -185,14 +202,6 @@ int print_long_listing(entryplus3 *entries) {
     while (current) {
         attributes = current->name_attributes.post_op_attr_u.attributes;
 
-        /* first check for hidden files */
-        if (cfg.all == 0) {
-            if (current->name[0] == '.') {
-                current = current->nextentry;
-                continue;
-            }
-        }
-
         maxlinks = attributes.nlink > maxlinks ? attributes.nlink : maxlinks;
 
         maxsize = attributes.size > maxsize ? attributes.size : maxsize;
@@ -217,14 +226,6 @@ int print_long_listing(entryplus3 *entries) {
 
     while (current) {
         attributes = current->name_attributes.post_op_attr_u.attributes;
-
-        /* first check for hidden files */
-        if (cfg.all == 0) {
-            if (current->name[0] == '.') {
-                current = current->nextentry;
-                continue;
-            }
-        }
 
         /* look up username and group locally */
         /* TODO -n option to keep uid/gid */
@@ -294,7 +295,7 @@ int main(int argc, char **argv) {
         switch(ch) {
             /* list hidden files */
             case 'a':
-                cfg.all = 1;
+                cfg.listdot = 1;
                 break;
             /* long listing */
             case 'l':
@@ -347,20 +348,19 @@ int main(int argc, char **argv) {
             while (filehandle) {
                 entries = do_readdirplus(current->client, current->name, filehandle->path, filehandle->nfs_fh);
 
+                /*
+                TODO make an outputs enum with json/longform/ping/fping/graphite/statsd
+                print_output function to switch
+                iterate through entries and call print_nfs_fh3 if json
+                some option to print raw request results in JSON including cookie
+                */
+
                 /* pass the whole list for printing long listing */
                 if (cfg.long_listing) {
                     print_long_listing(entries);
                 } else {
                     while (entries) {
                         count++;
-
-                        /* first check for hidden files */
-                        if (cfg.all == 0) {
-                            if (entries->name[0] == '.') {
-                                entries = entries->nextentry;
-                                continue;
-                            }
-                        }
 
                         /* if there is no filehandle (/dev, /proc, etc) don't print */
                         /* none of the other utilities can do anything without a filehandle */
@@ -377,9 +377,12 @@ int main(int argc, char **argv) {
                                 file_name = entries->name;
                             }
 
+                            /* TODO print milliseconds */
                             print_nfs_fh3(current->name, current->ip_address, filehandle->path, file_name, entries->name_handle.post_op_fh3_u.handle);
                             /* TODO free(file_name) */
                         }
+
+
                         entries = entries->nextentry;
                     }
                 }
