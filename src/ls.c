@@ -12,7 +12,7 @@ static void usage(void);
 static entryplus3 *do_getattr(CLIENT *, char *, nfs_fh_list *);
 static entryplus3 *do_readdirplus(CLIENT *, char *, nfs_fh_list *);
 char *lsperms(char *, ftype3, mode3);
-int print_long_listing(entryplus3 *, char *);
+int print_long_listing(entryplus3 *, const char *, const size_t, const unsigned long, const size3, const size_t, const size_t);
 int print_filehandles(entryplus3 *, char *, char *, char *);
 
 /* globals */
@@ -248,7 +248,7 @@ char *lsperms(char *bits, ftype3 type, mode3 mode) {
 /* TODO cache/memoise uid/gid lookups */
 /* BSD has functions user_from_uid() and group_from_gid() */
 /* gnulib has getuser() and getgroup() */
-int print_long_listing(entryplus3 *entries, char *host) {
+int print_long_listing(entryplus3 *entries, const char *host, const size_t maxhost, const unsigned long maxlinks, const size3 maxsize, const size_t maxuser, const size_t maxgroup) {
     entryplus3 *current = entries;
     /* shortcut */
     struct fattr3 attributes;
@@ -263,39 +263,6 @@ int print_long_listing(entryplus3 *entries, char *host) {
     /* timestamp in ISO 8601 format */
     /* 2000-12-25 22:23:34 + terminating NULL */
     char buf[20];
-    /* sizes for justifying columns */
-    /* set these to 1 so log10() doesn't have 0 as an input and returns -HUGE_VAL */
-    /* we're always going to need one space to output "0" */
-    unsigned long maxlinks = 1;
-    size3         maxsize  = 1;
-    size_t        maxuser  = 0;
-    size_t        maxgroup = 0;
-
-    /* first loop through to find the longest strings for justifying columns */
-    while (current) {
-        attributes = current->name_attributes.post_op_attr_u.attributes;
-
-        maxlinks = attributes.nlink > maxlinks ? attributes.nlink : maxlinks;
-
-        maxsize = attributes.size > maxsize ? attributes.size : maxsize;
-
-        /* TODO cache this ! */
-        passwd = getpwuid(attributes.uid);
-        maxuser = strlen(passwd->pw_name) > maxuser ? strlen(passwd->pw_name) : maxuser;
-
-        /* TODO cache this ! */
-        group  = getgrgid(attributes.gid);
-        maxgroup = strlen(group->gr_name) > maxgroup ? strlen(group->gr_name) : maxgroup;
-
-        current = current->nextentry;
-    }
-
-    /* calculate the maximum string widths */
-    maxlinks = floor(log10(abs(maxlinks))) + 1;
-    maxsize  = floor(log10(abs(maxsize))) + 1;
-
-    /* reset back to the start of the list */
-    current = entries;
 
     while (current) {
         count++;
@@ -318,7 +285,7 @@ int print_long_listing(entryplus3 *entries, char *host) {
 
         /* have to cast size_t to int for compiler warning (-Wformat) */
         /* printf only accepts ints for field widths with * */
-        printf("%s %*lu %-*s %-*s %*" PRIu64 " %s %s %s\n",
+        printf("%s %*lu %-*s %-*s %*" PRIu64 " %s %-*s %s\n",
             /* permissions bits */
             lsperms(bits, attributes.type, attributes.mode),
             /* number of links */
@@ -332,7 +299,7 @@ int print_long_listing(entryplus3 *entries, char *host) {
             /* date + time */
             buf,
             /* hostname */
-            host,
+            (int)maxhost, host,
             /* filename */
             current->name);
 
@@ -391,18 +358,31 @@ int main(int argc, char **argv) {
     targets_t dummy = { 0 };
     targets_t *targets = &dummy;
     targets_t *current;
+    entryplus3 *current_entry;
+    /* shortcut */
+    struct fattr3 attributes;
+    struct passwd *passwd;
+    struct group  *group;
     struct nfs_fh_list *filehandle;
     struct addrinfo hints = {
         .ai_family = AF_INET,
         /* default to UDP */
         .ai_socktype = SOCK_DGRAM,
     };
-    entryplus3 *entries;
     /* source ip address for packets */
     struct sockaddr_in src_ip = {
         .sin_family = AF_INET,
         .sin_addr = 0
     };
+    /* sizes for justifying columns */
+    /* set these to 1 so log10() doesn't have 0 as an input and returns -HUGE_VAL */
+    /* we're always going to need one space to output "0" */
+    unsigned long maxlinks = 1;
+    size3         maxsize  = 1;
+    size_t        maxuser  = 0;
+    size_t        maxgroup = 0;
+    size_t        maxhost  = 0;
+
 
     cfg = CONFIG_DEFAULT;
 
@@ -449,6 +429,7 @@ int main(int argc, char **argv) {
     /* TODO only with long_listing set? */
     tzset();
 
+    /* first go through and send RPCs to each filehandle in each target */
     while (current) {
         if (current->client == NULL) {
             /* connect to server */
@@ -460,10 +441,55 @@ int main(int argc, char **argv) {
         if (current->client) {
             filehandle = current->filehandles;
 
+            /* find the longest hostname */
+            maxhost = strlen(current->name) > maxhost ? strlen(current->name) : maxhost;
+
             while (filehandle) {
                 /* TODO check for a trailing slash and then call do_getattr directly */
-                entries = do_readdirplus(current->client, current->name, filehandle);
+                filehandle->entries = do_readdirplus(current->client, current->name, filehandle);
 
+                /* loop through entries to find the longest strings for justifying columns */
+
+                current_entry = filehandle->entries;
+
+                while (current_entry) {
+                    attributes = current_entry->name_attributes.post_op_attr_u.attributes;
+
+                    maxlinks = attributes.nlink > maxlinks ? attributes.nlink : maxlinks;
+
+                    maxsize = attributes.size > maxsize ? attributes.size : maxsize;
+
+                    /* TODO cache this ! */
+                    passwd = getpwuid(attributes.uid);
+                    maxuser = strlen(passwd->pw_name) > maxuser ? strlen(passwd->pw_name) : maxuser;
+
+                    /* TODO cache this ! */
+                    group  = getgrgid(attributes.gid);
+                    maxgroup = strlen(group->gr_name) > maxgroup ? strlen(group->gr_name) : maxgroup;
+
+                    current_entry = current_entry->nextentry;
+                }
+
+                filehandle = filehandle->next;
+            } /* while (filehandle) */
+        }
+
+        current = current->next;
+    } /* while (current) */
+
+    /* then go through and print the entries */
+
+    /* reset to start of target list */
+    current = targets;
+
+    /* calculate the maximum string widths */
+    maxlinks = floor(log10(abs(maxlinks))) + 1;
+    maxsize  = floor(log10(abs(maxsize))) + 1;
+
+    while (current) {
+        filehandle = current->filehandles;
+
+        while (filehandle) {
                 /*
                 TODO make an outputs enum with json/longform/ping/fping/graphite/statsd
                 print_output function to switch
@@ -473,17 +499,16 @@ int main(int argc, char **argv) {
 
                 /* pass the whole list for printing long listing */
                 if (cfg.long_listing) {
-                    print_long_listing(entries, current->name);
+                    print_long_listing(filehandle->entries, current->name, maxhost, maxlinks, maxsize, maxuser, maxgroup);
                 } else {
-                    print_filehandles(entries, current->name, current->ip_address, filehandle->path);
+                    print_filehandles(filehandle->entries, current->name, current->ip_address, filehandle->path);
                 }
-                filehandle = filehandle->next;
-            } /* while (filehandle) */
+
+            filehandle = filehandle->next;
         }
 
         current = current->next;
-    } /* while (current) */
-
+    }
 
     /* return success if we saw any entries */
     /* TODO something better! */
