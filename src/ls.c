@@ -12,7 +12,7 @@ static void usage(void);
 static entryplus3 *do_getattr(CLIENT *, char *, nfs_fh_list *);
 static entryplus3 *do_readdirplus(CLIENT *, char *, nfs_fh_list *);
 char *lsperms(char *, ftype3, mode3);
-int print_long_listing(entryplus3 *);
+int print_long_listing(entryplus3 *, char *);
 int print_filehandles(entryplus3 *, char *, char *, char *);
 
 /* globals */
@@ -38,6 +38,7 @@ const struct config CONFIG_DEFAULT = {
 };
 
 void usage() {
+    /* TODO -A to show IP addresses */
     printf("Usage: nfsls [options]\n\
     -a       print hidden files\n\
     -h       display this help and exit\n\
@@ -63,7 +64,7 @@ entryplus3 *do_getattr(CLIENT *client, char *host, nfs_fh_list *fh) {
     /* filename */
     char *base;
     /* directory */
-    char *path;
+    char *path = fh->path;
 
     /* the RPC call */
     res = nfsproc3_getattr_3(&args, client);
@@ -89,8 +90,17 @@ entryplus3 *do_getattr(CLIENT *client, char *host, nfs_fh_list *fh) {
             /* copy the filehandle */
             memcpy(&res_entry->name_handle.post_op_fh3_u.handle, &fh->nfs_fh, sizeof(nfs_fh3));
             res_entry->name_handle.handle_follows = 1;
+        } else {
+            fprintf(stderr, "%s:%s: ", host, path);
+            clnt_geterr(client, &clnt_err);
+            if (clnt_err.re_status)
+                clnt_perror(client, "nfsproc3_getattr_3");
+            else
+                nfs_perror(res->status);
         }
-    }
+    } else {
+        clnt_perror(client, "nfsproc3_getattr_3");
+    }  
 
     return res_entry;
 }
@@ -230,11 +240,15 @@ char *lsperms(char *bits, ftype3 type, mode3 mode) {
 
 /* ls -l */
 /* loop through a list of directory entries printing a long listing for each */
+/* our format:
+   drwxr-xr-x 2 root root     20480 2016-02-12 22:58:43 dumpy known_hosts
+ */
+/* TODO print milliseconds response time - how to format for directories with a single readdirplus? multiple readdirplus? ..? */
 /* TODO -F to print trailing slash for directories */
 /* TODO cache/memoise uid/gid lookups */
 /* BSD has functions user_from_uid() and group_from_gid() */
 /* gnulib has getuser() and getgroup() */
-int print_long_listing(entryplus3 *entries) {
+int print_long_listing(entryplus3 *entries, char *host) {
     entryplus3 *current = entries;
     /* shortcut */
     struct fattr3 attributes;
@@ -304,7 +318,7 @@ int print_long_listing(entryplus3 *entries) {
 
         /* have to cast size_t to int for compiler warning (-Wformat) */
         /* printf only accepts ints for field widths with * */
-        printf("%s %*lu %-*s %-*s %*" PRIu64 " %s %s\n",
+        printf("%s %*lu %-*s %-*s %*" PRIu64 " %s %s %s\n",
             /* permissions bits */
             lsperms(bits, attributes.type, attributes.mode),
             /* number of links */
@@ -317,6 +331,8 @@ int print_long_listing(entryplus3 *entries) {
             (int)maxsize, attributes.size,
             /* date + time */
             buf,
+            /* hostname */
+            host,
             /* filename */
             current->name);
 
@@ -457,7 +473,7 @@ int main(int argc, char **argv) {
 
                 /* pass the whole list for printing long listing */
                 if (cfg.long_listing) {
-                    print_long_listing(entries);
+                    print_long_listing(entries, current->name);
                 } else {
                     print_filehandles(entries, current->name, current->ip_address, filehandle->path);
                 }
