@@ -85,9 +85,9 @@
 
 <h2 id="DESCRIPTION">DESCRIPTION</h2>
 
-<p><code>nfsls</code> sends NFS version 3 READDIRPLUS RPC requests to an NFS server and lists the contents of each directory filehandle passed to it on <code>stdin</code>. Multiple RPC requests are sent to retrieve the entire directory listing, if required. If the filehandle does not represent a directory an error will be returned. To perform the initial directory listing at the root of an NFS export, pipe the output filehandle(s) from the <code>nfsmount</code> command. Recursive directory lookups can be performed by piping the output of <code>nfsls</code> to another <code>nfsls</code> command, possibly with filters (<code>grep</code>, <code>jq</code> etc) in between.</p>
+<p><code>nfsls</code> sends NFS version 3 READDIRPLUS (for directories) or GETATTR (for files) RPC requests to an NFS server and lists the contents of each filehandle passed to it on <code>stdin</code>. For directories, multiple READDIRPLUS requests are sent to retrieve an entire directory listing, if required. To perform the initial directory listing at the root of an NFS export, pipe the output filehandle(s) from the <code>nfsmount</code> command. Recursive directory lookups can be performed by piping the output of <code>nfsls</code> to another <code>nfsls</code> command, possibly with filters (<code>grep</code>, <code>jq</code> etc) in between.</p>
 
-<p>Input and output filehandles are represented as a series of JSON objects (one per line) with the keys "host", "ip", "path", and "filehandle", where the value of the "filehandle" key is the hex representation of the directory's NFS filehandle.</p>
+<p>Input and output filehandles are represented as a series of JSON objects (one per line) with the keys "host", "ip", "path", and "filehandle", where the value of the "filehandle" key is the hex representation of the NFS filehandle.</p>
 
 <p>If the NFS server requires "secure" ports (&lt;1024), <code>nfsls</code> will have to be run as root.</p>
 
