@@ -13,7 +13,7 @@ static entryplus3 *do_getattr(CLIENT *, char *, nfs_fh_list *);
 static entryplus3 *do_readdirplus(CLIENT *, char *, nfs_fh_list *);
 char *lsperms(char *, ftype3, mode3);
 int print_long_listing(targets_t *);
-int print_filehandles(entryplus3 *, char *, char *, char *);
+int print_filehandles(targets_t *, nfs_fh_list *);
 
 /* globals */
 int verbose = 0;
@@ -379,8 +379,8 @@ int print_long_listing(targets_t *targets) {
 
 
 /* loop through a list of directory entries printing a JSON filehandle for each */
-int print_filehandles(entryplus3 *entries, char *host, char *ip_address, char *path) {
-    entryplus3 *current = entries;
+int print_filehandles(targets_t *target, struct nfs_fh_list *fh) {
+    entryplus3 *current = fh->entries;
     int count = 0;
     /* space for a string in case it's a directory and we add a trailing slash */
     /* leave room for NULL + / */
@@ -408,7 +408,7 @@ int print_filehandles(entryplus3 *entries, char *host, char *ip_address, char *p
             }
 
             /* TODO print milliseconds */
-            print_nfs_fh3(host, ip_address, path, file_name_p, current->name_handle.post_op_fh3_u.handle);
+            print_nfs_fh3(target->name, target->ip_address, fh->path, file_name_p, current->name_handle.post_op_fh3_u.handle);
         }
 
         current = current->nextentry;
@@ -483,7 +483,7 @@ int main(int argc, char **argv) {
     /* TODO only with long_listing set? */
     tzset();
 
-    /* first go through and send RPCs to each filehandle in each target */
+    /* send RPCs to each filehandle in each target */
     while (current) {
         if (current->client == NULL) {
             /* connect to server */
@@ -497,6 +497,7 @@ int main(int argc, char **argv) {
 
             while (filehandle) {
                 /* TODO check for a trailing slash and then call do_getattr directly */
+                /* store the directory entries in the filehandle list */
                 filehandle->entries = do_readdirplus(current->client, current->name, filehandle);
 
                 /*
@@ -507,7 +508,7 @@ int main(int argc, char **argv) {
                 */
 
                 if (cfg.long_listing == 0) {
-                    print_filehandles(filehandle->entries, current->name, current->ip_address, filehandle->path);
+                    print_filehandles(current, filehandle);
                 }
 
                 filehandle = filehandle->next;
