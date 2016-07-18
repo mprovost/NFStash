@@ -9,8 +9,8 @@
 
 /* local prototypes */
 static void usage(void);
-static entryplus3 *do_getattr(CLIENT *, char *, char *, nfs_fh3);
-static entryplus3 *do_readdirplus(CLIENT *, char *, char *, nfs_fh3);
+static entryplus3 *do_getattr(CLIENT *, char *, nfs_fh_list *);
+static entryplus3 *do_readdirplus(CLIENT *, char *, nfs_fh_list *);
 char *lsperms(char *, ftype3, mode3);
 int print_long_listing(entryplus3 *);
 int print_filehandles(entryplus3 *, char *, char *, char *);
@@ -52,33 +52,42 @@ void usage() {
 
 /* do a getattr to get attributes for a single file */
 /* return a single directory entry so we can share code with do_readdirplus() */
-entryplus3 *do_getattr(CLIENT *client, char *host, char *path, nfs_fh3 fh) {
+entryplus3 *do_getattr(CLIENT *client, char *host, nfs_fh_list *fh) {
     GETATTR3res *res;
     GETATTR3args args = {
-        .object = fh
+        .object = fh->nfs_fh
     };
-    /* make an empty directory entry */
+    /* make an empty directory entry for the result */
     entryplus3 *res_entry = calloc(1, sizeof(entryplus3));
     struct rpc_err clnt_err;
-    /* just the filename */
-    /* TODO this might chop up the input, make a copy? */
-    char *base = basename(path);
+    /* filename */
+    char *base;
+    /* directory */
+    char *path;
 
     /* the RPC call */
     res = nfsproc3_getattr_3(&args, client);
 
     if (res) {
         if (res->status == NFS3_OK) {
+            /* the path we were given is a filename, so chop it up */
+            /* first make a copy of the path in case basename() modifies it */
+            base = strndup(fh->path, MNTPATHLEN);
+            /* get the base filename */
+            base = basename(base);
+            /* get the path component(s) */
+            path = dirname(fh->path);
+            strncpy(fh->path, path, MNTPATHLEN);
+            /* copy just the filename into the result entry */
+            res_entry->name = strndup(base, NFS_MAXNAMLEN);
+
             /* copy the pointer to the file attributes into the blank directory entry */
             res_entry->name_attributes.post_op_attr_u.attributes = res->GETATTR3res_u.resok.obj_attributes;
             res_entry->name_attributes.attributes_follow = 1;
-            /* copy the filename from the arguments */
-            res_entry->name = strndup(base, NFS_MAXNAMLEN);
             /* copy the inode number */
             res_entry->fileid = res->GETATTR3res_u.resok.obj_attributes.fileid;
             /* copy the filehandle */
-            //res_entry->name_handle.post_op_fh3_u.handle = calloc(1, sizeof(nfs_fh3));
-            memcpy(&res_entry->name_handle.post_op_fh3_u.handle, &fh, sizeof(nfs_fh3));
+            memcpy(&res_entry->name_handle.post_op_fh3_u.handle, &fh->nfs_fh, sizeof(nfs_fh3));
             res_entry->name_handle.handle_follows = 1;
         }
     }
@@ -88,12 +97,13 @@ entryplus3 *do_getattr(CLIENT *client, char *host, char *path, nfs_fh3 fh) {
 
 
 /* do readdirplus calls to get a full list of directory entries */
-entryplus3 *do_readdirplus(CLIENT *client, char *host, char *path, nfs_fh3 dir) {
+entryplus3 *do_readdirplus(CLIENT *client, char *host, nfs_fh_list *fh) {
+    char *path = fh->path;
     READDIRPLUS3res *res;
     entryplus3 dummy = { 0 };
     entryplus3 *res_entry, *current = &dummy;
     READDIRPLUS3args args = {
-        .dir = dir,
+        .dir = fh->nfs_fh,
         .cookie = 0,
         .dircount = 512,
         .maxcount = 8192,
@@ -146,10 +156,8 @@ entryplus3 *do_readdirplus(CLIENT *client, char *host, char *path, nfs_fh3 dir) 
             } else {
                 /* it's a file, do a getattr instead */
                 if (res->status == NFS3ERR_NOTDIR) {
-                    res_entry = do_getattr(client, host, path, dir);
-                    current->nextentry = calloc(1, sizeof(entryplus3));
-                    current = current->nextentry;
-                    current = memcpy(current, res_entry, sizeof(entryplus3));
+                    current->nextentry = do_getattr(client, host, fh);
+
                     /* there's only a single entry for a file so exit the loop */
                     break;
                 } else {
@@ -437,13 +445,14 @@ int main(int argc, char **argv) {
             filehandle = current->filehandles;
 
             while (filehandle) {
-                entries = do_readdirplus(current->client, current->name, filehandle->path, filehandle->nfs_fh);
+                /* TODO check for a trailing slash and then call do_getattr directly */
+                entries = do_readdirplus(current->client, current->name, filehandle);
 
                 /*
                 TODO make an outputs enum with json/longform/ping/fping/graphite/statsd
                 print_output function to switch
                 iterate through entries and call print_nfs_fh3 if json
-                some option to print raw request results in JSON including cookie
+                some option to print raw request results in JSON including cookie (-d?)
                 */
 
                 /* pass the whole list for printing long listing */
