@@ -5,9 +5,11 @@
 #include <pwd.h> /* getpwuid() */
 #include <grp.h> /* getgrgid() */
 #include <math.h> /* for log10() */
+#include <libgen.h> /* basename() */
 
 /* local prototypes */
 static void usage(void);
+static entryplus3 *do_getattr(CLIENT *, char *, char *, nfs_fh3);
 static entryplus3 *do_readdirplus(CLIENT *, char *, char *, nfs_fh3);
 char *lsperms(char *, ftype3, mode3);
 int print_long_listing(entryplus3 *);
@@ -48,10 +50,48 @@ void usage() {
 }
 
 
+/* do a getattr to get attributes for a single file */
+/* return a single directory entry so we can share code with do_readdirplus() */
+entryplus3 *do_getattr(CLIENT *client, char *host, char *path, nfs_fh3 fh) {
+    GETATTR3res *res;
+    GETATTR3args args = {
+        .object = fh
+    };
+    /* make an empty directory entry */
+    entryplus3 *res_entry = calloc(1, sizeof(entryplus3));
+    struct rpc_err clnt_err;
+    /* just the filename */
+    /* TODO this might chop up the input, make a copy? */
+    char *base = basename(path);
+
+    /* the RPC call */
+    res = nfsproc3_getattr_3(&args, client);
+
+    if (res) {
+        if (res->status == NFS3_OK) {
+            /* copy the pointer to the file attributes into the blank directory entry */
+            res_entry->name_attributes.post_op_attr_u.attributes = res->GETATTR3res_u.resok.obj_attributes;
+            res_entry->name_attributes.attributes_follow = 1;
+            /* copy the filename from the arguments */
+            res_entry->name = strndup(base, NFS_MAXNAMLEN);
+            /* copy the inode number */
+            res_entry->fileid = res->GETATTR3res_u.resok.obj_attributes.fileid;
+            /* copy the filehandle */
+            //res_entry->name_handle.post_op_fh3_u.handle = calloc(1, sizeof(nfs_fh3));
+            memcpy(&res_entry->name_handle.post_op_fh3_u.handle, &fh, sizeof(nfs_fh3));
+            res_entry->name_handle.handle_follows = 1;
+        }
+    }
+
+    return res_entry;
+}
+
+
 /* do readdirplus calls to get a full list of directory entries */
 entryplus3 *do_readdirplus(CLIENT *client, char *host, char *path, nfs_fh3 dir) {
     READDIRPLUS3res *res;
-    entryplus3 *res_entry, *current, dummy;
+    entryplus3 dummy = { 0 };
+    entryplus3 *res_entry, *current = &dummy;
     READDIRPLUS3args args = {
         .dir = dir,
         .cookie = 0,
@@ -60,8 +100,6 @@ entryplus3 *do_readdirplus(CLIENT *client, char *host, char *path, nfs_fh3 dir) 
     };
     struct rpc_err clnt_err;
 
-    dummy.nextentry = NULL;
-    current = &dummy;
 
     /* the RPC call */
     res = nfsproc3_readdirplus_3(&args, client);
@@ -106,14 +144,23 @@ entryplus3 *do_readdirplus(CLIENT *client, char *host, char *path, nfs_fh3 dir) 
                     }
                 }
             } else {
-                /* TODO handle NFS3ERR_NOTDIR differently? Do a getattr? */
-                fprintf(stderr, "%s:%s: ", host, path);
-                clnt_geterr(client, &clnt_err);
-                if (clnt_err.re_status)
-                    clnt_perror(client, "nfsproc3_readdirplus_3");
-                else
-                    nfs_perror(res->status);
-                break;
+                /* it's a file, do a getattr instead */
+                if (res->status == NFS3ERR_NOTDIR) {
+                    res_entry = do_getattr(client, host, path, dir);
+                    current->nextentry = calloc(1, sizeof(entryplus3));
+                    current = current->nextentry;
+                    current = memcpy(current, res_entry, sizeof(entryplus3));
+                    /* there's only a single entry for a file so exit the loop */
+                    break;
+                } else {
+                    fprintf(stderr, "%s:%s: ", host, path);
+                    clnt_geterr(client, &clnt_err);
+                    if (clnt_err.re_status)
+                        clnt_perror(client, "nfsproc3_readdirplus_3");
+                    else
+                        nfs_perror(res->status);
+                    break;
+                }
             }
         }
     } else {
