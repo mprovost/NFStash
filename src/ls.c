@@ -12,7 +12,7 @@ static void usage(void);
 static entryplus3 *do_getattr(CLIENT *, char *, nfs_fh_list *);
 static entryplus3 *do_readdirplus(CLIENT *, char *, nfs_fh_list *);
 char *lsperms(char *, ftype3, mode3);
-int print_long_listing(entryplus3 *, const char *, const size_t, const unsigned long, const size3, const size_t, const size_t);
+int print_long_listing(targets_t *);
 int print_filehandles(entryplus3 *, char *, char *, char *);
 
 /* globals */
@@ -112,6 +112,7 @@ entryplus3 *do_readdirplus(CLIENT *client, char *host, nfs_fh_list *fh) {
     READDIRPLUS3res *res;
     entryplus3 dummy = { 0 };
     entryplus3 *res_entry, *current = &dummy;
+    /* TODO make the dircount/maxcount into options */
     READDIRPLUS3args args = {
         .dir = fh->nfs_fh,
         .cookie = 0,
@@ -248,8 +249,10 @@ char *lsperms(char *bits, ftype3 type, mode3 mode) {
 /* TODO cache/memoise uid/gid lookups */
 /* BSD has functions user_from_uid() and group_from_gid() */
 /* gnulib has getuser() and getgroup() */
-int print_long_listing(entryplus3 *entries, const char *host, const size_t maxhost, const unsigned long maxlinks, const size3 maxsize, const size_t maxuser, const size_t maxgroup) {
-    entryplus3 *current = entries;
+int print_long_listing(targets_t *targets) {
+    targets_t *target = targets;
+    struct nfs_fh_list *fh;
+    entryplus3 *current;
     /* shortcut */
     struct fattr3 attributes;
     /* number of lines of output */
@@ -263,48 +266,113 @@ int print_long_listing(entryplus3 *entries, const char *host, const size_t maxho
     /* timestamp in ISO 8601 format */
     /* 2000-12-25 22:23:34 + terminating NULL */
     char buf[20];
+    /* sizes for justifying columns */
+    /* set these to 1 so log10() doesn't have 0 as an input and returns -HUGE_VAL */
+    /* we're always going to need one space to output "0" */
+    unsigned long maxlinks = 1;
+    size3         maxsize  = 1;
+    size_t        maxuser  = 0;
+    size_t        maxgroup = 0;
+    size_t        maxhost  = 0;
 
-    while (current) {
-        count++;
 
-        attributes = current->name_attributes.post_op_attr_u.attributes;
+    /* first loop through all targets and entries to find longest strings for justifying columns */
+    while (target) {
+        /* find the longest hostname */
+        maxhost = strlen(target->name) > maxhost ? strlen(target->name) : maxhost;
 
-        /* look up username and group locally */
-        /* TODO -n option to keep uid/gid */
-        /* TODO check for NULL return value */
-        passwd = getpwuid(attributes.uid);
-        group  = getgrgid(attributes.gid);
+        fh = target->filehandles;
 
-        /* format to ISO 8601 timestamp */
-        /* this converts an unsigned 32 bit seconds to a signed 32 bit time_t which doesn't always do what is expected! */
-        /* TODO detect values greater than 32 bit signed max and treat them as signed? */
-        /* Solaris has a setting nfs_allow_preepoch_time for this, make it into an option? */
-        mtime = localtime(&attributes.mtime.seconds);
-        /* TODO check return value, should always be 19 */
-        strftime(buf, 20, "%Y-%m-%d %H:%M:%S", mtime);
+        while (fh) {
+            current = fh->entries;
 
-        /* have to cast size_t to int for compiler warning (-Wformat) */
-        /* printf only accepts ints for field widths with * */
-        printf("%s %*lu %-*s %-*s %*" PRIu64 " %s %-*s %s\n",
-            /* permissions bits */
-            lsperms(bits, attributes.type, attributes.mode),
-            /* number of links */
-            (int)maxlinks, attributes.nlink,
-            /* username */
-            (int)maxuser, passwd->pw_name,
-            /* group */
-            (int)maxgroup, group->gr_name,
-            /* file size */
-            (int)maxsize, attributes.size,
-            /* date + time */
-            buf,
-            /* hostname */
-            (int)maxhost, host,
-            /* filename */
-            current->name);
+            while (current) {
+                count++;
 
-        current = current->nextentry;
+                attributes = current->name_attributes.post_op_attr_u.attributes;
+
+                maxlinks = attributes.nlink > maxlinks ? attributes.nlink : maxlinks;
+
+                maxsize = attributes.size > maxsize ? attributes.size : maxsize;
+
+                /* TODO cache this ! */
+                passwd = getpwuid(attributes.uid);
+                maxuser = strlen(passwd->pw_name) > maxuser ? strlen(passwd->pw_name) : maxuser;
+
+                /* TODO cache this ! */
+                group  = getgrgid(attributes.gid);
+                maxgroup = strlen(group->gr_name) > maxgroup ? strlen(group->gr_name) : maxgroup;
+
+                current = current->nextentry;
+            } /* while (current) */
+
+            fh = fh->next;
+        } /* while (fh) */
+
+        target = target->next;
+    } /* while (target) */
+
+    /* calculate the maximum string widths */
+    maxlinks = floor(log10(abs(maxlinks))) + 1;
+    maxsize  = floor(log10(abs(maxsize))) + 1;
+
+    /* now loop through and print each entry */
+
+    /* reset to start of target list */
+    target = targets;
+
+    while(target) {
+        fh = target->filehandles;
+
+        while (fh) {
+            current = fh->entries;
+
+            while (current) {
+                attributes = current->name_attributes.post_op_attr_u.attributes;
+
+                /* look up username and group locally */
+                /* TODO -n option to keep uid/gid */
+                /* TODO check for NULL return value */
+                passwd = getpwuid(attributes.uid);
+                group  = getgrgid(attributes.gid);
+
+                /* format to ISO 8601 timestamp */
+                /* this converts an unsigned 32 bit seconds to a signed 32 bit time_t which doesn't always do what is expected! */
+                /* TODO detect values greater than 32 bit signed max and treat them as signed? */
+                /* Solaris has a setting nfs_allow_preepoch_time for this, make it into an option? */
+                mtime = localtime(&attributes.mtime.seconds);
+                /* TODO check return value, should always be 19 */
+                strftime(buf, 20, "%Y-%m-%d %H:%M:%S", mtime);
+
+                /* have to cast size_t to int for compiler warning (-Wformat) */
+                /* printf only accepts ints for field widths with * */
+                printf("%s %*lu %-*s %-*s %*" PRIu64 " %s %-*s %s\n",
+                    /* permissions bits */
+                    lsperms(bits, attributes.type, attributes.mode),
+                    /* number of links */
+                    (int)maxlinks, attributes.nlink,
+                    /* username */
+                    (int)maxuser, passwd->pw_name,
+                    /* group */
+                    (int)maxgroup, group->gr_name,
+                    /* file size */
+                    (int)maxsize, attributes.size,
+                    /* date + time */
+                    buf,
+                    /* hostname */
+                    (int)maxhost, target->name,
+                    /* filename */
+                    current->name);
+
+                current = current->nextentry;
+            }
+
+            fh = fh->next;
+        }
+
+        target = target->next;
     }
+
 
     return count;
 }
@@ -358,11 +426,6 @@ int main(int argc, char **argv) {
     targets_t dummy = { 0 };
     targets_t *targets = &dummy;
     targets_t *current;
-    entryplus3 *current_entry;
-    /* shortcut */
-    struct fattr3 attributes;
-    struct passwd *passwd;
-    struct group  *group;
     struct nfs_fh_list *filehandle;
     struct addrinfo hints = {
         .ai_family = AF_INET,
@@ -374,15 +437,6 @@ int main(int argc, char **argv) {
         .sin_family = AF_INET,
         .sin_addr = 0
     };
-    /* sizes for justifying columns */
-    /* set these to 1 so log10() doesn't have 0 as an input and returns -HUGE_VAL */
-    /* we're always going to need one space to output "0" */
-    unsigned long maxlinks = 1;
-    size3         maxsize  = 1;
-    size_t        maxuser  = 0;
-    size_t        maxgroup = 0;
-    size_t        maxhost  = 0;
-
 
     cfg = CONFIG_DEFAULT;
 
@@ -441,33 +495,19 @@ int main(int argc, char **argv) {
         if (current->client) {
             filehandle = current->filehandles;
 
-            /* find the longest hostname */
-            maxhost = strlen(current->name) > maxhost ? strlen(current->name) : maxhost;
-
             while (filehandle) {
                 /* TODO check for a trailing slash and then call do_getattr directly */
                 filehandle->entries = do_readdirplus(current->client, current->name, filehandle);
 
-                /* loop through entries to find the longest strings for justifying columns */
+                /*
+                TODO make an outputs enum with json/longform/ping/fping/graphite/statsd
+                print_output function to switch
+                iterate through entries and call print_nfs_fh3 if json
+                some option to print raw request results in JSON including cookie (-d?)
+                */
 
-                current_entry = filehandle->entries;
-
-                while (current_entry) {
-                    attributes = current_entry->name_attributes.post_op_attr_u.attributes;
-
-                    maxlinks = attributes.nlink > maxlinks ? attributes.nlink : maxlinks;
-
-                    maxsize = attributes.size > maxsize ? attributes.size : maxsize;
-
-                    /* TODO cache this ! */
-                    passwd = getpwuid(attributes.uid);
-                    maxuser = strlen(passwd->pw_name) > maxuser ? strlen(passwd->pw_name) : maxuser;
-
-                    /* TODO cache this ! */
-                    group  = getgrgid(attributes.gid);
-                    maxgroup = strlen(group->gr_name) > maxgroup ? strlen(group->gr_name) : maxgroup;
-
-                    current_entry = current_entry->nextentry;
+                if (cfg.long_listing == 0) {
+                    print_filehandles(filehandle->entries, current->name, current->ip_address, filehandle->path);
                 }
 
                 filehandle = filehandle->next;
@@ -477,38 +517,12 @@ int main(int argc, char **argv) {
         current = current->next;
     } /* while (current) */
 
-    /* then go through and print the entries */
 
-    /* reset to start of target list */
-    current = targets;
-
-    /* calculate the maximum string widths */
-    maxlinks = floor(log10(abs(maxlinks))) + 1;
-    maxsize  = floor(log10(abs(maxsize))) + 1;
-
-    while (current) {
-        filehandle = current->filehandles;
-
-        while (filehandle) {
-                /*
-                TODO make an outputs enum with json/longform/ping/fping/graphite/statsd
-                print_output function to switch
-                iterate through entries and call print_nfs_fh3 if json
-                some option to print raw request results in JSON including cookie (-d?)
-                */
-
-                /* pass the whole list for printing long listing */
-                if (cfg.long_listing) {
-                    print_long_listing(filehandle->entries, current->name, maxhost, maxlinks, maxsize, maxuser, maxgroup);
-                } else {
-                    print_filehandles(filehandle->entries, current->name, current->ip_address, filehandle->path);
-                }
-
-            filehandle = filehandle->next;
-        }
-
-        current = current->next;
+    /* pass the whole list for printing long listing */
+    if (cfg.long_listing) {
+        print_long_listing(targets);
     }
+
 
     /* return success if we saw any entries */
     /* TODO something better! */
