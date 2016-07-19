@@ -24,6 +24,8 @@ static struct config {
     int listdot;
     /* ls -l */
     int long_listing;
+    /* -A */
+    int display_ips;
     /* NFS version */
     unsigned long version;
     struct timeval timeout;
@@ -31,16 +33,17 @@ static struct config {
 
 /* default config */
 const struct config CONFIG_DEFAULT = {
-    .listdot = 0,
+    .listdot      = 0,
     .long_listing = 0,
-    .version = 3,
-    .timeout = NFS_TIMEOUT,
+    .display_ips  = 0,
+    .version      = 3,
+    .timeout      = NFS_TIMEOUT,
 };
 
 void usage() {
-    /* TODO -A to show IP addresses */
     printf("Usage: nfsls [options]\n\
     -a       print hidden files\n\
+    -A       show IP addresses\n\
     -h       display this help and exit\n\
     -l       print long listing\n\
     -S addr  set source address\n\
@@ -266,6 +269,8 @@ int print_long_listing(targets_t *targets) {
     /* timestamp in ISO 8601 format */
     /* 2000-12-25 22:23:34 + terminating NULL */
     char buf[20];
+    /* pointer to which hostname string to use */
+    char *host_p;
     /* sizes for justifying columns */
     /* set these to 1 so log10() doesn't have 0 as an input and returns -HUGE_VAL */
     /* we're always going to need one space to output "0" */
@@ -278,8 +283,11 @@ int print_long_listing(targets_t *targets) {
 
     /* first loop through all targets and entries to find longest strings for justifying columns */
     while (target) {
+        /* which name to use, IP address or hostname */
+        host_p = cfg.display_ips ? target->ip_address : target->name;
+
         /* find the longest hostname */
-        maxhost = strlen(target->name) > maxhost ? strlen(target->name) : maxhost;
+        maxhost = strlen(host_p) > maxhost ? strlen(host_p) : maxhost;
 
         fh = target->filehandles;
 
@@ -324,6 +332,9 @@ int print_long_listing(targets_t *targets) {
     while(target) {
         fh = target->filehandles;
 
+        /* which name to use, IP address or hostname */
+        host_p = cfg.display_ips ? target->ip_address : target->name;
+
         while (fh) {
             current = fh->entries;
 
@@ -360,7 +371,7 @@ int print_long_listing(targets_t *targets) {
                     /* date + time */
                     buf,
                     /* hostname */
-                    (int)maxhost, target->name,
+                    (int)maxhost, host_p,
                     /* filename */
                     current->name);
 
@@ -440,11 +451,15 @@ int main(int argc, char **argv) {
 
     cfg = CONFIG_DEFAULT;
 
-    while ((ch = getopt(argc, argv, "ahlS:Tv")) != -1) {
+    while ((ch = getopt(argc, argv, "aAhlS:Tv")) != -1) {
         switch(ch) {
             /* list hidden files */
             case 'a':
                 cfg.listdot = 1;
+                break;
+            /* display IPs instead of hostnames */
+            case 'A':
+                cfg.display_ips = 1;
                 break;
             /* long listing */
             case 'l':

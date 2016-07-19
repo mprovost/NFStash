@@ -3,7 +3,7 @@ nfsls(8) -- list directory contents on an NFS server
 
 ## SYNOPSIS
 
-`nfsls` [`-ahlTv`] [`-S` <source>]
+`nfsls` [`-aAhlTv`] [`-S` <source>]
 
 ## DESCRIPTION
 
@@ -18,11 +18,14 @@ If the NFS server requires "secure" ports (<1024), `nfsls` will have to be run a
 * `-a`:
   Display hidden files and directories (names starting with `.`) These are not displayed by default.
 
+* `-A`:
+  Display IP addresses (instead of hostnames).
+
 * `-h`:
   Display a help message and exit.
 
 * `-l`:
-  Display a long listing similar to `ls -l`. This includes the file type and permissions bits, the number of links to the file, the owner's user and group names, the size in bytes, the date and time in ISO 8601 format and the filename.
+  Display a long listing similar to `ls -l`. This includes the file type and permissions bits, the number of links to the file, the owner's user and group names, the size in bytes, the date and time in ISO 8601 format, the server's hostname (or IP address with `-A`) and the filename.
 
 * `-S` <source>:
   Use the specified source IP address for request packets.
