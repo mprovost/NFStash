@@ -225,8 +225,11 @@ targets_t *parse_fh(targets_t *head, char *input, uint16_t port, unsigned long c
 
 
 /* convert an NFS filehandle to a string */
-int nfs_fh3_to_string(char *str, nfs_fh3 file_handle) {
-    unsigned int i;
+char *nfs_fh3_to_string(nfs_fh3 file_handle) {
+    int i;
+    /* allocate space for output string */
+    /* 2 characters per byte plus NULL */
+    char *str = calloc((file_handle.data.data_len * 2) + 1, sizeof(char));
 
     for (i = 0; i < file_handle.data.data_len; i++) {
         /* each input byte is two output bytes (in hex) */
@@ -236,7 +239,7 @@ int nfs_fh3_to_string(char *str, nfs_fh3 file_handle) {
     /* terminating NUL */
     str[i * 2] = '\0';
    
-    return (i * 2) + 1;
+    return str;
 }
 
 

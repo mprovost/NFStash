@@ -28,7 +28,7 @@ void usage() {
 int do_nlm_test(CLIENT *client, char *nodename, pid_t mypid, nfs_fh_list *current) {
     /* default to failed */
     int status = nlm4_failed;
-    char fh[128];
+    char *fh;
     unsigned long us;
     struct timespec wall_clock, call_start, call_end, call_elapsed;
     nlm4_testres *res = NULL;
@@ -85,7 +85,7 @@ int do_nlm_test(CLIENT *client, char *nodename, pid_t mypid, nfs_fh_list *curren
 
     if (res) {
         fprintf(stderr, "%s\n", nlm4_stats_labels[res->stat.stat]);
-        nfs_fh3_to_string(fh, current->nfs_fh);
+        fh = nfs_fh3_to_string(current->nfs_fh);
         /* if we got an error, update the status for return */
         if (res->stat.stat) {
             status = res->stat.stat;
@@ -97,6 +97,7 @@ int do_nlm_test(CLIENT *client, char *nodename, pid_t mypid, nfs_fh_list *curren
         /* human output for now */
         /* use filehandle until we get the mount point from nfsmount, path can be ambiguous (or not present) */
         printf("%s:%s %lu %li\n", current->host, fh, us, wall_clock.tv_sec);
+        free(fh);
     } else {
         clnt_perror(client, "nlm4_test_4");
         /* use something that doesn't overlap with values in nlm4_testres.stat */
