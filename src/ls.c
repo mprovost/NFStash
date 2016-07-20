@@ -13,17 +13,25 @@ static entryplus3 *do_getattr(CLIENT *, char *, nfs_fh_list *);
 static entryplus3 *do_readdirplus(CLIENT *, char *, nfs_fh_list *);
 char *lsperms(char *, ftype3, mode3);
 int print_long_listing(targets_t *);
-int print_filehandles(targets_t *, nfs_fh_list *);
+int print_filehandles(targets_t *, nfs_fh_list *, const unsigned long);
 
 /* globals */
 int verbose = 0;
 
+/* output formats */
+enum ls_formats {
+    ls_unset,
+    ls_ping,
+    ls_longform,
+    ls_json,
+};
+
 /* global config "object" */
 static struct config {
+    /* output format */
+    enum ls_formats format;
     /* ls -a */
     int listdot;
-    /* ls -l */
-    int long_listing;
     /* -A */
     int display_ips;
     /* NFS version */
@@ -33,8 +41,8 @@ static struct config {
 
 /* default config */
 const struct config CONFIG_DEFAULT = {
+    .format       = ls_unset,
     .listdot      = 0,
-    .long_listing = 0,
     .display_ips  = 0,
     .version      = 3,
     .timeout      = NFS_TIMEOUT,
@@ -221,7 +229,7 @@ char *lsperms(char *bits, ftype3 type, mode3 mode) {
             bits[0] = 'p';
             break;
         default:
-            /* Unknown type -- possibly a regular file? */
+            /* Unknown type - this shows up for /proc, /dev, /sys etc */
             bits[0] = '?';
     }
 
@@ -324,11 +332,10 @@ int print_long_listing(targets_t *targets) {
     maxlinks = floor(log10(abs(maxlinks))) + 1;
     maxsize  = floor(log10(abs(maxsize))) + 1;
 
-    /* now loop through and print each entry */
-
     /* reset to start of target list */
     target = targets;
 
+    /* now loop through and print each entry */
     while(target) {
         fh = target->filehandles;
 
@@ -384,13 +391,12 @@ int print_long_listing(targets_t *targets) {
         target = target->next;
     }
 
-
     return count;
 }
 
 
 /* loop through a list of directory entries printing a JSON filehandle for each */
-int print_filehandles(targets_t *target, struct nfs_fh_list *fh) {
+int print_filehandles(targets_t *target, struct nfs_fh_list *fh, const unsigned long usec) {
     entryplus3 *current = fh->entries;
     int count = 0;
     /* space for a string in case it's a directory and we add a trailing slash */
@@ -419,7 +425,7 @@ int print_filehandles(targets_t *target, struct nfs_fh_list *fh) {
             }
 
             /* TODO print milliseconds */
-            print_nfs_fh3(target->name, target->ip_address, fh->path, file_name_p, current->name_handle.post_op_fh3_u.handle);
+            print_nfs_fh3(target->name, target->ip_address, fh->path, file_name_p, current->name_handle.post_op_fh3_u.handle, usec);
         }
 
         current = current->nextentry;
@@ -448,6 +454,8 @@ int main(int argc, char **argv) {
         .sin_family = AF_INET,
         .sin_addr = 0
     };
+    struct timespec call_start, call_end, call_elapsed;
+    unsigned long usec = 0;
 
     cfg = CONFIG_DEFAULT;
 
@@ -463,7 +471,7 @@ int main(int argc, char **argv) {
                 break;
             /* long listing */
             case 'l':
-                cfg.long_listing = 1;
+                cfg.format = ls_longform;
                 break;
             /* source ip address for packets */
             case 'S':
@@ -483,6 +491,11 @@ int main(int argc, char **argv) {
             default:
                 usage();
         }
+    }
+
+    /* set default to JSON if nothing else was specified */
+    if (cfg.format == ls_unset) {
+        cfg.format = ls_json;
     }
 
     /* no arguments, use stdin */
@@ -511,9 +524,26 @@ int main(int argc, char **argv) {
             filehandle = current->filehandles;
 
             while (filehandle) {
+
+#ifdef CLOCK_MONOTONIC_RAW
+                clock_gettime(CLOCK_MONOTONIC_RAW, &call_start);
+#else
+                clock_gettime(CLOCK_MONOTONIC, &call_start);
+#endif
+
                 /* TODO check for a trailing slash and then call do_getattr directly */
                 /* store the directory entries in the filehandle list */
                 filehandle->entries = do_readdirplus(current->client, current->name, filehandle);
+
+#ifdef CLOCK_MONOTONIC_RAW
+                clock_gettime(CLOCK_MONOTONIC_RAW, &call_end);
+#else
+                clock_gettime(CLOCK_MONOTONIC, &call_end);
+#endif
+
+                /* calculate elapsed microseconds */
+                timespecsub(&call_end, &call_start, &call_elapsed);
+                usec = ts2us(call_elapsed);
 
                 /*
                 TODO make an outputs enum with json/longform/ping/fping/graphite/statsd
@@ -522,8 +552,8 @@ int main(int argc, char **argv) {
                 some option to print raw request results in JSON including cookie (-d?)
                 */
 
-                if (cfg.long_listing == 0) {
-                    print_filehandles(current, filehandle);
+                if (cfg.format == ls_json) {
+                    print_filehandles(current, filehandle, usec);
                 }
 
                 filehandle = filehandle->next;
@@ -535,7 +565,7 @@ int main(int argc, char **argv) {
 
 
     /* pass the whole list for printing long listing */
-    if (cfg.long_listing) {
+    if (cfg.format == ls_longform) {
         print_long_listing(targets);
     }
 

@@ -243,12 +243,13 @@ int nfs_fh3_to_string(char *str, nfs_fh3 file_handle) {
 /* same function as above, but for NFS filehandles */
 /* maybe make a generic struct like sockaddr? */
 /* TODO parson! */
-int print_nfs_fh3(char *host, char *ip_address, char *path, char *file_name, nfs_fh3 file_handle) {
+int print_nfs_fh3(char *host, char *ip_address, char *path, char *file_name, nfs_fh3 file_handle, const unsigned long usec) {
     unsigned int i;
 
     /* TODO build one string and printf it once instead of multiple calls to printf */
 
-    printf("{ \"host\": \"%s\", \"ip\": \"%s\", \"path\": \"%s", host, ip_address, path);
+    printf("{ \"host\": \"%s\", \"ip\": \"%s\", \"usec\": %lu, \"path\": \"%s", 
+           host, ip_address, usec, path);
     /* if the path doesn't already end in /, print one now */
     if (path[strlen(path) - 1] != '/') {
         printf("/");
