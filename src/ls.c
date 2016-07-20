@@ -414,6 +414,7 @@ void print_nfs_fh3(char *host, char *ip_address, char *path, char *file_name, nf
     json_object_set_string(json_obj, "ip", ip_address);
 
     /* check if the path needs a separator */
+    /* TODO use a static string */
     if (path[strlen(path) - 1] != '/') {
         asprintf(&mypath, "%s/%s", path, file_name);
     } else {
