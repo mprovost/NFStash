@@ -401,6 +401,11 @@ int print_long_listing(targets_t *targets) {
 /* TODO parson! */
 int print_nfs_fh3(char *host, char *ip_address, char *path, char *file_name, nfs_fh3 file_handle, const unsigned long usec) {
     unsigned int i;
+    /* make space for filehandle string */
+    char *fh = calloc((file_handle.data.data_len * 2) + 1, sizeof(char));
+
+    i = nfs_fh3_to_string(fh, file_handle);
+
     /* TODO build one string and printf it once instead of multiple calls to printf */
     printf("{ \"host\": \"%s\", \"ip\": \"%s\", \"usec\": %lu, \"path\": \"%s",
            host, ip_address, usec, path);
@@ -408,13 +413,9 @@ int print_nfs_fh3(char *host, char *ip_address, char *path, char *file_name, nfs
     if (path[strlen(path) - 1] != '/') {
         printf("/");
     }
-    /* filename */
-    printf("%s\", \"filehandle\": \"", file_name);
     /* filehandle */
-    for (i = 0; i < file_handle.data.data_len; i++) {
-        printf("%02hhx", file_handle.data.data_val[i]);
-    }
-    printf("\" }\n");
+    printf("%s\", \"filehandle\": \"%s\" }\n", file_name, fh);
+
     return i;
 }
 
