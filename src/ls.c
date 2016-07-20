@@ -13,7 +13,7 @@ static entryplus3 *do_getattr(CLIENT *, char *, nfs_fh_list *);
 static entryplus3 *do_readdirplus(CLIENT *, char *, nfs_fh_list *);
 static char *lsperms(char *, ftype3, mode3);
 static int print_long_listing(targets_t *);
-static int print_nfs_fh3(char *, char *, char *, char *, nfs_fh3, const unsigned long);
+static void print_nfs_fh3(char *, char *, char *, char *, nfs_fh3, const unsigned long);
 static int print_filehandles(targets_t *, nfs_fh_list *, const unsigned long);
 
 /* globals */
@@ -306,10 +306,10 @@ int print_long_listing(targets_t *targets) {
             while (current) {
                 count++;
 
+                /* shortcut */
                 attributes = current->name_attributes.post_op_attr_u.attributes;
 
                 maxlinks = attributes.nlink > maxlinks ? attributes.nlink : maxlinks;
-
                 maxsize = attributes.size > maxsize ? attributes.size : maxsize;
 
                 /* TODO cache this ! */
@@ -317,7 +317,7 @@ int print_long_listing(targets_t *targets) {
                 maxuser = strlen(passwd->pw_name) > maxuser ? strlen(passwd->pw_name) : maxuser;
 
                 /* TODO cache this ! */
-                group  = getgrgid(attributes.gid);
+                group = getgrgid(attributes.gid);
                 maxgroup = strlen(group->gr_name) > maxgroup ? strlen(group->gr_name) : maxgroup;
 
                 current = current->nextentry;
@@ -398,27 +398,40 @@ int print_long_listing(targets_t *targets) {
 
 /* print an NFS filehandle as a JSON object */
 /* maybe make a generic struct like sockaddr? */
-/* TODO parson! */
-int print_nfs_fh3(char *host, char *ip_address, char *path, char *file_name, nfs_fh3 file_handle, const unsigned long usec) {
-    unsigned int i;
+/* TODO take a target_t instead of individual strings */
+void print_nfs_fh3(char *host, char *ip_address, char *path, char *file_name, nfs_fh3 file_handle, const unsigned long usec) {
     /* filehandle string */
     char *fh;
+    /* output string */
+    char *my_json_string;
+    /* path + filename */
+    char *mypath;
+    /* new object for output */
+    JSON_Value  *json_root = json_value_init_object();
+    JSON_Object *json_obj  = json_value_get_object(json_root);
+
+    json_object_set_string(json_obj, "host", host);
+    json_object_set_string(json_obj, "ip", ip_address);
+
+    /* check if the path needs a separator */
+    if (path[strlen(path) - 1] != '/') {
+        asprintf(&mypath, "%s/%s", path, file_name);
+    } else {
+        asprintf(&mypath, "%s%s", path, file_name);
+    }
+    json_object_set_string(json_obj, "path", mypath);
+    free(mypath);
+
+    json_object_set_number(json_obj, "usec", usec);
 
     fh = nfs_fh3_to_string(file_handle);
-
-    /* TODO build one string and printf it once instead of multiple calls to printf */
-    printf("{ \"host\": \"%s\", \"ip\": \"%s\", \"usec\": %lu, \"path\": \"%s",
-           host, ip_address, usec, path);
-    /* if the path doesn't already end in /, print one now */
-    if (path[strlen(path) - 1] != '/') {
-        printf("/");
-    }
-    /* filehandle */
-    printf("%s\", \"filehandle\": \"%s\" }\n", file_name, fh);
-
+    json_object_set_string(json_obj, "filehandle", fh);
     free(fh);
 
-    return i;
+    my_json_string = json_serialize_to_string(json_root);
+    printf("%s\n", my_json_string);
+    json_free_serialized_string(my_json_string);
+
 }
 
 
@@ -451,7 +464,6 @@ int print_filehandles(targets_t *target, struct nfs_fh_list *fh, const unsigned 
                 file_name_p = current->name;
             }
 
-            /* TODO print milliseconds */
             print_nfs_fh3(target->name, target->ip_address, fh->path, file_name_p, current->name_handle.post_op_fh3_u.handle, usec);
         }
 
