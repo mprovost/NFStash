@@ -11,9 +11,10 @@
 static void usage(void);
 static entryplus3 *do_getattr(CLIENT *, char *, nfs_fh_list *);
 static entryplus3 *do_readdirplus(CLIENT *, char *, nfs_fh_list *);
-char *lsperms(char *, ftype3, mode3);
-int print_long_listing(targets_t *);
-int print_filehandles(targets_t *, nfs_fh_list *, const unsigned long);
+static char *lsperms(char *, ftype3, mode3);
+static int print_long_listing(targets_t *);
+static int print_nfs_fh3(char *, char *, char *, char *, nfs_fh3, const unsigned long);
+static int print_filehandles(targets_t *, nfs_fh_list *, const unsigned long);
 
 /* globals */
 int verbose = 0;
@@ -392,6 +393,29 @@ int print_long_listing(targets_t *targets) {
     }
 
     return count;
+}
+
+
+/* print an NFS filehandle as a JSON object */
+/* maybe make a generic struct like sockaddr? */
+/* TODO parson! */
+int print_nfs_fh3(char *host, char *ip_address, char *path, char *file_name, nfs_fh3 file_handle, const unsigned long usec) {
+    unsigned int i;
+    /* TODO build one string and printf it once instead of multiple calls to printf */
+    printf("{ \"host\": \"%s\", \"ip\": \"%s\", \"usec\": %lu, \"path\": \"%s",
+           host, ip_address, usec, path);
+    /* if the path doesn't already end in /, print one now */
+    if (path[strlen(path) - 1] != '/') {
+        printf("/");
+    }
+    /* filename */
+    printf("%s\", \"filehandle\": \"", file_name);
+    /* filehandle */
+    for (i = 0; i < file_handle.data.data_len; i++) {
+        printf("%02hhx", file_handle.data.data_val[i]);
+    }
+    printf("\" }\n");
+    return i;
 }
 
 
