@@ -144,7 +144,7 @@ void usage() {
     -g         display sizes in gigabytes\n\
     -G         Graphite format output (default human readable)\n\
     -h         display human readable sizes (default)\n\
-    -H         frequency in Hertz (requests per second, default 1)\n\
+    -H         frequency in Hertz (requests per second, default %i)\n\
     -i         display inodes\n\
     -k         display sizes in kilobytes\n\
     -l         loop forever\n\
@@ -156,7 +156,7 @@ void usage() {
     -t         display sizes in terabytes\n\
     -T         use TCP (default UDP)\n\
     -v         verbose output\n",
-    NFS_PORT);
+    NFS_HERTZ, NFS_PORT);
 
     exit(3);
 }
