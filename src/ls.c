@@ -58,11 +58,13 @@ void usage() {
     -a       print hidden files\n\
     -A       show IP addresses\n\
     -h       display this help and exit\n\
+    -H       frequency in Hertz (requests per second, default %i)\n\
     -l       print long listing\n\
     -L       loop forever\n\
     -S addr  set source address\n\
     -T       use TCP (default UDP)\n\
-    -v       verbose output\n"); 
+    -v       verbose output\n",
+    NFS_HERTZ); 
 
     exit(3);
 }
@@ -510,7 +512,7 @@ int main(int argc, char **argv) {
 
     cfg = CONFIG_DEFAULT;
 
-    while ((ch = getopt(argc, argv, "aAhlLS:Tv")) != -1) {
+    while ((ch = getopt(argc, argv, "aAhH:lLS:Tv")) != -1) {
         switch(ch) {
             /* list hidden files */
             case 'a':
@@ -519,6 +521,11 @@ int main(int argc, char **argv) {
             /* display IPs instead of hostnames */
             case 'A':
                 cfg.display_ips = 1;
+                break;
+            /* polling frequency */
+            case 'H':
+                /* TODO check for reasonable values */
+                hertz = strtoul(optarg, NULL, 10);
                 break;
             /* long listing */
             case 'l':
