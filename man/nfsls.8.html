@@ -81,11 +81,11 @@
 
 <h2 id="SYNOPSIS">SYNOPSIS</h2>
 
-<p><code>nfsls</code> [<code>-aAhlLTv</code>] [<code>-H</code> <var>hertz</var>] [<code>-S</code> <var>source</var>]</p>
+<p><code>nfsls</code> [<code>-aAhlLTv</code>] [<code>-c</code> <var>count</var>] [<code>-H</code> <var>hertz</var>] [<code>-S</code> <var>source</var>]</p>
 
 <h2 id="DESCRIPTION">DESCRIPTION</h2>
 
-<p><code>nfsls</code> sends NFS version 3 READDIRPLUS (for directories) or GETATTR (for files) RPC requests to an NFS server and lists the contents of each filehandle passed to it on <code>stdin</code>. For directories, multiple READDIRPLUS requests are sent to retrieve an entire directory listing, if required. To perform the initial directory listing at the root of an NFS export, pipe the output filehandle(s) from the <code>nfsmount</code> command. Recursive directory lookups can be performed by piping the output of <code>nfsls</code> to another <code>nfsls</code> command, possibly with filters (<code>grep</code>, <code>jq</code> etc) in between.</p>
+<p><code>nfsls</code> sends NFS version 3 READDIRPLUS (for directories) or GETATTR (for files) RPC requests to an NFS server and lists the contents of each filehandle passed to it on <code>stdin</code>. For directories, multiple READDIRPLUS requests are sent to retrieve an entire directory listing, if required. To perform the initial directory listing at the root of an NFS export, pipe the output from the <code>nfsmount</code> command. Recursive directory lookups can be performed by piping the output of <code>nfsls</code> to another <code>nfsls</code> command, possibly with filters (<code>grep</code>, <code>jq</code> etc) in between.</p>
 
 <p>Input and output filehandles are represented as a series of JSON objects (one per line) with the keys "host", "ip", "path", and "filehandle", where the value of the "filehandle" key is the hex representation of the NFS filehandle.</p>
 
@@ -96,6 +96,7 @@
 <dl>
 <dt class="flush"><code>-a</code></dt><dd><p>Display hidden files and directories (names starting with <code>.</code>) These are not displayed by default.</p></dd>
 <dt class="flush"><code>-A</code></dt><dd><p>Display IP addresses (instead of hostnames).</p></dd>
+<dt class="flush"><code>-c</code></dt><dd><p>Count of requests to send to each input filehandle before exiting. Note that multiple READDIRPLUS RPCs to load a full directory listing count as a single request.</p></dd>
 <dt class="flush"><code>-h</code></dt><dd><p>Display a help message and exit.</p></dd>
 <dt><code>-H</code> <var>hertz</var></dt><dd><p>The polling frequency in Hertz when in looping mode (<code>-L</code>). This is the number of requests sent to each target filehandle per second. Default = 1.</p></dd>
 <dt class="flush"><code>-l</code></dt><dd><p>Display a long listing similar to <code>ls -l</code>. This includes the file type and permissions bits, the number of links to the file, the owner's user and group names, the size in bytes, the date and time in ISO 8601 format, the server's hostname (or IP address with <code>-A</code>) and the filename.</p></dd>

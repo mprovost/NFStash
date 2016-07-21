@@ -3,11 +3,11 @@ nfsls(8) -- list directory contents on an NFS server
 
 ## SYNOPSIS
 
-`nfsls` [`-aAhlLTv`] [`-H` <hertz>] [`-S` <source>]
+`nfsls` [`-aAhlLTv`] [`-c` <count>] [`-H` <hertz>] [`-S` <source>]
 
 ## DESCRIPTION
 
-`nfsls` sends NFS version 3 READDIRPLUS (for directories) or GETATTR (for files) RPC requests to an NFS server and lists the contents of each filehandle passed to it on `stdin`. For directories, multiple READDIRPLUS requests are sent to retrieve an entire directory listing, if required. To perform the initial directory listing at the root of an NFS export, pipe the output filehandle(s) from the `nfsmount` command. Recursive directory lookups can be performed by piping the output of `nfsls` to another `nfsls` command, possibly with filters (`grep`, `jq` etc) in between.
+`nfsls` sends NFS version 3 READDIRPLUS (for directories) or GETATTR (for files) RPC requests to an NFS server and lists the contents of each filehandle passed to it on `stdin`. For directories, multiple READDIRPLUS requests are sent to retrieve an entire directory listing, if required. To perform the initial directory listing at the root of an NFS export, pipe the output from the `nfsmount` command. Recursive directory lookups can be performed by piping the output of `nfsls` to another `nfsls` command, possibly with filters (`grep`, `jq` etc) in between.
 
 Input and output filehandles are represented as a series of JSON objects (one per line) with the keys "host", "ip", "path", and "filehandle", where the value of the "filehandle" key is the hex representation of the NFS filehandle.
 
@@ -20,6 +20,9 @@ If the NFS server requires "secure" ports (<1024), `nfsls` will have to be run a
 
 * `-A`:
   Display IP addresses (instead of hostnames).
+
+* `-c`:
+  Count of requests to send to each input filehandle before exiting. Note that multiple READDIRPLUS RPCs to load a full directory listing count as a single request.
 
 * `-h`:
   Display a help message and exit.

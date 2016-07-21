@@ -38,6 +38,8 @@ static struct config {
     int display_ips;
     /* -L */
     int loop;
+    /* -c */
+    unsigned long count;
     /* NFS version */
     unsigned long version;
     struct timeval timeout;
@@ -49,6 +51,7 @@ const struct config CONFIG_DEFAULT = {
     .listdot      = 0,
     .display_ips  = 0,
     .loop         = 0,
+    .count        = 0,
     .version      = 3,
     .timeout      = NFS_TIMEOUT,
 };
@@ -111,15 +114,22 @@ entryplus3 *do_getattr(CLIENT *client, char *host, nfs_fh_list *fh) {
             res_entry->name_handle.handle_follows = 1;
         } else {
             fprintf(stderr, "%s:%s: ", host, path);
+            /* return a NULL entry to signal failure */
+            free(res_entry);
+            res_entry = NULL;
+
             clnt_geterr(client, &clnt_err);
-            if (clnt_err.re_status)
+            if (clnt_err.re_status) {
                 clnt_perror(client, "nfsproc3_getattr_3");
-            else
+            } else {
                 nfs_perror(res->status);
+            }
         }
+    
+        free(res);
     } else {
         clnt_perror(client, "nfsproc3_getattr_3");
-    }  
+    }
 
     return res_entry;
 }
@@ -483,8 +493,7 @@ int print_filehandles(targets_t *target, struct nfs_fh_list *fh, const unsigned 
 
 
 int main(int argc, char **argv) {
-    int ch;
-    int count = 0;
+    int ch; /* getopt */
     char   *input_fh  = NULL;
     size_t  input_len = 0;
     targets_t dummy = { 0 };
@@ -509,10 +518,14 @@ int main(int argc, char **argv) {
     };
     unsigned long hertz = NFS_HERTZ;
     unsigned long usec = 0;
+    /* count of requests sent */
+    unsigned long ls_sent = 0;
+    /* count of successful requests */
+    unsigned long ls_ok   = 0;
 
     cfg = CONFIG_DEFAULT;
 
-    while ((ch = getopt(argc, argv, "aAhH:lLS:Tv")) != -1) {
+    while ((ch = getopt(argc, argv, "aAc:hH:lLS:Tv")) != -1) {
         switch(ch) {
             /* list hidden files */
             case 'a':
@@ -521,6 +534,17 @@ int main(int argc, char **argv) {
             /* display IPs instead of hostnames */
             case 'A':
                 cfg.display_ips = 1;
+                break;
+            case 'c':
+                if (cfg.loop) {
+                    fatal("Can't specify both -l and -c!\n");
+                }
+
+                cfg.count = strtoul(optarg, NULL, 10);
+
+                if (cfg.count == 0 || cfg.count == ULONG_MAX) {
+                   fatal("Zero count, nothing to do!\n");
+                }
                 break;
             /* polling frequency */
             case 'H':
@@ -606,7 +630,6 @@ int main(int argc, char **argv) {
                 filehandle = current->filehandles;
 
                 while (filehandle) {
-
     #ifdef CLOCK_MONOTONIC_RAW
                     clock_gettime(CLOCK_MONOTONIC_RAW, &call_start);
     #else
@@ -622,6 +645,14 @@ int main(int argc, char **argv) {
     #else
                     clock_gettime(CLOCK_MONOTONIC, &call_end);
     #endif
+
+                    ls_sent++;
+                    filehandle->sent++;
+
+                    /* check if we got a result */
+                    if (filehandle->entries) {
+                        ls_ok++;
+                    }
 
                     /* calculate elapsed microseconds */
                     timespecsub(&call_end, &call_start, &call_elapsed);
@@ -665,7 +696,8 @@ int main(int argc, char **argv) {
         }
 
         /* only sleep if looping or counting */
-        if (cfg.loop) {
+        /* check the count against the first filehandle in the first target */
+        if (cfg.loop || (cfg.count && targets->filehandles->sent < cfg.count)) {
             /* don't sleep if we went over the sleep_time */
             if (timespeccmp(&loop_elapsed, &sleep_time, >)) {
                 debug("Slow poll, not sleeping\n");
@@ -680,9 +712,8 @@ int main(int argc, char **argv) {
         }
     } /* while (1) */
 
-    /* return success if we saw any entries */
-    /* TODO something better! */
-    if (count) {
+    /* return success if all requests came back ok */
+    if (ls_sent && ls_sent == ls_ok) {
         return EXIT_SUCCESS;
     } else {
         return EXIT_FAILURE;
