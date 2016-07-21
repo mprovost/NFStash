@@ -17,6 +17,7 @@ static void print_nfs_fh3(char *, char *, char *, char *, nfs_fh3, const unsigne
 static int print_filehandles(targets_t *, nfs_fh_list *, const unsigned long);
 
 /* globals */
+extern volatile sig_atomic_t quitting;
 int verbose = 0;
 
 /* output formats */
@@ -35,6 +36,8 @@ static struct config {
     int listdot;
     /* -A */
     int display_ips;
+    /* -L */
+    int loop;
     /* NFS version */
     unsigned long version;
     struct timeval timeout;
@@ -45,6 +48,7 @@ const struct config CONFIG_DEFAULT = {
     .format       = ls_unset,
     .listdot      = 0,
     .display_ips  = 0,
+    .loop         = 0,
     .version      = 3,
     .timeout      = NFS_TIMEOUT,
 };
@@ -55,6 +59,7 @@ void usage() {
     -A       show IP addresses\n\
     -h       display this help and exit\n\
     -l       print long listing\n\
+    -L       loop forever\n\
     -S addr  set source address\n\
     -T       use TCP (default UDP)\n\
     -v       verbose output\n"); 
@@ -495,11 +500,14 @@ int main(int argc, char **argv) {
         .sin_addr = 0
     };
     struct timespec call_start, call_end, call_elapsed;
+    struct timespec sleepy = {
+        .tv_sec = 1
+    };
     unsigned long usec = 0;
 
     cfg = CONFIG_DEFAULT;
 
-    while ((ch = getopt(argc, argv, "aAhlS:Tv")) != -1) {
+    while ((ch = getopt(argc, argv, "aAhlLS:Tv")) != -1) {
         switch(ch) {
             /* list hidden files */
             case 'a':
@@ -512,6 +520,10 @@ int main(int argc, char **argv) {
             /* long listing */
             case 'l':
                 cfg.format = ls_longform;
+                break;
+            /* loop */
+            case 'L':
+                cfg.loop = 1;
                 break;
             /* source ip address for packets */
             case 'S':
@@ -545,70 +557,86 @@ int main(int argc, char **argv) {
 
     /* skip the dummy entry */
     targets = targets->next;
-    current = targets;
 
     /* set timezone for date output */
     /* TODO only with long_listing set? */
     tzset();
 
-    /* send RPCs to each filehandle in each target */
-    while (current) {
-        if (current->client == NULL) {
-            /* connect to server */
-            current->client = create_rpc_client(current->client_sock, &hints, NFS_PROGRAM, cfg.version, cfg.timeout, src_ip);
-            auth_destroy(current->client->cl_auth);
-            current->client->cl_auth = authunix_create_default();
+    /* listen for ctrl-c */
+    signal(SIGINT, sigint_handler);
+
+    /* main loop */
+    while (1) {
+        current = targets;
+
+        /* send RPCs to each filehandle in each target */
+        while (current) {
+            if (current->client == NULL) {
+                /* connect to server */
+                current->client = create_rpc_client(current->client_sock, &hints, NFS_PROGRAM, cfg.version, cfg.timeout, src_ip);
+                auth_destroy(current->client->cl_auth);
+                current->client->cl_auth = authunix_create_default();
+            }
+
+            if (current->client) {
+                filehandle = current->filehandles;
+
+                while (filehandle) {
+
+    #ifdef CLOCK_MONOTONIC_RAW
+                    clock_gettime(CLOCK_MONOTONIC_RAW, &call_start);
+    #else
+                    clock_gettime(CLOCK_MONOTONIC, &call_start);
+    #endif
+
+                    /* TODO check for a trailing slash and then call do_getattr directly */
+                    /* store the directory entries in the filehandle list */
+                    filehandle->entries = do_readdirplus(current->client, current->name, filehandle);
+
+    #ifdef CLOCK_MONOTONIC_RAW
+                    clock_gettime(CLOCK_MONOTONIC_RAW, &call_end);
+    #else
+                    clock_gettime(CLOCK_MONOTONIC, &call_end);
+    #endif
+
+                    /* calculate elapsed microseconds */
+                    timespecsub(&call_end, &call_start, &call_elapsed);
+                    usec = ts2us(call_elapsed);
+
+                    /*
+                    TODO make an outputs enum with json/longform/ping/fping/graphite/statsd
+                    print_output function to switch
+                    iterate through entries and call print_nfs_fh3 if json
+                    some option to print raw request results in JSON including cookie (-d?)
+                    */
+
+                    if (cfg.format == ls_json) {
+                        print_filehandles(current, filehandle, usec);
+                    }
+
+                    filehandle = filehandle->next;
+                } /* while (filehandle) */
+            }
+
+            current = current->next;
+        } /* while (current) */
+
+
+        /* pass the whole list for printing long listing */
+        if (cfg.format == ls_longform) {
+            print_long_listing(targets);
         }
 
-        if (current->client) {
-            filehandle = current->filehandles;
-
-            while (filehandle) {
-
-#ifdef CLOCK_MONOTONIC_RAW
-                clock_gettime(CLOCK_MONOTONIC_RAW, &call_start);
-#else
-                clock_gettime(CLOCK_MONOTONIC, &call_start);
-#endif
-
-                /* TODO check for a trailing slash and then call do_getattr directly */
-                /* store the directory entries in the filehandle list */
-                filehandle->entries = do_readdirplus(current->client, current->name, filehandle);
-
-#ifdef CLOCK_MONOTONIC_RAW
-                clock_gettime(CLOCK_MONOTONIC_RAW, &call_end);
-#else
-                clock_gettime(CLOCK_MONOTONIC, &call_end);
-#endif
-
-                /* calculate elapsed microseconds */
-                timespecsub(&call_end, &call_start, &call_elapsed);
-                usec = ts2us(call_elapsed);
-
-                /*
-                TODO make an outputs enum with json/longform/ping/fping/graphite/statsd
-                print_output function to switch
-                iterate through entries and call print_nfs_fh3 if json
-                some option to print raw request results in JSON including cookie (-d?)
-                */
-
-                if (cfg.format == ls_json) {
-                    print_filehandles(current, filehandle, usec);
-                }
-
-                filehandle = filehandle->next;
-            } /* while (filehandle) */
+        if (quitting) {
+            break;
         }
 
-        current = current->next;
-    } /* while (current) */
-
-
-    /* pass the whole list for printing long listing */
-    if (cfg.format == ls_longform) {
-        print_long_listing(targets);
+        if (cfg.loop) {
+            nanosleep(&sleepy, NULL);
+        } else {
+            break;
+        }
     }
-
 
     /* return success if we saw any entries */
     /* TODO something better! */
