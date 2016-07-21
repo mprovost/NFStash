@@ -3,7 +3,7 @@
 
 
 /* globals */
-volatile sig_atomic_t quitting;
+volatile sig_atomic_t quitting = 0;
 
 
 /* handle control-c */
