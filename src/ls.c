@@ -500,9 +500,12 @@ int main(int argc, char **argv) {
         .sin_addr = 0
     };
     struct timespec call_start, call_end, call_elapsed;
-    struct timespec sleepy = {
+    struct timespec loop_start, loop_end, loop_elapsed, sleepy;
+    /* default to 1Hz */
+    struct timespec sleep_time = {
         .tv_sec = 1
     };
+    unsigned long hertz = NFS_HERTZ;
     unsigned long usec = 0;
 
     cfg = CONFIG_DEFAULT;
@@ -550,6 +553,14 @@ int main(int argc, char **argv) {
         cfg.format = ls_json;
     }
 
+    /* calculate the sleep_time based on the frequency */
+    /* this doesn't support frequencies lower than 1Hz */
+    if (hertz > 1) {
+        sleep_time.tv_sec = 0;
+        /* nanoseconds */
+        sleep_time.tv_nsec = 1000000000 / hertz;
+    }
+
     /* no arguments, use stdin */
     while (getline(&input_fh, &input_len, stdin) != -1) {
         current = parse_fh(targets, input_fh, 0, 0, ping);
@@ -568,6 +579,12 @@ int main(int argc, char **argv) {
     /* main loop */
     while (1) {
         current = targets;
+
+#ifdef CLOCK_MONOTONIC_RAW
+        clock_gettime(CLOCK_MONOTONIC_RAW, &loop_start);
+#else  
+        clock_gettime(CLOCK_MONOTONIC, &loop_start);
+#endif 
 
         /* send RPCs to each filehandle in each target */
         while (current) {
@@ -621,6 +638,15 @@ int main(int argc, char **argv) {
             current = current->next;
         } /* while (current) */
 
+        /* measure how long the current round took, and subtract that from the sleep time */
+        /* this keeps us on the polling frequency */
+#ifdef CLOCK_MONOTONIC_RAW
+        clock_gettime(CLOCK_MONOTONIC_RAW, &loop_end);
+#else  
+        clock_gettime(CLOCK_MONOTONIC, &loop_end);
+#endif 
+        timespecsub(&loop_end, &loop_start, &loop_elapsed);
+        debug("Polling took %lld.%.9lds\n", (long long)loop_elapsed.tv_sec, loop_elapsed.tv_nsec);
 
         /* pass the whole list for printing long listing */
         if (cfg.format == ls_longform) {
@@ -631,12 +657,21 @@ int main(int argc, char **argv) {
             break;
         }
 
+        /* only sleep if looping or counting */
         if (cfg.loop) {
-            nanosleep(&sleepy, NULL);
+            /* don't sleep if we went over the sleep_time */
+            if (timespeccmp(&loop_elapsed, &sleep_time, >)) {
+                debug("Slow poll, not sleeping\n");
+            /* sleep between rounds */
+            } else {
+                timespecsub(&sleep_time, &loop_elapsed, &sleepy);
+                debug("Sleeping for %lld.%.9lds\n", (long long)sleepy.tv_sec, sleepy.tv_nsec);
+                nanosleep(&sleepy, NULL);
+            }
         } else {
             break;
         }
-    }
+    } /* while (1) */
 
     /* return success if we saw any entries */
     /* TODO something better! */
