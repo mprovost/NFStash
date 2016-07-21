@@ -34,7 +34,7 @@ If the NFS server requires "secure" ports (<1024), `nfsdf` will have to be run a
   Report disk space in human readable format (default). This selects whichever unit is the most compact to display in 4 digits of precision.
 
 * `-H` <hertz>:
-  The polling frequency in Hertz when in looping mode (`-l`). This is the number of requests sent to each target per second. Default = 1.
+  The polling frequency in Hertz when in looping (`-l`) or counting (`-c`) mode. This is the number of requests sent to each target filesystem per second. Default = 1.
 
 * `-i`:
   Report inodes (files) instead of disk space. Displays the total number of inodes on the filesystem, the amounts used and free, the capacity as a percentage and the time in milliseconds that each FSSTAT RPC call took.

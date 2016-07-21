@@ -101,7 +101,7 @@
 <dt class="flush"><code>-g</code></dt><dd><p>Report disk space in gigabytes.</p></dd>
 <dt class="flush"><code>-G</code></dt><dd><p>Graphite format output. Default is human readable (<code>-h</code>).</p></dd>
 <dt class="flush"><code>-h</code></dt><dd><p>Report disk space in human readable format (default). This selects whichever unit is the most compact to display in 4 digits of precision.</p></dd>
-<dt><code>-H</code> <var>hertz</var></dt><dd><p>The polling frequency in Hertz when in looping mode (<code>-l</code>). This is the number of requests sent to each target per second. Default = 1.</p></dd>
+<dt><code>-H</code> <var>hertz</var></dt><dd><p>The polling frequency in Hertz when in looping (<code>-l</code>) or counting (<code>-c</code>) mode. This is the number of requests sent to each target filesystem per second. Default = 1.</p></dd>
 <dt class="flush"><code>-i</code></dt><dd><p>Report inodes (files) instead of disk space. Displays the total number of inodes on the filesystem, the amounts used and free, the capacity as a percentage and the time in milliseconds that each FSSTAT RPC call took.</p></dd>
 <dt class="flush"><code>-k</code></dt><dd><p>Report disk space in kilobytes.</p></dd>
 <dt class="flush"><code>-l</code></dt><dd><p>Loop forever. Exit loop with Ctrl-c.</p></dd>
