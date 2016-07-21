@@ -470,7 +470,12 @@ int main(int argc, char **argv) {
     struct winsize winsz;
     unsigned short rows  = 0; /* number of rows in terminal window */
     unsigned long version = 3;
-    struct timespec loop_start, loop_end, loop_elapsed, sleepy, sleep_time;
+    struct timespec loop_start, loop_end, loop_elapsed, sleepy;
+    /* default to 1Hz */
+    struct timespec sleep_time = {
+        .tv_sec = 1,
+        .tv_nsec = 0
+    };
     unsigned long hertz       = NFS_HERTZ;
     struct timeval timeout    = NFS_TIMEOUT;
     struct timespec call_start, call_end, call_elapsed, wall_clock;
@@ -632,12 +637,8 @@ int main(int argc, char **argv) {
     }
 
     /* calculate the sleep_time based on the frequency */
-    /* check for a frequency of 1, that's a simple case */
     /* this doesn't support frequencies lower than 1Hz */
-    if (hertz == 1) {
-        sleep_time.tv_sec = 1;
-        sleep_time.tv_nsec = 0;
-    } else {
+    if (hertz > 1) {
         sleep_time.tv_sec = 0;
         /* nanoseconds */
         sleep_time.tv_nsec = 1000000000 / hertz;
