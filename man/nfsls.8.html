@@ -81,7 +81,7 @@
 
 <h2 id="SYNOPSIS">SYNOPSIS</h2>
 
-<p><code>nfsls</code> [<code>-aAhlTv</code>] [<code>-S</code> <var>source</var>]</p>
+<p><code>nfsls</code> [<code>-aAhlLTv</code>] [<code>-S</code> <var>source</var>]</p>
 
 <h2 id="DESCRIPTION">DESCRIPTION</h2>
 
@@ -98,6 +98,7 @@
 <dt class="flush"><code>-A</code></dt><dd><p>Display IP addresses (instead of hostnames).</p></dd>
 <dt class="flush"><code>-h</code></dt><dd><p>Display a help message and exit.</p></dd>
 <dt class="flush"><code>-l</code></dt><dd><p>Display a long listing similar to <code>ls -l</code>. This includes the file type and permissions bits, the number of links to the file, the owner's user and group names, the size in bytes, the date and time in ISO 8601 format, the server's hostname (or IP address with <code>-A</code>) and the filename.</p></dd>
+<dt class="flush"><code>-L</code></dt><dd><p>Loop forever. Exit loop with Ctrl-c.</p></dd>
 <dt><code>-S</code> <var>source</var></dt><dd><p>Use the specified source IP address for request packets.</p></dd>
 <dt class="flush"><code>-T</code></dt><dd><p>Use TCP to connect to server. Default = UDP.</p></dd>
 <dt class="flush"><code>-v</code></dt><dd><p>Display debug output on <code>stderr</code>.</p></dd>
