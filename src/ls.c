@@ -101,8 +101,18 @@ entryplus3 *do_getattr(CLIENT *client, char *host, nfs_fh_list *fh) {
             /* get the path component(s) */
             path = dirname(fh->path);
             strncpy(fh->path, path, MNTPATHLEN);
-            /* copy just the filename into the result entry */
-            res_entry->name = strndup(base, NFS_MAXNAMLEN);
+
+            /* if it's a directory print a trailing slash (like ls -F) */
+            if (res->GETATTR3res_u.resok.obj_attributes.type == NF3DIR) {
+                /* make space for the filename plus / plus NULL */
+                res_entry->name = calloc(strlen(base) + 2, sizeof(char));
+                strncpy(res_entry->name, base, strlen(base));
+                /* add a trailing slash */
+                res_entry->name[strlen(res_entry->name)] = '/';
+            /* not a directory, just use the received filename */
+            } else {
+                res_entry->name = strdup(base);
+            }
 
             /* copy the pointer to the file attributes into the blank directory entry */
             res_entry->name_attributes.post_op_attr_u.attributes = res->GETATTR3res_u.resok.obj_attributes;
@@ -643,9 +653,14 @@ int main(int argc, char **argv) {
                     clock_gettime(CLOCK_MONOTONIC, &call_start);
     #endif
 
-                    /* TODO check for a trailing slash and then call do_getattr directly */
-                    /* store the directory entries in the filehandle list */
-                    filehandle->entries = do_readdirplus(current->client, current->name, filehandle);
+                    /* check for a trailing slash to see if we need to do readdirplus or getattr */
+                    if (filehandle->path[strlen(filehandle->path) - 1] == '/') {
+                        /* store the directory entries in the filehandle list */
+                        filehandle->entries = do_readdirplus(current->client, current->name, filehandle);
+                    } else {
+                        /* it's a file, do a getattr */
+                        filehandle->entries = do_getattr(current->client, current->name, filehandle);
+                    }
 
     #ifdef CLOCK_MONOTONIC_RAW
                     clock_gettime(CLOCK_MONOTONIC_RAW, &call_end);
