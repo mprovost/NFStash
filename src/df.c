@@ -338,9 +338,10 @@ int print_df(int offset, char *host, char *path, FSSTAT3res *fsstatres, const en
         capacity       = (1 - ((double)fsstatres->FSSTAT3res_u.resok.fbytes / fsstatres->FSSTAT3res_u.resok.tbytes)) * 100;
         inode_capacity = (1 - ((double)fsstatres->FSSTAT3res_u.resok.ffiles / fsstatres->FSSTAT3res_u.resok.tfiles)) * 100;
 
-        /* TODO check usec is less than 99999400 otherwise the %g goes into %e mode (1e+05) */
+        /* TODO check usec is less than 100000 (100ms) so column doesn't overflow
+         * in that case start losing precision after decimal */
 
-        printf("%s:%-*s %*s %*s %*s %7.0f%% %*" PRIu64 " %*" PRIu64 "  %5.0f%% %5.5g\n",
+        printf("%s:%-*s %*s %*s %*s %7.0f%% %*" PRIu64 " %*" PRIu64 "  %5.0f%% %#5.2f\n",
             host, offset, path,
             width, total, width, used, width, avail, capacity,
             /* calculate number of used inodes */
