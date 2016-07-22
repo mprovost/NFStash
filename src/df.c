@@ -163,13 +163,11 @@ void usage() {
 
 
 FSSTAT3res *get_fsstat(CLIENT *client, nfs_fh_list *fs) {
-    FSSTAT3args fsstatarg;
-    FSSTAT3res  *fsstatres;
+    FSSTAT3args fsstatarg = {
+        .fsroot = fs->nfs_fh
+    };
+    FSSTAT3res *fsstatres = nfsproc3_fsstat_3(&fsstatarg, client);
     struct rpc_err clnt_err;
-
-    fsstatarg.fsroot = fs->nfs_fh;
-
-    fsstatres = nfsproc3_fsstat_3(&fsstatarg, client);
 
     if (fsstatres) {
         if (fsstatres->status != NFS3_OK) {
@@ -775,6 +773,9 @@ int main(int argc, char **argv) {
                         print_format(cfg.format, output_prefix, current->ndqf, filehandle->path, fsstatres, usec, wall_clock);
                     }
                 }
+
+                /* free the result */
+                xdr_free((xdrproc_t)xdr_FSSTAT3res, (char *)fsstatres);
 
                 /* TODO pause between requests to same target? */
 

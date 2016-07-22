@@ -173,8 +173,11 @@ entryplus3 *do_readdirplus(CLIENT *client, char *host, nfs_fh_list *fh) {
 
                     current->nextentry = calloc(1, sizeof(entryplus3));
                     current = current->nextentry;
+                    /* copy the entry into the output list */
                     current = memcpy(current, res_entry, sizeof(entryplus3));
 
+                    /* update the directory cookie in case we have to make another call for more entries */
+                    /* TODO if this has changed it means the directory has been modified - do we need to start over? */
                     args.cookie = res_entry->cookie;
 
                     res_entry = res_entry->nextentry;
@@ -187,6 +190,9 @@ entryplus3 *do_readdirplus(CLIENT *client, char *host, nfs_fh_list *fh) {
                 } else {
                     /* TODO does this need a copy? */
                     memcpy(args.cookieverf, res->READDIRPLUS3res_u.resok.cookieverf, NFS3_COOKIEVERFSIZE);
+                    /* free the previous result */
+                    xdr_free((xdrproc_t)xdr_READDIRPLUS3res, (char *)res);
+                    /* new RPC call */
                     res = nfsproc3_readdirplus_3(&args, client);
 
                     if (res == NULL) {
@@ -211,6 +217,9 @@ entryplus3 *do_readdirplus(CLIENT *client, char *host, nfs_fh_list *fh) {
                 }
             }
         }
+
+        /* free the result */
+        xdr_free((xdrproc_t)xdr_READDIRPLUS3res, (char *)res);
     } else {
         clnt_perror(client, "nfsproc3_readdirplus_3");
     }  
