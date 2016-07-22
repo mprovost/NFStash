@@ -146,7 +146,7 @@ entryplus3 *do_readdirplus(CLIENT *client, char *host, nfs_fh_list *fh) {
     READDIRPLUS3args args = {
         .dir = fh->nfs_fh,
         .cookie = 0,
-        .dircount = 512,
+        .dircount = 1024,
         .maxcount = 8192,
     };
     struct rpc_err clnt_err;
@@ -175,8 +175,20 @@ entryplus3 *do_readdirplus(CLIENT *client, char *host, nfs_fh_list *fh) {
                     /* copy the entry into the output list */
                     /* TODO function to deep copy entryplus3 struct? */
                     current = memcpy(current, res_entry, sizeof(entryplus3));
-                    /* copy the name string */
-                    current->name = strdup(current->name);
+
+                    /* if it's a directory print a trailing slash (like ls -F) */
+                    /* TODO this seems to be 0 sometimes */
+                    if (current->name_attributes.post_op_attr_u.attributes.type == NF3DIR) {
+                        /* make space for the filename plus / plus NULL */
+                        current->name = calloc(strlen(res_entry->name) + 2, sizeof(char));
+                        strncpy(current->name, res_entry->name, strlen(res_entry->name));
+                        /* add a trailing slash */
+                        current->name[strlen(res_entry->name)] = '/';
+                    /* not a directory, just use the received filename */
+                    } else {
+                        current->name = strdup(res_entry->name);
+                    }
+
                     /* terminate the list */
                     current->nextentry = NULL;
 
@@ -470,11 +482,6 @@ void print_nfs_fh3(char *host, char *ip_address, char *path, char *file_name, nf
 int print_filehandles(targets_t *target, struct nfs_fh_list *fh, const unsigned long usec) {
     entryplus3 *current = fh->entries;
     int count = 0;
-    /* space for a string in case it's a directory and we add a trailing slash */
-    /* leave room for NULL + / */
-    char file_name[NFS_MAXNAMLEN + 2];
-    /* pointer to which filename string to use */
-    char *file_name_p;
 
     while (current) {
         count++;
@@ -482,20 +489,7 @@ int print_filehandles(targets_t *target, struct nfs_fh_list *fh, const unsigned 
         /* if there is no filehandle (/dev, /proc, etc) don't print */
         /* none of the other utilities can do anything without a filehandle */
         if (current->name_handle.post_op_fh3_u.handle.data.data_len) {
-            /* if it's a directory print a trailing slash */
-            /* TODO do we even need to do this (unless -F?)? print_nfs_fh3 already adds a / after the path */
-            /* TODO this seems to be 0 sometimes */
-            if (current->name_attributes.post_op_attr_u.attributes.type == NF3DIR) {
-                /* filename should only be max plus null, leave room for the extra / */
-                strncpy(file_name, current->name, NFS_MAXNAMLEN + 1);
-                file_name[strlen(file_name)] = '/';
-                file_name_p = file_name;
-            /* not a directory, just use the received filename */
-            } else {
-                file_name_p = current->name;
-            }
-
-            print_nfs_fh3(target->name, target->ip_address, fh->path, file_name_p, current->name_handle.post_op_fh3_u.handle, usec);
+            print_nfs_fh3(target->name, target->ip_address, fh->path, current->name, current->name_handle.post_op_fh3_u.handle, usec);
         }
 
         current = current->nextentry;
