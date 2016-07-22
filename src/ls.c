@@ -125,8 +125,9 @@ entryplus3 *do_getattr(CLIENT *client, char *host, nfs_fh_list *fh) {
                 nfs_perror(res->status);
             }
         }
-    
-        free(res);
+   
+        /* free the result */
+        xdr_free((xdrproc_t)xdr_GETATTR3res, (char *)res);
     } else {
         clnt_perror(client, "nfsproc3_getattr_3");
     }
@@ -164,8 +165,6 @@ entryplus3 *do_readdirplus(CLIENT *client, char *host, nfs_fh_list *fh) {
                 while (res_entry) {
                     /* first check for hidden files */
                     if (cfg.listdot == 0 && res_entry->name[0] == '.') {
-                        /* terminate the list in case this is the last entry */
-                        current->nextentry = NULL;
                         /* skip adding it to the list */
                         res_entry = res_entry->nextentry;
                         continue;
@@ -174,7 +173,12 @@ entryplus3 *do_readdirplus(CLIENT *client, char *host, nfs_fh_list *fh) {
                     current->nextentry = calloc(1, sizeof(entryplus3));
                     current = current->nextentry;
                     /* copy the entry into the output list */
+                    /* TODO function to deep copy entryplus3 struct? */
                     current = memcpy(current, res_entry, sizeof(entryplus3));
+                    /* copy the name string */
+                    current->name = strdup(current->name);
+                    /* terminate the list */
+                    current->nextentry = NULL;
 
                     /* update the directory cookie in case we have to make another call for more entries */
                     /* TODO if this has changed it means the directory has been modified - do we need to start over? */
@@ -191,7 +195,7 @@ entryplus3 *do_readdirplus(CLIENT *client, char *host, nfs_fh_list *fh) {
                     /* TODO does this need a copy? */
                     memcpy(args.cookieverf, res->READDIRPLUS3res_u.resok.cookieverf, NFS3_COOKIEVERFSIZE);
                     /* free the previous result */
-                    xdr_free((xdrproc_t)xdr_READDIRPLUS3res, (char *)res);
+                    //xdr_free((xdrproc_t)xdr_READDIRPLUS3res, (char *)res);
                     /* new RPC call */
                     res = nfsproc3_readdirplus_3(&args, client);
 
@@ -219,7 +223,7 @@ entryplus3 *do_readdirplus(CLIENT *client, char *host, nfs_fh_list *fh) {
         }
 
         /* free the result */
-        xdr_free((xdrproc_t)xdr_READDIRPLUS3res, (char *)res);
+        //xdr_free((xdrproc_t)xdr_READDIRPLUS3res, (char *)res);
     } else {
         clnt_perror(client, "nfsproc3_readdirplus_3");
     }  
