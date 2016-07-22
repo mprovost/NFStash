@@ -7,7 +7,7 @@ nfsls(8) -- list directory contents on an NFS server
 
 ## DESCRIPTION
 
-`nfsls` sends NFS version 3 READDIRPLUS (for directories) or GETATTR (for files) RPC requests to an NFS server and lists the contents of each filehandle passed to it on `stdin`. For directories, multiple READDIRPLUS requests are sent to retrieve an entire directory listing, if required. To perform the initial directory listing at the root of an NFS export, pipe the output from the `nfsmount` command. Recursive directory lookups can be performed by piping the output of `nfsls` to another `nfsls` command, possibly with filters (`grep`, `jq` etc) in between.
+`nfsls` sends NFS version 3 READDIRPLUS (for directories) or GETATTR (for files) RPC requests to an NFS server and lists the contents of each filehandle passed to it on `stdin`. For directories, multiple READDIRPLUS requests are sent to retrieve an entire directory listing, if required. To perform the initial directory listing at the root of an NFS export, pipe the output from the `nfsmount` command to `nfsls`. Recursive directory lookups can be performed by piping the output of `nfsls` to another `nfsls` command, possibly with filters (`grep`, `jq` etc) in between.
 
 Input and output filehandles are represented as a series of JSON objects (one per line) with the keys "host", "ip", "path", and "filehandle", where the value of the "filehandle" key is the hex representation of the NFS filehandle.
 
@@ -28,7 +28,7 @@ If the NFS server requires "secure" ports (<1024), `nfsls` will have to be run a
   Display a help message and exit.
 
 * `-H` <hertz>:
-  The polling frequency in Hertz when in looping mode (`-L`). This is the number of requests sent to each target filehandle per second. Default = 1.
+  The polling frequency in Hertz when in looping mode (`-L`). This is the number of requests sent to each target filehandle per second. Note that for larger directories, multiple READDIRPLUS RPCs can be sent but are only counted as a single request. Default = 1.
 
 * `-l`:
   Display a long listing similar to `ls -l`. This includes the file type and permissions bits, the number of links to the file, the owner's user and group names, the size in bytes, the date and time in ISO 8601 format, the server's hostname (or IP address with `-A`) and the filename.
@@ -44,6 +44,27 @@ If the NFS server requires "secure" ports (<1024), `nfsls` will have to be run a
 
 * `-v`:
   Display debug output on `stderr`.
+
+## EXAMPLES
+
+Typically `nfsls` will use a filehandle obtained from the output of the `nfsmount` command:
+
+  `sudo sh -c "nfsmount dumpy | nfsls"`
+
+Since both commands typically need root privileges (to bind to a "secure" port) they can be run with a single subshell under `sudo`.
+
+If the check is being run repeatedly, there is no need to query the fileserver with `nfsmount` every time. Since the root filehandles shouldn't change, the output can be stored in a file:
+
+  `sudo nfsmount dumpy > dumpy.nfs`
+  `sudo nfsdf < dumpy.nfs`
+
+Filters can also be used to do recursive lookups, for example to list the contents of the "/etc" directory:
+
+  `sudo sh -c "nfsmount dumpy:/ | nfsls | grep etc | nfsls"`
+
+Note that this may not be required on all NFS servers if the MOUNT daemon allows listing subdirectories:
+
+  `sudo sh -c "nfsmount dumpy:/etc | nfsls"`
 
 ## RETURN VALUES
 
