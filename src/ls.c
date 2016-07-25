@@ -105,6 +105,7 @@ entryplus3 *do_getattr(CLIENT *client, char *host, nfs_fh_list *fh) {
             if (res->GETATTR3res_u.resok.obj_attributes.type == NF3DIR && cfg.listdir == 0) {
                 /* do a readdirplus */
                 res_entry = do_readdirplus(client, host, fh);
+
             /* not a directory, or we're listing the directory itself */
             } else {
                 /* make an empty directory entry for the result */
@@ -115,8 +116,18 @@ entryplus3 *do_getattr(CLIENT *client, char *host, nfs_fh_list *fh) {
                 base = strndup(fh->path, MNTPATHLEN);
                 /* get the base filename */
                 base = basename(base);
-                /* just use the received filename */
-                res_entry->name = strdup(base);
+
+                /* if it's a directory print a trailing slash (like ls -F) */
+                if (res->GETATTR3res_u.resok.obj_attributes.type == NF3DIR) {
+                    /* make space for the filename plus / plus NULL */
+                    res_entry->name = calloc(strlen(base) + 2, sizeof(char));
+                    strncpy(res_entry->name, base, strlen(base));
+                    /* add a trailing slash */
+                    res_entry->name[strlen(res_entry->name)] = '/';
+                } else {
+                    /* just use the received filename */
+                    res_entry->name = strdup(base);
+                }
 
                 /* get the path component(s) */
                 path = dirname(fh->path);
