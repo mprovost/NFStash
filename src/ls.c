@@ -32,6 +32,8 @@ enum ls_formats {
 static struct config {
     /* output format */
     enum ls_formats format;
+    /* ls -d */
+    int listdir;
     /* ls -a */
     int listdot;
     /* -A */
@@ -48,6 +50,7 @@ static struct config {
 /* default config */
 const struct config CONFIG_DEFAULT = {
     .format       = ls_unset,
+    .listdir      = 0,
     .listdot      = 0,
     .display_ips  = 0,
     .loop         = 0,
@@ -58,8 +61,10 @@ const struct config CONFIG_DEFAULT = {
 
 void usage() {
     printf("Usage: nfsls [options]\n\
+List NFS files and directories from stdin\n\n\
     -a       print hidden files\n\
     -A       show IP addresses\n\
+    -d       list actual directory not contents\n\
     -h       display this help and exit\n\
     -H       frequency in Hertz (requests per second, default %i)\n\
     -l       print long listing\n\
@@ -97,10 +102,10 @@ entryplus3 *do_getattr(CLIENT *client, char *host, nfs_fh_list *fh) {
              * if it is then do a readdirplus to get its entries
              * do_readdirplus() can also call do_getattr() but only if the result isn't a directory so it shouldn't loop
              */
-            if (res->GETATTR3res_u.resok.obj_attributes.type == NF3DIR) {
+            if (res->GETATTR3res_u.resok.obj_attributes.type == NF3DIR && cfg.listdir == 0) {
                 /* do a readdirplus */
                 res_entry = do_readdirplus(client, host, fh);
-            /* not a directory */
+            /* not a directory, or we're listing the directory itself */
             } else {
                 /* make an empty directory entry for the result */
                 res_entry = calloc(1, sizeof(entryplus3));
@@ -549,7 +554,7 @@ int main(int argc, char **argv) {
 
     cfg = CONFIG_DEFAULT;
 
-    while ((ch = getopt(argc, argv, "aAc:hH:lLS:Tv")) != -1) {
+    while ((ch = getopt(argc, argv, "aAc:dhH:lLS:Tv")) != -1) {
         switch(ch) {
             /* list hidden files */
             case 'a':
@@ -569,6 +574,10 @@ int main(int argc, char **argv) {
                 if (cfg.count == 0 || cfg.count == ULONG_MAX) {
                    fatal("Zero count, nothing to do!\n");
                 }
+                break;
+            /* display directories not contents */
+            case 'd':
+                cfg.listdir = 1;
                 break;
             /* polling frequency */
             case 'H':
@@ -660,13 +669,13 @@ int main(int argc, char **argv) {
                     clock_gettime(CLOCK_MONOTONIC, &call_start);
     #endif
 
+                    /* if we're listing directories, do a getattr no matter what */
                     /* check for a trailing slash to see if we need to do readdirplus or getattr */
-                    if (filehandle->path[strlen(filehandle->path) - 1] == '/') {
+                    if (cfg.listdir || filehandle->path[strlen(filehandle->path) - 1] != '/') {
+                        filehandle->entries = do_getattr(current->client, current->name, filehandle);
+                    } else {
                         /* store the directory entries in the filehandle list */
                         filehandle->entries = do_readdirplus(current->client, current->name, filehandle);
-                    } else {
-                        /* it's a file, do a getattr */
-                        filehandle->entries = do_getattr(current->client, current->name, filehandle);
                     }
 
     #ifdef CLOCK_MONOTONIC_RAW
