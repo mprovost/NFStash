@@ -9,8 +9,9 @@
 
 /* local prototypes */
 static void usage(void);
-static entryplus3 *do_getattr(CLIENT *, char *, nfs_fh_list *);
-static entryplus3 *do_readdirplus(CLIENT *, char *, nfs_fh_list *);
+static char *do_readlink(CLIENT *, char *, char *, nfs_fh3);
+static entrypluslink3 *do_getattr(CLIENT *, char *, nfs_fh_list *);
+static entrypluslink3 *do_readdirplus(CLIENT *, char *, nfs_fh_list *);
 static char *lsperms(char *, ftype3, mode3);
 static int print_long_listing(targets_t *);
 static void print_nfs_fh3(char *, char *, char *, char *, nfs_fh3, const unsigned long);
@@ -78,15 +79,56 @@ List NFS files and directories from stdin\n\n\
 }
 
 
+/* do a readlink to look up symlinks */
+/* return a char * to the string with the symlink name */
+/* the other calls should already have the attributes */
+char *do_readlink(CLIENT *client, char *host, char *path, nfs_fh3 fh) {
+    READLINK3res *res;
+    READLINK3args args = {
+        .symlink = fh
+    };
+    /* the result */
+    char *symlink = NULL; /* return a NULL pointer to signal failure */
+    struct rpc_err clnt_err;
+
+    res = nfsproc3_readlink_3(&args, client);
+
+    if (res) {
+        if (res->status == NFS3_OK) {
+            /* make a copy of the symlink to return */
+            symlink = strdup(res->READLINK3res_u.resok.data);
+        } else {
+            fprintf(stderr, "%s:%s: ", host, path);
+
+            clnt_geterr(client, &clnt_err);
+            if (clnt_err.re_status) {
+                clnt_perror(client, "nfsproc3_readlink_3");
+            } else {
+                nfs_perror(res->status, "nfsproc3_readlink_3");
+            }
+        }
+   
+        /* free the result */
+        xdr_free((xdrproc_t)xdr_READLINK3res, (char *)res);
+    } else {
+        clnt_perror(client, "nfsproc3_readlink_3");
+    }
+
+    return symlink;
+}
+
+
 /* do a getattr to get attributes for a single file */
 /* return a single directory entry so we can share code with do_readdirplus() */
-entryplus3 *do_getattr(CLIENT *client, char *host, nfs_fh_list *fh) {
+entrypluslink3 *do_getattr(CLIENT *client, char *host, nfs_fh_list *fh) {
     GETATTR3res *res;
+    /* shortcut */
+    struct fattr3 attributes;
     GETATTR3args args = {
         .object = fh->nfs_fh
     };
     /* the result */
-    entryplus3 *res_entry = NULL;
+    entrypluslink3 *res_entry = NULL;
     struct rpc_err clnt_err;
     /* filename */
     char *base;
@@ -98,18 +140,20 @@ entryplus3 *do_getattr(CLIENT *client, char *host, nfs_fh_list *fh) {
 
     if (res) {
         if (res->status == NFS3_OK) {
+            attributes = res->GETATTR3res_u.resok.obj_attributes;
+
             /* check if the result is a directory
              * if it is then do a readdirplus to get its entries
              * do_readdirplus() can also call do_getattr() but only if the result isn't a directory so it shouldn't loop
              */
-            if (res->GETATTR3res_u.resok.obj_attributes.type == NF3DIR && cfg.listdir == 0) {
+            if (attributes.type == NF3DIR && cfg.listdir == 0) {
                 /* do a readdirplus */
                 res_entry = do_readdirplus(client, host, fh);
 
             /* not a directory, or we're listing the directory itself */
             } else {
                 /* make an empty directory entry for the result */
-                res_entry = calloc(1, sizeof(entryplus3));
+                res_entry = calloc(1, sizeof(entrypluslink3));
 
                 /* the path we were given is a filename, so chop it up */
                 /* first make a copy of the path in case basename() modifies it */
@@ -118,12 +162,16 @@ entryplus3 *do_getattr(CLIENT *client, char *host, nfs_fh_list *fh) {
                 base = basename(base);
 
                 /* if it's a directory print a trailing slash (like ls -F) */
-                if (res->GETATTR3res_u.resok.obj_attributes.type == NF3DIR) {
+                if (attributes.type == NF3DIR) {
                     /* make space for the filename plus / plus NULL */
                     res_entry->name = calloc(strlen(base) + 2, sizeof(char));
                     strncpy(res_entry->name, base, strlen(base));
                     /* add a trailing slash */
                     res_entry->name[strlen(res_entry->name)] = '/';
+                /* if it's a symlink, do another RPC to look up the target */
+                } else if (attributes.type == NF3LNK) {
+                    res_entry->symlink = do_readlink(client, host, fh->path, fh->nfs_fh);
+                    res_entry->name = strdup(base);
                 } else {
                     /* just use the received filename */
                     res_entry->name = strdup(base);
@@ -134,11 +182,11 @@ entryplus3 *do_getattr(CLIENT *client, char *host, nfs_fh_list *fh) {
                 strncpy(fh->path, path, MNTPATHLEN);
 
                 /* copy the pointer to the file attributes into the blank directory entry */
-                res_entry->name_attributes.post_op_attr_u.attributes = res->GETATTR3res_u.resok.obj_attributes;
+                res_entry->name_attributes.post_op_attr_u.attributes = attributes;
                 res_entry->name_attributes.attributes_follow = 1;
 
                 /* copy the inode number */
-                res_entry->fileid = res->GETATTR3res_u.resok.obj_attributes.fileid;
+                res_entry->fileid = attributes.fileid;
 
                 /* copy the filehandle */
                 memcpy(&res_entry->name_handle.post_op_fh3_u.handle, &fh->nfs_fh, sizeof(nfs_fh3));
@@ -153,7 +201,7 @@ entryplus3 *do_getattr(CLIENT *client, char *host, nfs_fh_list *fh) {
             if (clnt_err.re_status) {
                 clnt_perror(client, "nfsproc3_getattr_3");
             } else {
-                nfs_perror(res->status);
+                nfs_perror(res->status, "nfsproc3_getattr_3");
             }
         }
    
@@ -168,11 +216,16 @@ entryplus3 *do_getattr(CLIENT *client, char *host, nfs_fh_list *fh) {
 
 
 /* do readdirplus calls to get a full list of directory entries */
-entryplus3 *do_readdirplus(CLIENT *client, char *host, nfs_fh_list *fh) {
-    char *path = fh->path;
+/* returns NULL if no entries found */
+entrypluslink3 *do_readdirplus(CLIENT *client, char *host, nfs_fh_list *fh) {
     READDIRPLUS3res *res;
-    entryplus3 dummy = { 0 };
-    entryplus3 *res_entry, *current = &dummy;
+    /* results from server */
+    entryplus3 *res_entry;
+    /* our list of entries */
+    entrypluslink3 dummy = {
+        .next = NULL /* make sure this is NULL in case we don't return any entries */
+    };
+    entrypluslink3 *current = &dummy;
     /* TODO make the dircount/maxcount into options */
     READDIRPLUS3args args = {
         .dir = fh->nfs_fh,
@@ -202,10 +255,12 @@ entryplus3 *do_readdirplus(CLIENT *client, char *host, nfs_fh_list *fh) {
                         continue;
                     }
 
-                    current->nextentry = calloc(1, sizeof(entryplus3));
-                    current = current->nextentry;
+                    /* allocate a new entrypluslink and copy the data from the entryplus result */
+                    current->next = calloc(1, sizeof(entrypluslink3));
+                    current = current->next;
+                    current->next = NULL;
+
                     /* copy the entry into the output list */
-                    /* TODO function to deep copy entryplus3 struct? */
                     current = memcpy(current, res_entry, sizeof(entryplus3));
 
                     /* if it's a directory print a trailing slash (like ls -F) */
@@ -216,18 +271,24 @@ entryplus3 *do_readdirplus(CLIENT *client, char *host, nfs_fh_list *fh) {
                         strncpy(current->name, res_entry->name, strlen(res_entry->name));
                         /* add a trailing slash */
                         current->name[strlen(res_entry->name)] = '/';
-                    /* not a directory, just use the received filename */
+                    /* check for symlinks and do a READLINK */
+                    } else if (current->name_attributes.post_op_attr_u.attributes.type == NF3LNK) {
+                        /* use the filehandle from the current result entry for the readlink */
+                        current->symlink = do_readlink(client, host, fh->path, current->name_handle.post_op_fh3_u.handle);
+                        current->name = strdup(res_entry->name);
+                    /* not a directory or link, just use the received filename */
                     } else {
                         current->name = strdup(res_entry->name);
                     }
-
-                    /* terminate the list */
-                    current->nextentry = NULL;
 
                     /* update the directory cookie in case we have to make another call for more entries */
                     /* TODO if this has changed it means the directory has been modified - do we need to start over? */
                     args.cookie = res_entry->cookie;
 
+                    /* terminate the list from the server, we use the "next" member in entrypluslist3 for our own iteration */
+                    current->nextentry = NULL;
+
+                    /* go to the next directory entry from the server */
                     res_entry = res_entry->nextentry;
                 }
 
@@ -251,17 +312,17 @@ entryplus3 *do_readdirplus(CLIENT *client, char *host, nfs_fh_list *fh) {
                 /* it's a file, do a getattr instead */
                 if (res->status == NFS3ERR_NOTDIR) {
                     /* do_getattr() can call do_readdirplus() but only if it finds a directory, so this shouldn't loop */
-                    current->nextentry = do_getattr(client, host, fh);
+                    current->next = do_getattr(client, host, fh);
 
                     /* there's only a single entry for a file so exit the loop */
                     break;
                 } else {
-                    fprintf(stderr, "%s:%s: ", host, path);
+                    fprintf(stderr, "%s:%s: ", host, fh->path);
                     clnt_geterr(client, &clnt_err);
                     if (clnt_err.re_status)
                         clnt_perror(client, "nfsproc3_readdirplus_3");
                     else
-                        nfs_perror(res->status);
+                        nfs_perror(res->status, "nfsproc3_readdirplus_3");
                     break;
                 }
             }
@@ -273,7 +334,7 @@ entryplus3 *do_readdirplus(CLIENT *client, char *host, nfs_fh_list *fh) {
         clnt_perror(client, "nfsproc3_readdirplus_3");
     }  
 
-    return dummy.nextentry;
+    return dummy.next;
 }
 
 
@@ -339,7 +400,7 @@ char *lsperms(char *bits, ftype3 type, mode3 mode) {
 int print_long_listing(targets_t *targets) {
     targets_t *target = targets;
     struct nfs_fh_list *fh;
-    entryplus3 *current;
+    entrypluslink3 *current;
     /* shortcut */
     struct fattr3 attributes;
     /* number of lines of output */
@@ -355,6 +416,9 @@ int print_long_listing(targets_t *targets) {
     char buf[20];
     /* pointer to which hostname string to use */
     char *host_p;
+    /* pointer to which filename string to use */
+    char *name_p;
+    char *symlink = NULL;
     /* sizes for justifying columns */
     /* set these to 1 so log10() doesn't have 0 as an input and returns -HUGE_VAL */
     /* we're always going to need one space to output "0" */
@@ -395,7 +459,7 @@ int print_long_listing(targets_t *targets) {
                 group = getgrgid(attributes.gid);
                 maxgroup = strlen(group->gr_name) > maxgroup ? strlen(group->gr_name) : maxgroup;
 
-                current = current->nextentry;
+                current = current->next;
             } /* while (current) */
 
             fh = fh->next;
@@ -438,6 +502,14 @@ int print_long_listing(targets_t *targets) {
                 /* TODO check return value, should always be 19 */
                 strftime(buf, 20, "%Y-%m-%d %H:%M:%S", mtime);
 
+                if (attributes.type == NF3LNK) {
+                    /* TODO just allocate to name_p? */
+                    asprintf(&symlink, "%s -> %s", current->name, current->symlink);
+                    name_p = symlink;
+                } else {
+                    name_p = current->name;
+                }
+
                 /* have to cast size_t to int for compiler warning (-Wformat) */
                 /* printf only accepts ints for field widths with * */
                 printf("%s %*lu %-*s %-*s %*" PRIu64 " %s %-*s %s\n",
@@ -456,9 +528,12 @@ int print_long_listing(targets_t *targets) {
                     /* hostname */
                     (int)maxhost, host_p,
                     /* filename */
-                    current->name);
+                    name_p);
 
-                current = current->nextentry;
+                /* TODO */
+                //free(symlink);
+
+                current = current->next;
             }
 
             fh = fh->next;
@@ -513,7 +588,7 @@ void print_nfs_fh3(char *host, char *ip_address, char *path, char *file_name, nf
 
 /* loop through a list of directory entries printing a JSON filehandle for each */
 int print_filehandles(targets_t *target, struct nfs_fh_list *fh, const unsigned long usec) {
-    entryplus3 *current = fh->entries;
+    entrypluslink3 *current = fh->entries;
     int count = 0;
 
     while (current) {
@@ -525,7 +600,7 @@ int print_filehandles(targets_t *target, struct nfs_fh_list *fh, const unsigned 
             print_nfs_fh3(target->name, target->ip_address, fh->path, current->name, current->name_handle.post_op_fh3_u.handle, usec);
         }
 
-        current = current->nextentry;
+        current = current->next;
     }
 
     return count;
