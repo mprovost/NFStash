@@ -5,7 +5,7 @@
 #include "parson/parson.h"
 
 void sigint_handler(int);
-int nfs_perror(nfsstat3);
+int nfs_perror(nfsstat3, const char *);
 targets_t *parse_fh(targets_t *, char *, uint16_t, unsigned long, enum outputs);
 char *nfs_fh3_to_string(nfs_fh3);
 char* reverse_fqdn(char *);

@@ -14,9 +14,9 @@ void sigint_handler(int sig) {
 }
 
 
-/* print a string message for each NFS status code */
+/* print a string message for each NFS status code prepended with string "s" and a colon */
 /* returns that original status unless there was illegal input and then -1 */
-int nfs_perror(nfsstat3 status) {
+int nfs_perror(nfsstat3 status, const char *s) {
     /*
      * split the nfs status codes into two arrays
      * this is ugly but otherwise it wastes too much memory
@@ -89,21 +89,21 @@ int nfs_perror(nfsstat3 status) {
         if (status > 10000) {
             if (status > NFS3ERR_JUKEBOX) {
                 status = -1;
-                fprintf(stderr, "UNKNOWN\n");
+                fprintf(stderr, "%s: UNKNOWN\n", s);
             } else {
-                fprintf(stderr, "%s\n", labels_high[status - 10000]);
+                fprintf(stderr, "%s: %s\n", s, labels_high[status - 10000]);
             }
         } else {
             if (status > NFS3ERR_REMOTE) {
                 status = -1;
-                fprintf(stderr, "UNKNOWN\n");
+                fprintf(stderr, "%s: UNKNOWN\n", s);
             } else {
                 /* check for missing/empty values */
                 if (labels_low[status][0]) {
-                    fprintf(stderr, "%s\n", labels_low[status]);
+                    fprintf(stderr, "%s: %s\n", s, labels_low[status]);
                 } else {
                     status = -1;
-                    fprintf(stderr, "UNKNOWN\n");
+                    fprintf(stderr, "%s: UNKNOWN\n", s);
                 }
             }
         }
