@@ -80,8 +80,8 @@ entryplus3 *do_getattr(CLIENT *client, char *host, nfs_fh_list *fh) {
     GETATTR3args args = {
         .object = fh->nfs_fh
     };
-    /* make an empty directory entry for the result */
-    entryplus3 *res_entry = calloc(1, sizeof(entryplus3));
+    /* the result */
+    entryplus3 *res_entry = NULL;
     struct rpc_err clnt_err;
     /* filename */
     char *base;
@@ -93,39 +93,44 @@ entryplus3 *do_getattr(CLIENT *client, char *host, nfs_fh_list *fh) {
 
     if (res) {
         if (res->status == NFS3_OK) {
-            /* the path we were given is a filename, so chop it up */
-            /* first make a copy of the path in case basename() modifies it */
-            base = strndup(fh->path, MNTPATHLEN);
-            /* get the base filename */
-            base = basename(base);
-            /* get the path component(s) */
-            path = dirname(fh->path);
-            strncpy(fh->path, path, MNTPATHLEN);
-
-            /* if it's a directory print a trailing slash (like ls -F) */
+            /* check if the result is a directory
+             * if it is then do a readdirplus to get its entries
+             * do_readdirplus() can also call do_getattr() but only if the result isn't a directory so it shouldn't loop
+             */
             if (res->GETATTR3res_u.resok.obj_attributes.type == NF3DIR) {
-                /* make space for the filename plus / plus NULL */
-                res_entry->name = calloc(strlen(base) + 2, sizeof(char));
-                strncpy(res_entry->name, base, strlen(base));
-                /* add a trailing slash */
-                res_entry->name[strlen(res_entry->name)] = '/';
-            /* not a directory, just use the received filename */
+                /* do a readdirplus */
+                res_entry = do_readdirplus(client, host, fh);
+            /* not a directory */
             } else {
-                res_entry->name = strdup(base);
-            }
+                /* make an empty directory entry for the result */
+                res_entry = calloc(1, sizeof(entryplus3));
 
-            /* copy the pointer to the file attributes into the blank directory entry */
-            res_entry->name_attributes.post_op_attr_u.attributes = res->GETATTR3res_u.resok.obj_attributes;
-            res_entry->name_attributes.attributes_follow = 1;
-            /* copy the inode number */
-            res_entry->fileid = res->GETATTR3res_u.resok.obj_attributes.fileid;
-            /* copy the filehandle */
-            memcpy(&res_entry->name_handle.post_op_fh3_u.handle, &fh->nfs_fh, sizeof(nfs_fh3));
-            res_entry->name_handle.handle_follows = 1;
+                /* the path we were given is a filename, so chop it up */
+                /* first make a copy of the path in case basename() modifies it */
+                base = strndup(fh->path, MNTPATHLEN);
+                /* get the base filename */
+                base = basename(base);
+                /* just use the received filename */
+                res_entry->name = strdup(base);
+
+                /* get the path component(s) */
+                path = dirname(fh->path);
+                strncpy(fh->path, path, MNTPATHLEN);
+
+                /* copy the pointer to the file attributes into the blank directory entry */
+                res_entry->name_attributes.post_op_attr_u.attributes = res->GETATTR3res_u.resok.obj_attributes;
+                res_entry->name_attributes.attributes_follow = 1;
+
+                /* copy the inode number */
+                res_entry->fileid = res->GETATTR3res_u.resok.obj_attributes.fileid;
+
+                /* copy the filehandle */
+                memcpy(&res_entry->name_handle.post_op_fh3_u.handle, &fh->nfs_fh, sizeof(nfs_fh3));
+                res_entry->name_handle.handle_follows = 1;
+            }
         } else {
             fprintf(stderr, "%s:%s: ", host, path);
             /* return a NULL entry to signal failure */
-            free(res_entry);
             res_entry = NULL;
 
             clnt_geterr(client, &clnt_err);
@@ -177,6 +182,7 @@ entryplus3 *do_readdirplus(CLIENT *client, char *host, nfs_fh_list *fh) {
                     if (cfg.listdot == 0 && res_entry->name[0] == '.') {
                         /* skip adding it to the list */
                         res_entry = res_entry->nextentry;
+                        /* TODO xdr_free() */
                         continue;
                     }
 
@@ -228,6 +234,7 @@ entryplus3 *do_readdirplus(CLIENT *client, char *host, nfs_fh_list *fh) {
             } else {
                 /* it's a file, do a getattr instead */
                 if (res->status == NFS3ERR_NOTDIR) {
+                    /* do_getattr() can call do_readdirplus() but only if it finds a directory, so this shouldn't loop */
                     current->nextentry = do_getattr(client, host, fh);
 
                     /* there's only a single entry for a file so exit the loop */
