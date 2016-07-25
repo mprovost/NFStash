@@ -90,7 +90,7 @@
 
 <p>Input and output filehandles are represented as a series of JSON objects (one per line) with the keys "host", "ip", "path", and "filehandle", where the value of the "filehandle" key is the hex representation of the NFS filehandle.</p>
 
-<p><code>nfsls</code> assumes an input filehandle is a directory if the "path" ends in a "/" and sends a READDIRPLUS, otherwise it sends a GETATTR. In either case it checks the result of the call and will send a second RPC to obtain a valid result if required.</p>
+<p><code>nfsls</code> assumes an input filehandle is a directory if the "path" ends in a "/" and sends a READDIRPLUS, otherwise it sends a GETATTR. In either case it checks the result of the call and will switch to sending the other RPC if required.</p>
 
 <p>If the NFS server requires "secure" ports (&lt;1024), <code>nfsls</code> will have to be run as root.</p>
 
