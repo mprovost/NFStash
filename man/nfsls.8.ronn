@@ -7,11 +7,11 @@ nfsls(8) -- list files and directories on an NFS server
 
 ## DESCRIPTION
 
-`nfsls` sends NFS version 3 READDIRPLUS (for directories) or GETATTR (for files) RPC requests to an NFS server and lists the contents of each filehandle passed to it on `stdin`. For directories, multiple READDIRPLUS requests are sent to retrieve an entire directory listing, if required. To perform the initial directory listing at the root of an NFS export, pipe the output from the `nfsmount` command to `nfsls`. Recursive directory lookups can be performed by piping the output of `nfsls` to another `nfsls` command, possibly with filters (`grep`, `jq` etc) in between.
+`nfsls` sends NFS version 3 READDIRPLUS (for directories), GETATTR (for files) or READLINK (for symlinks) RPC requests to an NFS server and lists the details of each filehandle passed to it on `stdin`. For directories, multiple READDIRPLUS requests are sent to retrieve an entire directory listing, if required. To perform the initial directory listing at the root of an NFS export, pipe the output from the `nfsmount` command to `nfsls`. Recursive directory lookups can be performed by piping the output of `nfsls` to another `nfsls` command, possibly with filters (`grep`, `jq` etc) in between.
 
 Input and output filehandles are represented as a series of JSON objects (one per line) with the keys "host", "ip", "path", and "filehandle", where the value of the "filehandle" key is the hex representation of the NFS filehandle.
 
-`nfsls` assumes an input filehandle is a directory if the "path" ends in a "/" and sends a READDIRPLUS, otherwise it sends a GETATTR. In either case it checks the result of the call and will switch to sending the other RPC if required.
+`nfsls` assumes an input filehandle is a directory if the "path" ends in a "/" and sends a READDIRPLUS, otherwise it sends a GETATTR. In either case it checks the result of the call and will switch to sending the other RPC if required. This behaviour can be overridden with the `-d` option which restricts it to sending GETATTR calls only. If a symlink is returned by either procedure, a READLINK RPC is sent to resolve the target name. Directory entries are displayed in the order returned by the server.
 
 If the NFS server requires "secure" ports (<1024), `nfsls` will have to be run as root.
 
@@ -27,7 +27,7 @@ If the NFS server requires "secure" ports (<1024), `nfsls` will have to be run a
   Count of requests to send to each input filehandle before exiting. Note that multiple READDIRPLUS RPCs to load a full directory listing count as a single request.
 
 * `-d`:
-  List directories instead of their contents.
+  List directories instead of their contents. This forces `nfsls` to only send GETATTR calls.
 
 * `-h`:
   Display a help message and exit.
