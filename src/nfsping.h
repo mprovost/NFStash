@@ -97,6 +97,17 @@ struct mount_exports {
     struct mount_exports *next;
 };
 
+/* extend the entryplus struct returned by READDIRPLUS with a symlink name from READLINK */
+typedef struct entrypluslink3 {
+    union {
+        struct entryplus3; /* anonymous */
+        entryplus3 entryplus;
+    };
+    nfspath3 symlink;
+    /* entryplus3 struct has a nextentry member */
+    struct entrypluslink3 *next;
+} entrypluslink3; 
+
 /* a singly linked list of nfs filehandles */
 typedef struct nfs_fh_list {
     struct sockaddr_in *client_sock;
@@ -108,7 +119,7 @@ typedef struct nfs_fh_list {
     /* the filehandle */
     nfs_fh3 nfs_fh; /* generic name so we can include v2/v4 later */
     /* directory entries */
-    entryplus3 *entries;
+    entrypluslink3 *entries;
 
     struct nfs_fh_list *next;
 } nfs_fh_list;
