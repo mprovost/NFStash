@@ -9,7 +9,7 @@ The suite consists of these tools:
 | [`nfsping`](md/nfsping.md) | NFS, MOUNT, RPCBIND, NLM, KLM, ACL, RQUOTA, NSM | NULL | Checks status and response time of various RPC protocols on NFS servers |
 | [`nfsmount`](https://rawgit.com/mprovost/NFStash/master/man/nfsmount.8.html) | MOUNT | MNT, EXPORT | Finds NFS filesystem root filehandles |
 | [`nfsdf`](https://rawgit.com/mprovost/NFStash/master/man/nfsdf.8.html) | NFS | FSSTAT | Reports NFS server disk space usage |
-| [`nfsls`](https://rawgit.com/mprovost/NFStash/master/man/nfsls.8.html) | NFS | READDIRPLUS, GETATTR | Lists files and directories on an NFS server |
+| [`nfsls`](https://rawgit.com/mprovost/NFStash/master/man/nfsls.8.html) | NFS | READDIRPLUS, GETATTR, READLINK | Lists files and directories on an NFS server |
 | [`nfscat`](https://rawgit.com/mprovost/NFStash/master/man/nfscat.8.html) | NFS | READ | Reads and prints files using NFS |
 | [`nfslock`](https://rawgit.com/mprovost/NFStash/master/man/nfslock.8.html) | NLM | TEST | Tests locking a file |
 | [`clear_locks`](https://rawgit.com/mprovost/NFStash/master/man/clear_locks.8.html) | NSM, NLM | NOTIFY, FREE_ALL | Clears file locks on an NFS server |
