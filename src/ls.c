@@ -245,7 +245,6 @@ entrypluslink3 *do_readdirplus(CLIENT *client, char *host, nfs_fh_list *fh) {
                     if (cfg.listdot == 0 && res_entry->name[0] == '.') {
                         /* skip adding it to the list */
                         res_entry = res_entry->nextentry;
-                        /* TODO xdr_free() */
                         continue;
                     }
 
@@ -287,23 +286,24 @@ entrypluslink3 *do_readdirplus(CLIENT *client, char *host, nfs_fh_list *fh) {
                 }
 
                 /* check for the end of directory */
-                if (res->READDIRPLUS3res_u.resok.reply.eof) {
-                    break;
-                /* do another RPC call for more entries */
-                } else {
+                if (res->READDIRPLUS3res_u.resok.reply.eof == 0) {
+                    /* do another RPC call for more entries */
                     /* TODO does this need a copy? */
                     memcpy(args.cookieverf, res->READDIRPLUS3res_u.resok.cookieverf, NFS3_COOKIEVERFSIZE);
                     /* free the previous result */
-                    //xdr_free((xdrproc_t)xdr_READDIRPLUS3res, (char *)res);
+                    xdr_free((xdrproc_t)xdr_READDIRPLUS3res, (char *)res);
                     /* new RPC call */
                     res = nfsproc3_readdirplus_3(&args, client);
 
                     if (res == NULL) {
-                        clnt_perror(client, "nfsproc3_readdirplus_3");
+                        clnt_perror(client, proc);
                     }
+
+                    continue;
                 }
             /* !NFS3_OK */
             } else {
+                /* TODO check for NFS3ERR_BAD_COOKIE which means the directory changed underneath us */
                 /* it's a file, do a getattr instead */
                 if (res->status == NFS3ERR_NOTDIR) {
                     /* do_getattr() can call do_readdirplus() but only if it finds a directory, so this shouldn't loop */
@@ -313,15 +313,14 @@ entrypluslink3 *do_readdirplus(CLIENT *client, char *host, nfs_fh_list *fh) {
                     clnt_geterr(client, &clnt_err);
                     clnt_err.re_status ? clnt_perror(client, proc) : nfs_perror(res->status, proc);
                 }
-
-                /* there's only a single entry for a file so exit the loop */
-                break;
             }
-        }
 
-        /* free the result */
-        //xdr_free((xdrproc_t)xdr_READDIRPLUS3res, (char *)res);
-    } else {
+            /* free the result */
+            xdr_free((xdrproc_t)xdr_READDIRPLUS3res, (char *)res);
+            res = NULL;
+        } /* while (res) */
+
+    } else { /* if (res) */
         clnt_perror(client, proc);
     }  
 
