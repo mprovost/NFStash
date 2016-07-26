@@ -166,21 +166,20 @@ FSSTAT3res *get_fsstat(CLIENT *client, nfs_fh_list *fs) {
     FSSTAT3args fsstatarg = {
         .fsroot = fs->nfs_fh
     };
-    FSSTAT3res *fsstatres = nfsproc3_fsstat_3(&fsstatarg, client);
+    const char *proc = "nfsproc3_fsstat_3";
     struct rpc_err clnt_err;
+
+    FSSTAT3res *fsstatres = nfsproc3_fsstat_3(&fsstatarg, client);
 
     if (fsstatres) {
         if (fsstatres->status != NFS3_OK) {
             fprintf(stderr, "%s:%s ", fs->host, fs->path);
             clnt_geterr(client, &clnt_err);
-            if (clnt_err.re_status)
-                clnt_perror(client, "nfsproc3_fsstat_3");
-            else
-                nfs_perror(fsstatres->status);
+            clnt_err.re_status ? clnt_perror(client, proc) : nfs_perror(fsstatres->status, proc);
         }
     } else {
         fprintf(stderr, "%s:%s ", fs->host, fs->path);
-        clnt_perror(client, "nfsproc3_fsstat_3");
+        clnt_perror(client, proc);
     }
 
     return fsstatres;

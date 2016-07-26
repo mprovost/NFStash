@@ -39,6 +39,7 @@ READ3res *do_read(CLIENT *client, nfs_fh_list *dir, offset3 offset, const unsign
         .offset = 0,
         .count = blocksize,
     };
+    const char *proc = "nfsproc3_read_3";
     struct rpc_err clnt_err;
     struct timeval call_start, call_end;
 
@@ -53,13 +54,10 @@ READ3res *do_read(CLIENT *client, nfs_fh_list *dir, offset3 offset, const unsign
     if (res) {
         if (res->status != NFS3_OK) {
             clnt_geterr(client, &clnt_err);
-            if (clnt_err.re_status)
-                clnt_perror(client, "nfsproc3_read_3");
-            else
-                nfs_perror(res->status);
+            clnt_err.re_status ? clnt_perror(client, proc) : nfs_perror(res->status, proc);
         }
     } else {
-        clnt_perror(client, "nfsproc3_read_3");
+        clnt_perror(client, proc);
     }
 
     return res;

@@ -87,6 +87,7 @@ char *do_readlink(CLIENT *client, char *host, char *path, nfs_fh3 fh) {
     READLINK3args args = {
         .symlink = fh
     };
+    const char *proc = "nfsproc3_readlink_3";
     /* the result */
     char *symlink = NULL; /* return a NULL pointer to signal failure */
     struct rpc_err clnt_err;
@@ -99,19 +100,14 @@ char *do_readlink(CLIENT *client, char *host, char *path, nfs_fh3 fh) {
             symlink = strdup(res->READLINK3res_u.resok.data);
         } else {
             fprintf(stderr, "%s:%s: ", host, path);
-
             clnt_geterr(client, &clnt_err);
-            if (clnt_err.re_status) {
-                clnt_perror(client, "nfsproc3_readlink_3");
-            } else {
-                nfs_perror(res->status, "nfsproc3_readlink_3");
-            }
+            clnt_err.re_status ? clnt_perror(client, proc) : nfs_perror(res->status, proc);
         }
    
         /* free the result */
         xdr_free((xdrproc_t)xdr_READLINK3res, (char *)res);
     } else {
-        clnt_perror(client, "nfsproc3_readlink_3");
+        clnt_perror(client, proc);
     }
 
     return symlink;
@@ -127,6 +123,7 @@ entrypluslink3 *do_getattr(CLIENT *client, char *host, nfs_fh_list *fh) {
     GETATTR3args args = {
         .object = fh->nfs_fh
     };
+    const char *proc = "nfsproc3_getattr_3";
     /* the result */
     entrypluslink3 *res_entry = NULL;
     struct rpc_err clnt_err;
@@ -198,17 +195,13 @@ entrypluslink3 *do_getattr(CLIENT *client, char *host, nfs_fh_list *fh) {
             res_entry = NULL;
 
             clnt_geterr(client, &clnt_err);
-            if (clnt_err.re_status) {
-                clnt_perror(client, "nfsproc3_getattr_3");
-            } else {
-                nfs_perror(res->status, "nfsproc3_getattr_3");
-            }
+            clnt_err.re_status ? clnt_perror(client, proc) : nfs_perror(res->status, proc);
         }
    
         /* free the result */
         xdr_free((xdrproc_t)xdr_GETATTR3res, (char *)res);
     } else {
-        clnt_perror(client, "nfsproc3_getattr_3");
+        clnt_perror(client, proc);
     }
 
     return res_entry;
@@ -233,6 +226,7 @@ entrypluslink3 *do_readdirplus(CLIENT *client, char *host, nfs_fh_list *fh) {
         .dircount = 1024,
         .maxcount = 8192,
     };
+    const char *proc = "nfsproc3_readdirplus_3";
     struct rpc_err clnt_err;
 
 
@@ -308,30 +302,27 @@ entrypluslink3 *do_readdirplus(CLIENT *client, char *host, nfs_fh_list *fh) {
                         clnt_perror(client, "nfsproc3_readdirplus_3");
                     }
                 }
+            /* !NFS3_OK */
             } else {
                 /* it's a file, do a getattr instead */
                 if (res->status == NFS3ERR_NOTDIR) {
                     /* do_getattr() can call do_readdirplus() but only if it finds a directory, so this shouldn't loop */
                     current->next = do_getattr(client, host, fh);
-
-                    /* there's only a single entry for a file so exit the loop */
-                    break;
                 } else {
                     fprintf(stderr, "%s:%s: ", host, fh->path);
                     clnt_geterr(client, &clnt_err);
-                    if (clnt_err.re_status)
-                        clnt_perror(client, "nfsproc3_readdirplus_3");
-                    else
-                        nfs_perror(res->status, "nfsproc3_readdirplus_3");
-                    break;
+                    clnt_err.re_status ? clnt_perror(client, proc) : nfs_perror(res->status, proc);
                 }
+
+                /* there's only a single entry for a file so exit the loop */
+                break;
             }
         }
 
         /* free the result */
         //xdr_free((xdrproc_t)xdr_READDIRPLUS3res, (char *)res);
     } else {
-        clnt_perror(client, "nfsproc3_readdirplus_3");
+        clnt_perror(client, proc);
     }  
 
     return dummy.next;
