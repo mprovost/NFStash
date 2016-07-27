@@ -11,8 +11,8 @@ The suite consists of these tools:
 | [`nfsdf`](https://rawgit.com/mprovost/NFStash/master/man/nfsdf.8.html) | NFS | FSSTAT | Reports NFS server disk space usage |
 | [`nfsls`](https://rawgit.com/mprovost/NFStash/master/man/nfsls.8.html) | NFS | READDIRPLUS, GETATTR, READLINK | Lists files and directories on an NFS server |
 | [`nfscat`](https://rawgit.com/mprovost/NFStash/master/man/nfscat.8.html) | NFS | READ | Reads and prints files using NFS |
-| [`nfslock`](https://rawgit.com/mprovost/NFStash/master/man/nfslock.8.html) | NLM | TEST | Tests locking a file |
-| [`clear_locks`](https://rawgit.com/mprovost/NFStash/master/man/clear_locks.8.html) | NSM, NLM | NOTIFY, FREE_ALL | Clears file locks on an NFS server |
+| [`nfslock`](https://rawgit.com/mprovost/NFStash/master/man/nfslock.8.html) | NLM | TEST | Checks if an NFS client can lock a file |
+| [`clear_locks`](https://rawgit.com/mprovost/NFStash/master/man/clear_locks.8.html) | NSM, NLM | NOTIFY, FREE_ALL | Clears stuck file locks on an NFS server |
 
 The goal of the project is to eventually support all 22 NFS version 3 client procedures.
 
