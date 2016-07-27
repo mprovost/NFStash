@@ -276,8 +276,19 @@ entrypluslink3 *do_readdirplus(CLIENT *client, char *host, nfs_fh_list *fh) {
                     }
 
                     /* update the directory cookie in case we have to make another call for more entries */
-                    /* TODO if this has changed it means the directory has been modified - do we need to start over? */
-                    args.cookie = res_entry->cookie;
+                    /* our position in the directory listing should always increase */
+                    if (args.cookie < res_entry->cookie) {
+                        args.cookie = res_entry->cookie;
+                    } else {
+                        /* copy the warning message from the Linux kernel */
+                        fprintf(stderr, "directory %s:%s contains a readdirplus loop. Offending cookie: %llu\n", host, fh->path, (long long unsigned)res_entry->cookie);
+
+                        /* make sure we don't try and do another readdirplus */
+                        res->READDIRPLUS3res_u.resok.reply.eof = 1;
+
+                        /* stop processing more entries from this directory */
+                        break;
+                    }
 
                     /* terminate the list from the server, we use the "next" member in entrypluslist3 for our own iteration */
                     current->nextentry = NULL;
