@@ -31,7 +31,7 @@ static char* get_xdr_buffer()
   return xdr_buffer ;
 }
 
-bool_t xdr_copy( xdrproc_t proc, char* d, const char* s )
+bool_t xdr_copy( xdrproc_t proc, char* d, char* s )
 {
    XDR   x ;
    char* buffer = get_xdr_buffer() ;
@@ -39,11 +39,11 @@ bool_t xdr_copy( xdrproc_t proc, char* d, const char* s )
    while ( buffer )
    {
       xdrmem_create( &x, buffer, xdr_buffer_size, XDR_ENCODE ) ;
-      if (( *proc )( &x, ( caddr_t* )s ))
+      if (( *proc )( &x, ( void* )s ))
       {
          xdr_destroy( &x ) ;
          xdrmem_create( &x, buffer, xdr_buffer_size, XDR_DECODE ) ;
-         ( *proc )( &x, ( caddr_t* )d ) ;
+         ( *proc )( &x, ( void* )d ) ;
          break ;
       }
       else
@@ -62,7 +62,7 @@ bool_t xdr_copy( xdrproc_t proc, char* d, const char* s )
       return 0 ;
 }
 
-bool_t xdr_copy_( xdrproc_t proc, char* d, const char* s, const unsigned size )
+bool_t xdr_copy_( xdrproc_t proc, char* d, char* s, const unsigned size )
 {
    memset( d, 0, size ) ;
    return xdr_copy( proc, d, s ) ;
