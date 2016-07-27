@@ -96,7 +96,7 @@ bin/nfsdf: config/clock_gettime.opt $(nfsdf_objs) | bin
 	gcc ${CFLAGS} @config/clock_gettime.opt $(nfsdf_objs) -o $@
 
 nfsls: bin/nfsls
-nfsls_objs = $(addprefix obj/, $(addsuffix .o, ls nfs_prot_clnt nfs_prot_xdr) $(common_objs))
+nfsls_objs = $(addprefix obj/, $(addsuffix .o, ls nfs_prot_clnt nfs_prot_xdr xdr_copy) $(common_objs))
 bin/nfsls: config/clock_gettime.opt $(nfsls_objs) | bin
     # needs math library for log10() etc
 	gcc ${CFLAGS} @config/clock_gettime.opt -lm $(nfsls_objs) -o $@

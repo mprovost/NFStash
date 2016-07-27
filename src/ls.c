@@ -1,6 +1,7 @@
 #include "nfsping.h"
 #include "rpc.h"
 #include "util.h"
+#include "xdr_copy.h"
 #include <sys/stat.h> /* for file mode bits */
 #include <pwd.h> /* getpwuid() */
 #include <grp.h> /* getgrgid() */
@@ -254,7 +255,7 @@ entrypluslink3 *do_readdirplus(CLIENT *client, char *host, nfs_fh_list *fh) {
                     current->next = NULL;
 
                     /* copy the entry into the output list */
-                    current = memcpy(current, res_entry, sizeof(entryplus3));
+                    XDR_COPY(entryplus3, current, res_entry);
 
                     /* if it's a directory print a trailing slash (like ls -F) */
                     /* TODO this seems to be 0 sometimes */
