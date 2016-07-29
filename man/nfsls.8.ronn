@@ -33,10 +33,10 @@ If the NFS server requires "secure" ports (<1024), `nfsls` will have to be run a
   Display a help message and exit.
 
 * `-H` <hertz>:
-  The polling frequency in Hertz when in looping mode (`-L`). This is the number of requests sent to each target filehandle per second. Note that for larger directories, multiple READDIRPLUS RPCs can be sent but are only counted as a single request. Default = 1.
+  The polling frequency in Hertz when in looping (`-L`) or counting (`-c`) modes. This is the number of requests sent to each target filehandle per second. Note that for larger directories, multiple READDIRPLUS RPCs can be sent but are only counted as a single request. Default = 1.
 
 * `-l`:
-  Display a long listing similar to `ls -l`. This includes the file type and permissions bits, the number of links to the file, the owner's user and group names, the size in bytes, the date and time in ISO 8601 format, the server's hostname (or IP address with `-A`) and the filename.
+  Display a long listing similar to `ls -l`. This includes the file type and permissions bits, the number of links to the file, the owner's user and group names, the size in bytes, the date and time in ISO 8601 format, the server's hostname (or IP address with `-A`) and the filename (and the target if it's a symlink).
 
 * `-L`:
   Loop forever. Exit loop with Ctrl-c.
