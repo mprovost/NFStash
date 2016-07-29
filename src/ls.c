@@ -224,9 +224,12 @@ entrypluslink3 *do_readdirplus(CLIENT *client, char *host, nfs_fh_list *fh) {
     READDIRPLUS3args args = {
         .dir = fh->nfs_fh,
         .cookie = 0,
+        .cookieverf =  { 0 },
         .dircount = 1024,
         .maxcount = 8192,
     };
+    /* an empty cookieverf for comparison */
+    const char emptyverf[NFS3_COOKIEVERFSIZE] = { 0 };
     const char *proc = "nfsproc3_readdirplus_3";
     struct rpc_err clnt_err;
 
@@ -238,6 +241,28 @@ entrypluslink3 *do_readdirplus(CLIENT *client, char *host, nfs_fh_list *fh) {
         /* loop through results, might take multiple calls for the whole directory */
         while (res) {
             if (res->status == NFS3_OK) {
+                /* check to see if the cookieverf has changed
+                 * this could mean the directory has been modified underneath us
+                 * some servers (Linux) always send an empty one
+                 */
+                if (memcmp(args.cookieverf, emptyverf, NFS3_COOKIEVERFSIZE == 0)) {
+                    /* our cookieverf is empty, this happens on the first request */
+                    /* or with servers that never return a cookieverf like Linux */
+                    /* check if the server has sent us a different cookieverf */
+                    /* TODO do we need to track if this is the first request? what if it's been zero for a few requests then we get a cookieverf? */
+                    if (memcmp(res->READDIRPLUS3res_u.resok.cookieverf, emptyverf, NFS3_COOKIEVERFSIZE) != 0) {
+                        /* copy the server's cookieverf to use in subsequent requests */
+                        memcpy(args.cookieverf, res->READDIRPLUS3res_u.resok.cookieverf, NFS3_COOKIEVERFSIZE);
+                    }
+                } else {
+                    if (memcmp(args.cookieverf, res->READDIRPLUS3res_u.resok.cookieverf, NFS3_COOKIEVERFSIZE) != 0) {
+                        /* TODO also print directory mtime */
+                        /* TODO print cookieverf before and after, need a function like nfs_fh3_to_string() to print hex bytes */
+                        debug("%s: %s cookieverf changed!\n", host, fh->path);
+                        /* now what, restart reading the directory or just keep charging ahead? */
+                    }
+                }
+
                 res_entry = res->READDIRPLUS3res_u.resok.reply.entries;
 
                 /* loop through the directory entries in the RPC result */
