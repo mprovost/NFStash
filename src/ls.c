@@ -258,7 +258,7 @@ entrypluslink3 *do_readdirplus(CLIENT *client, char *host, nfs_fh_list *fh) {
                     if (memcmp(args.cookieverf, res->READDIRPLUS3res_u.resok.cookieverf, NFS3_COOKIEVERFSIZE) != 0) {
                         /* TODO also print directory mtime */
                         /* TODO print cookieverf before and after, need a function like nfs_fh3_to_string() to print hex bytes */
-                        debug("%s: %s cookieverf changed!\n", host, fh->path);
+                        fprintf(stderr, "%s: %s cookieverf changed!\n", host, fh->path);
                         /* now what, restart reading the directory or just keep charging ahead? */
                     }
                 }
