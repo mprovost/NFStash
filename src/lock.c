@@ -32,10 +32,26 @@ int do_nlm_test(CLIENT *client, char *nodename, pid_t mypid, nfs_fh_list *curren
     unsigned long us;
     struct timespec wall_clock, call_start, call_end, call_elapsed;
     nlm4_testres *res = NULL;
+    /* build the arguments for the test procedure */
     nlm4_testargs testargs = {
         .cookie    = 0, /* the cookie is only used in async RPC calls */
         .exclusive = FALSE,
+        .alock = {
+            /* TODO should we append "nfslock" to the nodename so it's easy to distinguish from the kernel's own locks? */
+            .caller_name = nodename,
+            .svid = mypid,
+            .l_offset = 0,
+            .l_len = 0,
+            .fh = {
+                .n_len = current->nfs_fh.data.data_len,
+                .n_bytes = current->nfs_fh.data.data_val,
+            },
+        },
     };
+    /* "The oh field is an opaque object that identifies the host, or a process on the host, that is making the request" */
+    /* don't need to count the terminating null */
+    testargs.alock.oh.n_len = asprintf(&testargs.alock.oh.n_bytes, "%i@%s", mypid, nodename);
+
     /* string labels corresponding to return values in nlm4_stats enum */
     const char *nlm4_stats_labels[] = {
         "granted",
@@ -50,17 +66,6 @@ int do_nlm_test(CLIENT *client, char *nodename, pid_t mypid, nfs_fh_list *curren
         "failed"
     };
 
-    /* build the arguments for the test procedure */
-    /* TODO build these once at the start when we make the target */
-    /* TODO should we append nfslock to the nodename so it's easy to distinguish from the kernel's own locks? */
-    testargs.alock.caller_name = nodename;
-    testargs.alock.svid = mypid;
-    /* copy the filehandle */
-    memcpy(&testargs.alock.fh, &current->nfs_fh, sizeof(nfs_fh3));
-    /* don't need to count the terminating null */
-    testargs.alock.oh.n_len = asprintf(&testargs.alock.oh.n_bytes, "%i@%s", mypid, nodename);
-    testargs.alock.l_offset = 0;
-    testargs.alock.l_len = 0;
 
     if (client) {
         /* first grab the wall clock time for output */
@@ -83,22 +88,21 @@ int do_nlm_test(CLIENT *client, char *nodename, pid_t mypid, nfs_fh_list *curren
 #endif
     }
 
-    if (res) {
-        fprintf(stderr, "%s\n", nlm4_stats_labels[res->stat.stat]);
-        fh = nfs_fh3_to_string(current->nfs_fh);
-        /* if we got an error, update the status for return */
-        if (res->stat.stat) {
-            status = res->stat.stat;
-        }
+    timespecsub(&call_end, &call_start, &call_elapsed);
+    us = ts2us(call_elapsed);
 
-        timespecsub(&call_end, &call_start, &call_elapsed);
-        us = ts2us(call_elapsed);
+    if (res) {
+        status = res->stat.stat;
+        fprintf(stderr, "%s\n", nlm4_stats_labels[status]);
+
+        fh = nfs_fh3_to_string(current->nfs_fh);
 
         /* human output for now */
         /* use filehandle until we get the mount point from nfsmount, path can be ambiguous (or not present) */
         printf("%s:%s %lu %li\n", current->host, fh, us, wall_clock.tv_sec);
         free(fh);
     } else {
+        /* TODO still print a graphite result */
         clnt_perror(client, "nlm4_test_4");
         /* use something that doesn't overlap with values in nlm4_testres.stat */
         status = 10;
