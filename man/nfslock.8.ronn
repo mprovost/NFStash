@@ -3,15 +3,15 @@ nfslock(8) -- test getting an NFS lock on a filehandle
 
 ## SYNOPSIS
 
-`nfslock` [`-hlTv`] [`-H` <hertz>] <filehandle...>
+`nfslock` [`-hlTv`] [`-H` <hertz>]
 
 ## DESCRIPTION
 
-`nfslock` sends an NLM version 4 NLM_TEST RPC request to an NFS server for each filehandle argument. NLM version 4 is used by NFS version 3 clients. Filehandles can either be specified as arguments or accepted on `stdin`. The program outputs whether the request was "granted" or "failed" to `stderr` and prints the response time in Graphite format to `stdout`.
+`nfslock` sends an NLM version 4 NLM_TEST RPC request to an NFS server for each filehandle passed to it on `stdin`. NLM version 4 is used by NFS version 3 clients. The program outputs whether the request was "granted" or "failed" to `stderr` and prints the response time in Graphite format to `stdout`.
 
 `nfslock` does not actually take out file locks on the server, it only tests whether a lock call for a specific filehandle would succeed.
 
-Input filehandles are specified as JSON objects with the keys "host", "ip", "path", and "filehandle", where the value of the "filehandle" key is the hex representation of the target file's NFS filehandle. As command line arguments they will need to be escaped from the shell with single quotes. When passed on `stdin`, there should be one object per line.
+Input filehandles are specified as JSON objects (one per line) with the keys "host", "ip", "path", and "filehandle", where the value of the "filehandle" key is the hex representation of the target file's NFS filehandle.
 
 If the NLM server requires "secure" ports (<1024), `nfslock` will have to be run as root. (On Linux this is controlled by the `insecure_locks` option in exports(5)).
 

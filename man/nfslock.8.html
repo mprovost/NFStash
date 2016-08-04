@@ -84,15 +84,15 @@
 
 <h2 id="SYNOPSIS">SYNOPSIS</h2>
 
-<p><code>nfslock</code> [<code>-hlTv</code>] [<code>-H</code> <var>hertz</var>] &lt;filehandle...></p>
+<p><code>nfslock</code> [<code>-hlTv</code>] [<code>-H</code> <var>hertz</var>]</p>
 
 <h2 id="DESCRIPTION">DESCRIPTION</h2>
 
-<p><code>nfslock</code> sends an NLM version 4 NLM_TEST RPC request to an NFS server for each filehandle argument. NLM version 4 is used by NFS version 3 clients. Filehandles can either be specified as arguments or accepted on <code>stdin</code>. The program outputs whether the request was "granted" or "failed" to <code>stderr</code> and prints the response time in Graphite format to <code>stdout</code>.</p>
+<p><code>nfslock</code> sends an NLM version 4 NLM_TEST RPC request to an NFS server for each filehandle passed to it on <code>stdin</code>. NLM version 4 is used by NFS version 3 clients. The program outputs whether the request was "granted" or "failed" to <code>stderr</code> and prints the response time in Graphite format to <code>stdout</code>.</p>
 
 <p><code>nfslock</code> does not actually take out file locks on the server, it only tests whether a lock call for a specific filehandle would succeed.</p>
 
-<p>Input filehandles are specified as JSON objects with the keys "host", "ip", "path", and "filehandle", where the value of the "filehandle" key is the hex representation of the target file's NFS filehandle. As command line arguments they will need to be escaped from the shell with single quotes. When passed on <code>stdin</code>, there should be one object per line.</p>
+<p>Input filehandles are specified as JSON objects (one per line) with the keys "host", "ip", "path", and "filehandle", where the value of the "filehandle" key is the hex representation of the target file's NFS filehandle.</p>
 
 <p>If the NLM server requires "secure" ports (&lt;1024), <code>nfslock</code> will have to be run as root. (On Linux this is controlled by the <code>insecure_locks</code> option in <span class="man-ref">exports<span class="s">(5)</span></span>).</p>
 
@@ -147,7 +147,7 @@ NFSv4 files Copyright IETF</p>
 
   <ol class='man-decor man-foot man foot'>
     <li class='tl'></li>
-    <li class='tc'>February 2016</li>
+    <li class='tc'>August 2016</li>
     <li class='tr'>nfslock(8)</li>
   </ol>
 
