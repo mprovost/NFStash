@@ -121,7 +121,7 @@
 
 <p>If the check is being run repeatedly, there is no need to query the fileserver with <code>nfsmount</code> every time. Since the root filehandles shouldn't change, the output can be stored in a file:</p>
 
-<p>  <code>sudo nfsmount dumpy &gt; dumpy.nfs</code>
+<p>  <code>sudo nfsmount dumpy &gt; dumpy.nfs</code><br />
   <code>sudo nfsdf &lt; dumpy.nfs</code></p>
 
 <p>Filters can also be used to do recursive lookups, for example to list the contents of the "/etc" directory:</p>

@@ -60,8 +60,8 @@ Since both commands typically need root privileges (to bind to a "secure" port) 
 
 If the check is being run repeatedly, there is no need to query the fileserver with `nfsmount` every time. Since the root filehandles shouldn't change, the output can be stored in a file:
 
-  `sudo nfsmount dumpy > dumpy.nfs`
-  `sudo nfsdf < dumpy.nfs`
+  `sudo nfsmount dumpy > dumpy.nfs`  
+  `sudo nfsdf < dumpy.nfs`  
 
 Filters can also be used to do recursive lookups, for example to list the contents of the "/etc" directory:
 

@@ -63,6 +63,7 @@
     <a href="#SYNOPSIS">SYNOPSIS</a>
     <a href="#DESCRIPTION">DESCRIPTION</a>
     <a href="#OPTIONS">OPTIONS</a>
+    <a href="#EXAMPLES">EXAMPLES</a>
     <a href="#RETURN-VALUES">RETURN VALUES</a>
     <a href="#REFERENCES">REFERENCES</a>
     <a href="#AUTHOR">AUTHOR</a>
@@ -87,9 +88,9 @@
 
 <h2 id="DESCRIPTION">DESCRIPTION</h2>
 
-<p><code>nfslock</code> sends an NLM version 4 NLM_TEST RPC request to an NFS server for each filehandle argument. Filehandles can either be specified as arguments or accepted on <code>stdin</code>. The program outputs whether the request was "granted" or "failed" to <code>stderr</code> and prints the response time in Graphite format to <code>stdout</code>.</p>
+<p><code>nfslock</code> sends an NLM version 4 NLM_TEST RPC request to an NFS server for each filehandle argument. NLM version 4 is used by NFS version 3 clients. Filehandles can either be specified as arguments or accepted on <code>stdin</code>. The program outputs whether the request was "granted" or "failed" to <code>stderr</code> and prints the response time in Graphite format to <code>stdout</code>.</p>
 
-<p>Note that <code>nfslock</code> does not actually take out a lock on the server, it only tests whether a lock call for a specific filehandle would succeed.</p>
+<p><code>nfslock</code> does not actually take out file locks on the server, it only tests whether a lock call for a specific filehandle would succeed.</p>
 
 <p>Input filehandles are specified as JSON objects with the keys "host", "ip", "path", and "filehandle", where the value of the "filehandle" key is the hex representation of the target file's NFS filehandle. As command line arguments they will need to be escaped from the shell with single quotes. When passed on <code>stdin</code>, there should be one object per line.</p>
 
@@ -105,6 +106,20 @@
 <dt class="flush"><code>-v</code></dt><dd><p>Display debug output on <code>stderr</code>.</p></dd>
 </dl>
 
+
+<h2 id="EXAMPLES">EXAMPLES</h2>
+
+<p><code>nfsls</code> uses filehandles returned by <code>nfsmount</code> and <code>nfsls</code>, possibly along with other filters like <code>grep</code> or <code>jq</code>:</p>
+
+<p>  <code>sudo sh -c "nfsmount dumpy | nfsls | grep testfile | nfslock"</code></p>
+
+<p>Since these commands typically need root privileges (to bind to a "secure" port) they can be run with a single subshell under <code>sudo</code>.</p>
+
+<p>If the check is being run repeatedly, there is no need to query the fileserver to look up filehandles every time. Since the filehandles shouldn't change, the output can be stored in a file:</p>
+
+<pre><code>`sudo sh -c "nfsmount dumpy | nfsls | grep testfile" &gt; testfile.nfs`  
+`sudo nfslock &lt; testfile.nfs`  
+</code></pre>
 
 <h2 id="RETURN-VALUES">RETURN VALUES</h2>
 
