@@ -111,7 +111,6 @@ typedef struct entrypluslink3 {
 /* a singly linked list of nfs filehandles */
 typedef struct nfs_fh_list {
     struct sockaddr_in *client_sock;
-    char host[NI_MAXHOST]; /* from getnameinfo() */
     char *ndqf;
     char ip_address[INET_ADDRSTRLEN]; /* the IP address as a string, from inet_ntop() */
     char path[MNTPATHLEN];
