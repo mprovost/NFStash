@@ -4,7 +4,7 @@
 
 /* local prototypes */
 static void usage(void);
-static int do_nlm_test(CLIENT *, char *, pid_t, nfs_fh_list *);
+static int do_nlm_test(CLIENT *, char *, pid_t, const char *, nfs_fh_list *);
 
 /* globals */
 int verbose = 0;
@@ -25,7 +25,7 @@ void usage() {
 
 
 /* TODO take a nfs_fh3 instead of nfs_fh_list */
-int do_nlm_test(CLIENT *client, char *nodename, pid_t mypid, nfs_fh_list *current) {
+int do_nlm_test(CLIENT *client, char *nodename, pid_t mypid, const char *host, nfs_fh_list *current) {
     /* default to failed */
     int status = nlm4_failed;
     char *fh;
@@ -99,7 +99,7 @@ int do_nlm_test(CLIENT *client, char *nodename, pid_t mypid, nfs_fh_list *curren
 
         /* human output for now */
         /* use filehandle until we get the mount point from nfsmount, path can be ambiguous (or not present) */
-        printf("%s:%s %lu %li\n", current->host, fh, us, wall_clock.tv_sec);
+        printf("%s:%s %lu %li\n", host, fh, us, wall_clock.tv_sec);
         free(fh);
     } else {
         /* TODO still print a graphite result */
@@ -234,7 +234,7 @@ int main(int argc, char **argv) {
             while (filehandle) {
                 /* the RPC */
                 if (current->client) {
-                    status = do_nlm_test(current->client, nodename, mypid, filehandle);
+                    status = do_nlm_test(current->client, nodename, mypid, current->name, filehandle);
                 }
 
                 filehandle = filehandle->next;

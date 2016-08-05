@@ -118,7 +118,7 @@ const struct config CONFIG_DEFAULT = {
 
 /* local prototypes */
 static void usage(void);
-static FSSTAT3res *get_fsstat(CLIENT *, nfs_fh_list *);
+static FSSTAT3res *get_fsstat(CLIENT *, const char *, nfs_fh_list *);
 static void print_header(int, int, enum byte_prefix);
 static int prefix_print(size3, char *, enum byte_prefix);
 static int print_df(int, char *, char *, FSSTAT3res *, const enum byte_prefix, const unsigned long);
@@ -162,7 +162,7 @@ void usage() {
 }
 
 
-FSSTAT3res *get_fsstat(CLIENT *client, nfs_fh_list *fs) {
+FSSTAT3res *get_fsstat(CLIENT *client, const char *host, nfs_fh_list *fs) {
     FSSTAT3args fsstatarg = {
         .fsroot = fs->nfs_fh
     };
@@ -173,12 +173,12 @@ FSSTAT3res *get_fsstat(CLIENT *client, nfs_fh_list *fs) {
 
     if (fsstatres) {
         if (fsstatres->status != NFS3_OK) {
-            fprintf(stderr, "%s:%s ", fs->host, fs->path);
+            fprintf(stderr, "%s:%s ", host, fs->path);
             clnt_geterr(client, &clnt_err);
             clnt_err.re_status ? clnt_perror(client, proc) : nfs_perror(fsstatres->status, proc);
         }
     } else {
-        fprintf(stderr, "%s:%s ", fs->host, fs->path);
+        fprintf(stderr, "%s:%s ", host, fs->path);
         clnt_perror(client, proc);
     }
 
@@ -728,7 +728,7 @@ int main(int argc, char **argv) {
                 clock_gettime(CLOCK_MONOTONIC, &call_start);
 #endif 
                 /* the actual RPC call */
-                fsstatres = get_fsstat(current->client, filehandle);
+                fsstatres = get_fsstat(current->client, current->name, filehandle);
                 /* second time marker */
 #ifdef CLOCK_MONOTONIC_RAW
                 clock_gettime(CLOCK_MONOTONIC_RAW, &call_end);
