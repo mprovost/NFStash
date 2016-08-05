@@ -104,15 +104,13 @@ typedef struct entrypluslink3 {
         entryplus3 entryplus;
     };
     nfspath3 symlink;
+
     /* entryplus3 struct has a nextentry member */
     struct entrypluslink3 *next;
 } entrypluslink3; 
 
 /* a singly linked list of nfs filehandles */
 typedef struct nfs_fh_list {
-    struct sockaddr_in *client_sock;
-    char *ndqf;
-    char ip_address[INET_ADDRSTRLEN]; /* the IP address as a string, from inet_ntop() */
     char path[MNTPATHLEN];
     unsigned long sent, received;
     /* the filehandle */
