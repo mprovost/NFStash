@@ -66,6 +66,7 @@ void usage() {
 List NFS files and directories from stdin\n\n\
     -a       print hidden files\n\
     -A       show IP addresses\n\
+    -c n     count of requests to send for each filehandle\n\
     -d       list actual directory not contents\n\
     -h       display this help and exit\n\
     -H       frequency in Hertz (requests per second, default %i)\n\

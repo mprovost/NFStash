@@ -99,7 +99,7 @@
 <dl>
 <dt class="flush"><code>-a</code></dt><dd><p>Display hidden files and directories (names starting with <code>.</code>) These are not displayed by default.</p></dd>
 <dt class="flush"><code>-A</code></dt><dd><p>Display IP addresses (instead of hostnames).</p></dd>
-<dt class="flush"><code>-c</code></dt><dd><p>Count of requests to send to each input filehandle before exiting. Note that multiple READDIRPLUS RPCs to load a full directory listing count as a single request.</p></dd>
+<dt class="flush"><code>-c</code></dt><dd><p>Count of requests to send to each input filehandle before exiting. Note that multiple READDIRPLUS RPCs to load a full directory listing or READLINKs to lookup symlinks count as a single request.</p></dd>
 <dt class="flush"><code>-d</code></dt><dd><p>List directories instead of their contents. This forces <code>nfsls</code> to only send GETATTR calls.</p></dd>
 <dt class="flush"><code>-h</code></dt><dd><p>Display a help message and exit.</p></dd>
 <dt><code>-H</code> <var>hertz</var></dt><dd><p>The polling frequency in Hertz when in looping (<code>-L</code>) or counting (<code>-c</code>) modes. This is the number of requests sent to each target filehandle per second. Note that for larger directories, multiple READDIRPLUS RPCs can be sent but are only counted as a single request. Default = 1.</p></dd>
@@ -122,15 +122,15 @@
 <p>If the check is being run repeatedly, there is no need to query the fileserver with <code>nfsmount</code> every time. Since the root filehandles shouldn't change, the output can be stored in a file:</p>
 
 <p>  <code>sudo nfsmount dumpy &gt; dumpy.nfs</code><br />
-  <code>sudo nfsdf &lt; dumpy.nfs</code></p>
+  <code>sudo nfsls &lt; dumpy.nfs</code></p>
 
-<p>Filters can also be used to do recursive lookups, for example to list the contents of the "/etc" directory:</p>
+<p>Filters can also be used to do recursive lookups, for example to list the contents of the "/var/log/" directory:</p>
 
-<p>  <code>sudo sh -c "nfsmount dumpy:/ | nfsls | grep etc | nfsls"</code></p>
+<p>  <code>sudo sh -c "nfsmount dumpy:/ | nfsls | grep var | nfsls | grep log | nfsls"</code></p>
 
-<p>Note that this may not be required on all NFS servers if the MOUNT daemon allows listing subdirectories:</p>
+<p>This may not be required on all NFS servers if the MOUNT daemon allows listing unexported subdirectories:</p>
 
-<p>  <code>sudo sh -c "nfsmount dumpy:/etc | nfsls"</code></p>
+<p>  <code>sudo sh -c "nfsmount dumpy:/var/log | nfsls"</code></p>
 
 <h2 id="RETURN-VALUES">RETURN VALUES</h2>
 
