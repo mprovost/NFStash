@@ -166,13 +166,14 @@ entrypluslink3 *do_getattr(CLIENT *client, char *host, nfs_fh_list *fh) {
                     strncpy(res_entry->name, base, strlen(base));
                     /* add a trailing slash */
                     res_entry->name[strlen(res_entry->name)] = '/';
-                /* if it's a symlink, do another RPC to look up the target */
-                } else if (attributes.type == NF3LNK) {
-                    res_entry->symlink = do_readlink(client, host, fh->path, fh->nfs_fh);
-                    res_entry->name = strdup(base);
                 } else {
                     /* just use the received filename */
                     res_entry->name = strdup(base);
+
+                    /* if it's a symlink, do another RPC to look up the target */
+                    if (attributes.type == NF3LNK) {
+                        res_entry->symlink = do_readlink(client, host, fh->path, fh->nfs_fh);
+                    }
                 }
 
                 /* get the path component(s) */
