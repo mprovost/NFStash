@@ -113,6 +113,7 @@ typedef struct entrypluslink3 {
 typedef struct nfs_fh_list {
     char path[MNTPATHLEN];
     unsigned long sent, received;
+    float avg;
     /* the filehandle */
     nfs_fh3 nfs_fh; /* generic name so we can include v2/v4 later */
     /* directory entries */

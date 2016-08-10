@@ -641,6 +641,7 @@ int print_filehandles(targets_t *target, struct nfs_fh_list *fh, const unsigned 
 int print_ping(targets_t *target, struct nfs_fh_list *fh, const unsigned long usec) {
     entrypluslink3 *current = fh->entries;
     int count = 0;
+    double loss = (fh->sent - fh->received) / (double)fh->sent * 100;
 
     /* first count how many entries there are */
     while (current) {
@@ -650,10 +651,15 @@ int print_ping(targets_t *target, struct nfs_fh_list *fh, const unsigned long us
     }
 
     /* only print one line of output, we only have a single time for the call(s) no matter how many entries */
-    printf("%s:%s %03.2f ms\n",
+    printf("%s:%s : [%u] %03.2f ms (%03.2f avg, %.0f%% loss)\n",
         target->name,
         fh->path,
-        usec / 1000.0
+        /* fping is zero indexed */
+        fh->sent - 1,
+        /* convert from usec to msec */
+        usec / 1000.0,
+        fh->avg / 1000.0,
+        loss
     );
 
     return count;
@@ -733,7 +739,15 @@ int main(int argc, char **argv) {
                 break;
             /* loop */
             case 'L':
+                if (cfg.count) {
+                    fatal("Can't specify both -c and -l!\n");
+                }
+
                 cfg.loop = 1;
+
+                if (cfg.format == ls_unset) {
+                    cfg.format = ls_ping;
+                }
                 break;
             /* source ip address for packets */
             case 'S':
@@ -833,11 +847,15 @@ int main(int argc, char **argv) {
                     /* check if we got a result */
                     if (filehandle->entries) {
                         ls_ok++;
+                        filehandle->received++;
                     }
 
                     /* calculate elapsed microseconds */
                     timespecsub(&call_end, &call_start, &call_elapsed);
                     usec = ts2us(call_elapsed);
+
+                    /* recalculate the average time */
+                    filehandle->avg = (filehandle->avg * (filehandle->received - 1) + usec) / filehandle->received;
 
                     /*
                     TODO make an outputs enum with json/longform/ping/fping/graphite/statsd
