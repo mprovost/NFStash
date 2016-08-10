@@ -17,6 +17,7 @@ static char *lsperms(char *, ftype3, mode3);
 static int print_long_listing(targets_t *);
 static void print_nfs_fh3(char *, char *, char *, char *, nfs_fh3, const unsigned long);
 static int print_filehandles(targets_t *, nfs_fh_list *, const unsigned long);
+static int print_ping(targets_t *, struct nfs_fh_list *, const unsigned long);
 
 /* globals */
 extern volatile sig_atomic_t quitting;
@@ -636,6 +637,29 @@ int print_filehandles(targets_t *target, struct nfs_fh_list *fh, const unsigned 
 }
 
 
+/* print fping style output */
+int print_ping(targets_t *target, struct nfs_fh_list *fh, const unsigned long usec) {
+    entrypluslink3 *current = fh->entries;
+    int count = 0;
+
+    /* first count how many entries there are */
+    while (current) {
+        count++;
+
+        current = current->next;
+    }
+
+    /* only print one line of output, we only have a single time for the call(s) no matter how many entries */
+    printf("%s:%s %03.2f ms\n",
+        target->name,
+        fh->path,
+        usec / 1000.0
+    );
+
+    return count;
+}
+
+
 int main(int argc, char **argv) {
     int ch; /* getopt */
     char   *input_fh  = NULL;
@@ -688,6 +712,10 @@ int main(int argc, char **argv) {
 
                 if (cfg.count == 0 || cfg.count == ULONG_MAX) {
                    fatal("Zero count, nothing to do!\n");
+                }
+
+                if (cfg.format == ls_unset) {
+                    cfg.format = ls_ping;
                 }
                 break;
             /* display directories not contents */
@@ -820,6 +848,8 @@ int main(int argc, char **argv) {
 
                     if (cfg.format == ls_json) {
                         print_filehandles(current, filehandle, usec);
+                    } else if (cfg.format == ls_ping) {
+                        print_ping(current, filehandle, usec);
                     }
 
                     filehandle = filehandle->next;
