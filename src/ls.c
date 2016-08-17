@@ -673,9 +673,26 @@ void print_summary(targets_t *targets) {
     targets_t *target = targets;
     nfs_fh_list *fh = target->filehandles;
     double loss;
+    size_t width = 0;
+
+    /* justify output */
+    while (target) {
+        while (fh) {
+            /* find the longest host + path */
+            if ((strlen(target->name) + strlen(fh->path)) > width) {
+                width = strlen(target->name) + strlen(fh->path);
+            }
+            fh = fh->next;
+        }
+
+        target = targets->next;
+    }
 
     /* blank line between results and summary */
     fprintf(stderr, "\n");
+
+    target = targets;
+    fh = target->filehandles;
 
     while (target) {
         while (fh) {
@@ -686,8 +703,10 @@ void print_summary(targets_t *targets) {
             if (fh->min == ULONG_MAX) {
                 fh->min = 0;
             }
-            fprintf(stderr, "%s:%s : xmt/rcv/%%loss = %lu/%lu/%.0f%%",
+            fprintf(stderr, "%s:%-*s : xmt/rcv/%%loss = %lu/%lu/%.0f%%",
                 target->name,
+                /* only pad the path */
+                (int)(width - strlen(target->name)),
                 fh->path,
                 fh->sent,
                 fh->received,
