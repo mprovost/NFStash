@@ -18,6 +18,7 @@ static int print_long_listing(targets_t *);
 static void print_nfs_fh3(char *, char *, char *, char *, nfs_fh3, const unsigned long);
 static int print_filehandles(targets_t *, nfs_fh_list *, const unsigned long);
 static int print_ping(targets_t *, struct nfs_fh_list *, const unsigned long);
+static void print_summary(targets_t *);
 
 /* globals */
 extern volatile sig_atomic_t quitting;
@@ -651,7 +652,7 @@ int print_ping(targets_t *target, struct nfs_fh_list *fh, const unsigned long us
     }
 
     /* only print one line of output, we only have a single time for the call(s) no matter how many entries */
-    printf("%s:%s : [%u] %03.2f ms (%03.2f avg, %.0f%% loss)\n",
+    printf("%s:%s : [%lu] %03.2f ms (%03.2f avg, %.0f%% loss)\n",
         target->name,
         fh->path,
         /* fping is zero indexed */
@@ -663,6 +664,48 @@ int print_ping(targets_t *target, struct nfs_fh_list *fh, const unsigned long us
     );
 
     return count;
+}
+
+
+/* print a summary line to stderr for each target when the program exits */
+/* takes a targets list and walks through all targets and filehandles */
+void print_summary(targets_t *targets) {
+    targets_t *target = targets;
+    nfs_fh_list *fh = target->filehandles;
+    double loss;
+
+    /* blank line between results and summary */
+    fprintf(stderr, "\n");
+
+    while (target) {
+        while (fh) {
+            loss = (fh->sent - fh->received) / (double)fh->sent * 100;
+            /* check if this is still set to the default value */
+            /* that means we never saw any responses */
+            /* TODO is this necessary if min isn't printed below? */
+            if (fh->min == ULONG_MAX) {
+                fh->min = 0;
+            }
+            fprintf(stderr, "%s:%s : xmt/rcv/%%loss = %lu/%lu/%.0f%%",
+                target->name,
+                fh->path,
+                fh->sent,
+                fh->received,
+                loss);
+            /* only print times if we got any responses */
+            if (fh->received) {
+                fprintf(stderr, ", min/avg/max = %.2f/%.2f/%.2f",
+                    fh->min / 1000.0,
+                    fh->avg / 1000.0,
+                    fh->max / 1000.0);
+            }
+            fprintf(stderr, "\n");
+
+            fh = fh->next;
+        }
+
+        target = target->next;
+    }
 }
 
 
@@ -843,17 +886,21 @@ int main(int argc, char **argv) {
 
                     ls_sent++;
                     filehandle->sent++;
+                    current->sent++;
 
                     /* check if we got a result */
                     if (filehandle->entries) {
                         ls_ok++;
                         filehandle->received++;
+                        current->received++;
                     }
 
                     /* calculate elapsed microseconds */
                     timespecsub(&call_end, &call_start, &call_elapsed);
                     usec = ts2us(call_elapsed);
 
+                    if (usec < filehandle->min) filehandle->min = usec;
+                    if (usec > filehandle->max) filehandle->max = usec;
                     /* recalculate the average time */
                     filehandle->avg = (filehandle->avg * (filehandle->received - 1) + usec) / filehandle->received;
 
@@ -912,6 +959,11 @@ int main(int argc, char **argv) {
             break;
         }
     } /* while (1) */
+
+    /* if looping or counting, print a summary */
+    if (cfg.loop || cfg.count) {
+        print_summary(targets);
+    }
 
     /* return success if all requests came back ok */
     if (ls_sent && ls_sent == ls_ok) {

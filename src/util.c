@@ -464,6 +464,9 @@ nfs_fh_list *nfs_fh_list_new(targets_t *target) {
     /* head of the list */
     nfs_fh_list *current = target->filehandles;
     nfs_fh_list *new_fh = calloc(1, sizeof(struct nfs_fh_list));
+
+    /* set this so that the first comparison will always be smaller */
+    new_fh->min = ULONG_MAX;
    
     if (current) {
         /* find the last fh in the list */
