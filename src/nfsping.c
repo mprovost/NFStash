@@ -4,8 +4,8 @@
 
 /* local prototypes */
 static void usage(void);
-static void print_summary(targets_t);
-static void print_fping_summary(targets_t);
+static void print_summary(targets_t *);
+static void print_fping_summary(targets_t *);
 static void print_output(enum outputs, char *, targets_t *, unsigned long, u_long, const struct timespec, unsigned long);
 static void print_lost(enum outputs, char *, targets_t *, unsigned long, u_long, const struct timespec);
 
@@ -94,8 +94,8 @@ void usage() {
 }
 
 
-void print_summary(targets_t targets) {
-    targets_t *target = &targets;
+void print_summary(targets_t *targets) {
+    targets_t *target = targets;
     double loss;
 
     while (target) {
@@ -124,8 +124,8 @@ void print_summary(targets_t targets) {
 /* TODO ip as parameter */
 /* TODO target output spacing */
 /* print a parseable summary string when finished in fping-compatible format */
-void print_fping_summary(targets_t targets) {
-    targets_t *target = &targets;
+void print_fping_summary(targets_t *targets) {
+    targets_t *target = targets;
     unsigned long i;
 
     while (target) {
@@ -826,9 +826,9 @@ int main(int argc, char **argv) {
             fprintf(stderr, "\n");
         /* don't print summary for formatted output */
         if (format == fping)
-            print_fping_summary(*targets);
+            print_fping_summary(targets);
         else if (format == ping || format == unixtime)
-            print_summary(*targets);
+            print_summary(targets);
     }
 
     /* loop through the targets and find any that didn't get a response
