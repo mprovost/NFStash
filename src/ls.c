@@ -706,7 +706,7 @@ void print_summary(targets_t *targets) {
             fprintf(stderr, "%s:%-*s : xmt/rcv/%%loss = %lu/%lu/%.0f%%",
                 target->name,
                 /* only pad the path */
-                (int)(width - strlen(target->name)),
+                (int)(width - strlen(target->name)), /* field widths have to be ints */
                 fh->path,
                 fh->sent,
                 fh->received,
