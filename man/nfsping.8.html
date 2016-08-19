@@ -112,7 +112,7 @@
 <dt class="flush"><code>-H</code></dt><dd><p>The polling frequency in Hertz. This is the number of pings sent to each target per second. Default = 1.</p></dd>
 <dt><code>-i</code> <var>interval</var></dt><dd><p>The interval (delay) between sending packets, in milliseconds. Default = 25.</p></dd>
 <dt class="flush"><code>-K</code></dt><dd><p>Send kernel lock manager (KLM) protocol NULL requests. Implies <code>-M</code>.</p></dd>
-<dt class="flush"><code>-l</code></dt><dd><p>Loop forever. Like traditional ICMP <code>ping(8)</code>. Exit loop with Ctrl-c.</p></dd>
+<dt class="flush"><code>-l</code></dt><dd><p>Loop forever. Like traditional ICMP <code>ping(8)</code>. Exit loop with Ctrl-c.  A summary of all responses is printed when the program is interrupted.</p></dd>
 <dt class="flush"><code>-L</code></dt><dd><p>Send network lock manager (NLM) protocol NULL requests. Implies <code>-M</code>.</p></dd>
 <dt class="flush"><code>-m</code></dt><dd><p>Use multiple target IP addresses if found. For servers with multiple DNS A records (round-robin). Implies -A (shows IP address instead of hostnames) so output isn't ambiguous.</p></dd>
 <dt class="flush"><code>-M</code></dt><dd><p>Use the RPC portmapper to discover the listening port for the protocol on the server. Default no for NFS and NFS ACL, yes for mount, NLM and NSM. Uses UDP by default or TCP if the <code>-T</code> option is specified.</p></dd>

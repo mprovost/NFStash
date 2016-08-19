@@ -59,7 +59,7 @@ If a server's hostname resolves to multiple IP addresses, for example with clust
   Send kernel lock manager (KLM) protocol NULL requests. Implies `-M`.
 
 * `-l`:
-  Loop forever. Like traditional ICMP `ping(8)`. Exit loop with Ctrl-c.
+  Loop forever. Like traditional ICMP `ping(8)`. Exit loop with Ctrl-c.  A summary of all responses is printed when the program is interrupted.
 
 * `-L`:
   Send network lock manager (NLM) protocol NULL requests. Implies `-M`.

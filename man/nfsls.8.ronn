@@ -24,7 +24,7 @@ If the NFS server requires "secure" ports (<1024), `nfsls` will have to be run a
   Display IP addresses (instead of hostnames).
 
 * `-c`:
-  Count of requests to send to each input filehandle before exiting. Note that multiple READDIRPLUS RPCs to load a full directory listing or READLINKs to lookup symlinks count as a single request.
+  Count of requests to send to each input filehandle before exiting. Note that multiple READDIRPLUS RPCs to load a full directory listing or READLINKs to lookup symlinks count as a single request.  A summary of all responses is printed when the count is reached or the program is interrupted.
 
 * `-d`:
   List directories instead of their contents. This forces `nfsls` to only send GETATTR calls.
@@ -39,7 +39,7 @@ If the NFS server requires "secure" ports (<1024), `nfsls` will have to be run a
   Display a long listing similar to `ls -l`. This includes the file type and permissions bits, the number of links to the file, the owner's user and group names, the size in bytes, the date and time in ISO 8601 format, the server's hostname (or IP address with `-A`) and the filename (and the target if it's a symlink).
 
 * `-L`:
-  Loop forever. Exit loop with Ctrl-c.
+  Loop forever. Exit loop with Ctrl-c.  A summary of all responses is printed when the program is interrupted.
 
 * `-S` <source>:
   Use the specified source IP address for request packets.

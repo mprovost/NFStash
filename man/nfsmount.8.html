@@ -109,7 +109,7 @@
 <dt class="flush"><code>-h</code></dt><dd><p>Display a help message and exit.</p></dd>
 <dt><code>-H</code> <var>hertz</var></dt><dd><p>The polling frequency in Hertz. This is the number of requests sent to each target per second in looping and counting modes. Default = 1.</p></dd>
 <dt class="flush"><code>-J</code></dt><dd><p>Force JSON output, even in counting and looping modes.</p></dd>
-<dt class="flush"><code>-l</code></dt><dd><p>Loop forever sending mount (MNT) requests. Exit loop with Ctrl-c.</p></dd>
+<dt class="flush"><code>-l</code></dt><dd><p>Loop forever sending mount (MNT) requests. Exit loop with Ctrl-c.  A summary of all responses is printed when the program is interrupted.</p></dd>
 <dt class="flush"><code>-m</code></dt><dd><p>Use multiple target IP addresses if found. This can be useful for clustered file servers. Implies <code>-A</code> (shows IP addresses instead of hostnames) so output isn't ambiguous.</p></dd>
 <dt class="flush"><code>-q</code></dt><dd><p>Quiet. Only print a summary.</p></dd>
 <dt class="flush"><code>-R</code></dt><dd><p>Don't reconnect to target servers after each loop. The default behaviour is to disconnect and reconnect after all of the exported filesystems on each target are queried.</p></dd>
