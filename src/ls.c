@@ -671,30 +671,34 @@ int print_ping(targets_t *target, struct nfs_fh_list *fh, const unsigned long us
 /* takes a targets list and walks through all targets and filehandles */
 void print_summary(targets_t *targets) {
     targets_t *target = targets;
-    nfs_fh_list *fh = target->filehandles;
+    nfs_fh_list *fh;
     double loss;
     size_t width = 0;
 
     /* justify output */
     while (target) {
+        fh = target->filehandles;
+
         while (fh) {
             /* find the longest host + path */
             if ((strlen(target->name) + strlen(fh->path)) > width) {
                 width = strlen(target->name) + strlen(fh->path);
             }
+
             fh = fh->next;
         }
 
-        target = targets->next;
+        target = target->next;
     }
 
     /* blank line between results and summary */
     fprintf(stderr, "\n");
 
     target = targets;
-    fh = target->filehandles;
 
     while (target) {
+        fh = target->filehandles;
+
         while (fh) {
             loss = (fh->sent - fh->received) / (double)fh->sent * 100;
             /* check if this is still set to the default value */
