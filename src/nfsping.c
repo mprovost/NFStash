@@ -666,19 +666,20 @@ int main(int argc, char **argv) {
 
     /* skip the first dummy entry */
     targets = targets->next;
-
     target = targets;
 
-    /* add up the wait interval for each target */
-    while (target) {
-        timespecadd(&wait_time, &sleepy, &sleepy);
-
-        target = target->next;
-    }
-
     /* check that the total waiting time between targets isn't going to cause us to miss our frequency (Hertz) */
-    if (timespeccmp(&sleepy, &sleep_time, >=)) {
-        fatal("wait interval (-i) doesn't allow polling frequency (-H)!\n");
+    if (wait_time.tv_sec || wait_time.tv_nsec) {
+        /* add up the wait interval for each target */
+        while (target) {
+            timespecadd(&wait_time, &sleepy, &sleepy);
+
+            target = target->next;
+        }
+
+        if (timespeccmp(&sleepy, &sleep_time, >=)) {
+            fatal("wait interval (-i) doesn't allow polling frequency (-H)!\n");
+        }
     }
 
     /* the main loop */
@@ -793,7 +794,8 @@ int main(int argc, char **argv) {
 
             target = target->next;
 
-            if (target) {
+            /* pause between targets */
+            if (target && (wait_time.tv_sec || wait_time.tv_nsec)) {
                 nanosleep(&wait_time, NULL);
             }
         } /* while(target) */
