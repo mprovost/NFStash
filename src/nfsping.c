@@ -208,7 +208,8 @@ void print_lost(enum outputs format, char *prefix, targets_t *target, unsigned l
 int main(int argc, char **argv) {
     void *status;
     struct timeval timeout = NFS_TIMEOUT;
-    struct timespec wall_clock, call_start, call_end, call_elapsed, loop_start, loop_end, loop_elapsed, sleep_time, sleepy;
+    struct timespec wall_clock, call_start, call_end, call_elapsed, loop_start, loop_end, loop_elapsed, sleep_time;
+    struct timespec sleepy = { 0 };
     /* polling frequency */
     unsigned long hertz = NFS_HERTZ;
     struct timespec wait_time = NFS_WAIT;
@@ -666,6 +667,19 @@ int main(int argc, char **argv) {
     /* skip the first dummy entry */
     targets = targets->next;
 
+    target = targets;
+
+    /* add up the wait interval for each target */
+    while (target) {
+        timespecadd(&wait_time, &sleepy, &sleepy);
+
+        target = target->next;
+    }
+
+    /* check that the total waiting time between targets isn't going to cause us to miss our frequency (Hertz) */
+    if (timespeccmp(&sleepy, &sleep_time, >=)) {
+        fatal("wait interval (-i) doesn't allow polling frequency (-H)!\n");
+    }
 
     /* the main loop */
     while(1) {
