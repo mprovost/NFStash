@@ -53,7 +53,7 @@ If a server's hostname resolves to multiple IP addresses, for example with clust
   The polling frequency in Hertz. This is the number of pings sent to each target per second. Default = 1.
 
 * `-i` <interval>:
-  The interval (delay) between sending packets, in milliseconds. Default = 25.
+  The interval (delay) between targets, in milliseconds. This cannot be set so that it will make the polling frequency (`-H`) impossible. Set to zero (0) to disable pausing between targets. Default = 1.
 
 * `-K`:
   Send kernel lock manager (KLM) protocol NULL requests. Implies `-M`.

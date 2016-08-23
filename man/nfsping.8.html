@@ -110,7 +110,7 @@
 <dt class="flush"><code>-G</code></dt><dd><p>Print output in Graphite format ($prefix.$hostname.$protocol.usec <var>usec</var> <var>timestamp</var>). Use <code>-g</code> to change the prefix from the default "nfsping".</p></dd>
 <dt class="flush"><code>-h</code></dt><dd><p>Display a help message and exit.</p></dd>
 <dt class="flush"><code>-H</code></dt><dd><p>The polling frequency in Hertz. This is the number of pings sent to each target per second. Default = 1.</p></dd>
-<dt><code>-i</code> <var>interval</var></dt><dd><p>The interval (delay) between sending packets, in milliseconds. Default = 25.</p></dd>
+<dt><code>-i</code> <var>interval</var></dt><dd><p>The interval (delay) between targets, in milliseconds. This cannot be greater than the polling frequency (<code>-H</code>) divided by the number of targets. Set to zero (0) to disable pausing between targets. Default = 1.</p></dd>
 <dt class="flush"><code>-K</code></dt><dd><p>Send kernel lock manager (KLM) protocol NULL requests. Implies <code>-M</code>.</p></dd>
 <dt class="flush"><code>-l</code></dt><dd><p>Loop forever. Like traditional ICMP <code>ping(8)</code>. Exit loop with Ctrl-c.  A summary of all responses is printed when the program is interrupted.</p></dd>
 <dt class="flush"><code>-L</code></dt><dd><p>Send network lock manager (NLM) protocol NULL requests. Implies <code>-M</code>.</p></dd>
