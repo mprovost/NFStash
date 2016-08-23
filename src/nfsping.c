@@ -634,11 +634,25 @@ int main(int argc, char **argv) {
         fatal("Illegal version %lu\n", version);
     }
 
-    /* set the default port */
-    /* ACL usually runs on 2049 alongside NFS so leave port as default */
-    if (prognum != (NFS_PROGRAM || NFS_ACL_PROGRAM) && port == NFS_PORT) {
-        /* otherwise use the portmapper */
-        port = 0;
+    /* set the default port to portmapper if not already set */
+    if (port == NFS_PORT) {
+        switch (prognum) {
+            /* don't change NFS port */
+            case NFS_PROGRAM:
+                /* do nothing */
+                break;
+            /* ACL usually runs on 2049 alongside NFS so leave port as default */
+            case NFS_ACL_PROGRAM:
+                /* do nothing */
+                break;
+            /* portmapper doesn't use the portmapper to find itself */
+            case PMAPPROG:
+                port = PMAPPORT; /* 111 */
+                break;
+            default:
+                /* use portmapper for everything else */
+                port = 0;
+        }
     }
 
     /* output formatting doesn't make sense for the simple check */
