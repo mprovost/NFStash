@@ -31,7 +31,7 @@ point to your copy of the NFSping program.
 
 NFSping can be downloaded from:
 
-L<https://github.com/mprovost/NFSping>
+L<https://github.com/mprovost/NFStash>
 
 In B<blazemode>, NFSping sends one more ping than requested, and discards
 the first RTT value returned as it's likely to be an outlier.
@@ -165,7 +165,7 @@ sub probevars {
 		tcp => {
 			_re => '(true|false)',
 			_example => 'true',
-			_doc => "Use TCP insteadof UDP.",
+			_doc => "Use TCP instead of UDP.",
 		},
 		timeout => {
 			_re => '(\d*\.)?\d+',
