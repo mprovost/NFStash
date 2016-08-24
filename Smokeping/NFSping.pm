@@ -40,6 +40,7 @@ DOC
 		authors => <<'DOC',
 Tobias Oetiker <tobi@oetiker.ch>
 Matt Provost <mprovost@termcap.net>
+Gurhan Ozen <gurhan.ozen@gmail.com>
 DOC
 	}
 }
@@ -100,13 +101,12 @@ sub ping ($){
     my $errh = gensym;
     # pinging nothing is pointless
     return unless @{$self->addresses};
+
     my @params = () ;
     push @params, "-t" . int(1000 * $self->{properties}{timeout}) if $self->{properties}{timeout};
     push @params, "-i" . int(1000 * $self->{properties}{mininterval});
-    push @params, "-p" . int(1000 * $self->{properties}{hostinterval}) if $self->{properties}{hostinterval};
-    if (($self->{properties}{tcp} || '') eq 'true'){
-	push @params, "-T";
-    }
+    push @params, "-H" . int($self->{properties}{hertz}) if $self->{properties}{hertz};
+    push @params, "-T" if $self->{properties}{tcp} eq 'true';
     
 
     my $pings =  $self->pings;
@@ -114,11 +114,10 @@ sub ping ($){
         $pings++;
     }
     my @cmd = (
-                    $self->binary,
-                    #'-C', $pings, '-q','-B1','-r1',
-                    '-C', $pings, '-q',
-		    @params,
-                    @{$self->addresses});
+        $self->binary,
+        '-C', $pings, '-q',
+        @params,
+        @{$self->addresses});
     $self->do_debug("Executing @cmd");
     my $pid = open3($inh,$outh,$errh, @cmd);
     $self->{rtts}={};
@@ -154,41 +153,43 @@ sub probevars {
 				return undef;
 			},
 			_doc => "The location of your nfsping binary.",
-			_example => '/usr/local/bin/nfsping',
+            _example => '/usr/local/bin/nfsping',
 		},
 		blazemode => {
 			_re => '(true|false)',
+            _default => 'false',
 			_example => 'true',
 			_doc => "Send an extra ping and then discard the first answer since the first is bound to be an outlier.",
 
 		},
 		tcp => {
 			_re => '(true|false)',
+            _default => 'false',
 			_example => 'true',
-			_doc => "Use TCP instead of UDP.",
+			_doc => "The nfsping \"-T\" parameter. Use TCP instead of UDP.",
 		},
 		timeout => {
 			_re => '(\d*\.)?\d+',
+            _default => 1,
 			_example => 1.5,
 			_doc => <<DOC,
 The nfsping "-t" parameter, but in (possibly fractional) seconds rather than
 milliseconds, for consistency with other Smokeping probes.
 DOC
 		},
-		hostinterval => {
-			_re => '(\d*\.)?\d+',
-			_example => 1.5,
+		hertz => {
+			_re => '\d+',
+            _default => 1,
+			_example => 10,
 			_doc => <<DOC,
-The nfsping "-p" parameter, but in (possibly fractional) seconds rather than
-milliseconds, for consistency with other Smokeping probes. This
-parameter sets the time that nfsping  waits between successive packets
-to an individual target.
+The nfsping "-H" parameter, the polling frequency in Hertz. This is the
+number of pings sent to each target per second.
 DOC
 		},
 		mininterval => {
 			_re => '(\d*\.)?\d+',
-			_example => .001,
-			_default => .01,
+			_default => .001,
+			_example => .025,
 			_doc => <<DOC,
 The nfsping "-i" parameter, but in (probably fractional) seconds rather than
 milliseconds, for consistency with other Smokeping probes. This is the
