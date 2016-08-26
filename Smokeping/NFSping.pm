@@ -54,21 +54,13 @@ sub new($$$)
     # no need for this if we run as a cgi
     unless ( $ENV{SERVER_SOFTWARE} ) {
     	my $binary = join(" ", $self->binary);
-	my $testhost = $self->testhost;
+        my $testhost = $self->testhost;
         my $return = `$binary -C 1 $testhost 2>&1`;
         croak "ERROR: nfsping ('$binary -C 1 $testhost') could not be run: $return"
             if $return =~ m/not found/;
-
-        if ($return =~ m/([0-9.]+)\sms\s+.*\n.*\n.*:\s+([0-9.]+)/ and $1 > 0){
-            $self->{pingfactor} = 1000 * $2/$1;
-            if ($1 != $2){
-                warn "### nfsping seems to report in ", $2/$1, " milliseconds (old version?)";
-            }
-        } else {
-            $self->{pingfactor} = 1000; # Gives us a good-guess default
-            warn "### assuming you are using an nfsping copy reporting in milliseconds\n";
-        }
     };
+
+    $self->{pingfactor} = 1000; # nfsping always reports in milliseconds
 
     return $self;
 }
