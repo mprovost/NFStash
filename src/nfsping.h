@@ -47,12 +47,12 @@
 #define debug(x...) do { if (verbose) { fflush(stdout); fprintf(stderr,x); fflush(stderr); } } while (0)
 
 /* struct timeval */
-/* timeout for RPC requests, keep it the same (or lower) than the sleep time below */
-#define NFS_TIMEOUT { 1, 0 }
+/* timeout for RPC requests */
+#define NFS_TIMEOUT { 1, 0 } /* 1 second */
 /* struct timespec */
 /* time to wait between targets */
 #define NFS_WAIT { 0, 1000000 } /* 1ms */
-/* struct timespec */
+/* unsigned long */
 /* polling frequency */
 #define NFS_HERTZ 1
 
