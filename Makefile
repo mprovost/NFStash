@@ -42,8 +42,12 @@ rpcgen: $(addprefix rpcsrc/, nfs_prot.h mount.h pmap_prot.h nlm_prot.h nfsv4_pro
 %.8 %.html: %.8.ronn
 	ronn --date `git log -n1 --pretty=format:%ci -- $< | cut -f1 -d" "` --style=toc $<
 
+# create bin if it is missing
+$(prefix)/bin/:
+	install  -m755 -d $(prefix)/bin/
+
 # pattern rule for installing binaries
-$(prefix)/bin/%: bin/%
+$(prefix)/bin/%: bin/% $(prefix)/bin/
 	install $< $(@D)
 
 # pattern rule for installing manpages
