@@ -1,2 +1,3 @@
 # don't show diffs for generated HTML manpages
-man/*.html  -diff
+# don't include HTML files in archive tarballs
+man/*.html  -diff export-ignore
