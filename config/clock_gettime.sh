@@ -14,3 +14,6 @@ else
     echo "Couldn't find clock_gettime()!"
     exit 1
 fi
+
+# remove the dummy output
+rm a.out

@@ -7,7 +7,7 @@ all: $(all) man
 prefix = /usr/local
 
 clean:
-	rm -rf obj bin deps man/*.html man/*.8 rpcsrc/*.c rpcsrc/*.h config/*.opt
+	rm -rf obj bin deps man/*.html man/*.8 rpcsrc/*.c rpcsrc/*.h config/*.opt config/*.out
 
 #output directories
 bin obj deps:
