@@ -56,7 +56,7 @@ $(prefix)/share/man/man8/%.8: man/%.8 $(prefix)/share/man/man8/
 
 # create man8 if it is missing.
 $(prefix)/share/man/man8/:
-	install -m655 -d $(prefix)/share/man/man8
+	install -m755 -d $(prefix)/share/man/man8
 
 # list of all src files for dependencies
 SRC = $(wildcard src/*.c)
