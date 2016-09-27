@@ -37,10 +37,15 @@ rpcgen: $(addprefix rpcsrc/, nfs_prot.h mount.h pmap_prot.h nlm_prot.h nfsv4_pro
 # pattern rule for manfiles using ronn
 # unfortunately every section of the manual has a different suffix so we can't make one general rule
 # the pattern rule has two targets, for roff and html
-# use git log to get the last commit date of the source file, use this for the date in the output
+
+# if this is a git repo, use git log to get the last commit date of the source file
 # otherwise ronn uses the mtime of the file which will change if you switch branches etc
-%.8 %.html: %.8.ronn
+%.8 %.html: %.8.ronn .git
 	ronn --date `git log -n1 --pretty=format:%ci -- $< | cut -f1 -d" "` --style=toc $<
+
+# if this isn't a git repo (ie building from tarball), just default to using the file mtime for the manpage dates
+%.8 %.html: %.8.ronn
+	ronn --style=toc $<
 
 # create bin if it is missing
 $(prefix)/bin/:
