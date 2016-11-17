@@ -8,6 +8,19 @@
 #include <math.h> /* for log10() */
 #include <libgen.h> /* basename() */
 
+/* globals */
+extern volatile sig_atomic_t quitting;
+int verbose = 0;
+
+/* output formats */
+enum ls_formats {
+    ls_unset,
+    ls_ping,
+    ls_fping,
+    ls_longform,
+    ls_json,
+};
+
 /* local prototypes */
 static void usage(void);
 static char *do_readlink(CLIENT *, char *, char *, nfs_fh3);
@@ -18,19 +31,7 @@ static int print_long_listing(targets_t *);
 static void print_nfs_fh3(char *, char *, char *, char *, nfs_fh3, const unsigned long);
 static int print_filehandles(targets_t *, nfs_fh_list *, const unsigned long);
 static int print_ping(targets_t *, struct nfs_fh_list *, const unsigned long);
-static void print_summary(targets_t *);
-
-/* globals */
-extern volatile sig_atomic_t quitting;
-int verbose = 0;
-
-/* output formats */
-enum ls_formats {
-    ls_unset,
-    ls_ping,
-    ls_longform,
-    ls_json,
-};
+static void print_summary(targets_t *, enum ls_formats);
 
 /* global config "object" */
 static struct config {
@@ -69,6 +70,7 @@ List NFS files and directories from stdin\n\n\
     -a       print hidden files\n\
     -A       show IP addresses (default hostnames)\n\
     -c n     count of requests to send for each filehandle\n\
+    -C n     same as -c, output parseable format\n\
     -d       list actual directory not contents\n\
     -h       display this help and exit\n\
     -H       frequency in Hertz (requests per second, default %i)\n\
@@ -529,6 +531,7 @@ int print_long_listing(targets_t *targets) {
                 /* this converts an unsigned 32 bit seconds to a signed 32 bit time_t which doesn't always do what is expected! */
                 /* TODO detect values greater than 32 bit signed max and treat them as signed? */
                 /* Solaris has a setting nfs_allow_preepoch_time for this, make it into an option? */
+                /* TODO print a message in gcc output acknowledging this warning */
                 mtime = localtime(&attributes.mtime.seconds);
                 /* TODO check return value, should always be 19 */
                 strftime(buf, 20, "%Y-%m-%d %H:%M:%S", mtime);
@@ -667,13 +670,14 @@ int print_ping(targets_t *target, struct nfs_fh_list *fh, const unsigned long us
 }
 
 
-/* print a summary line to stderr for each target when the program exits */
+/* print a summary line to stderr for each filehandle when the program exits */
 /* takes a targets list and walks through all targets and filehandles */
-void print_summary(targets_t *targets) {
+void print_summary(targets_t *targets, enum ls_formats format) {
     targets_t *target = targets;
     nfs_fh_list *fh;
     double loss;
     size_t width = 0;
+    unsigned long i;
 
     /* justify output */
     while (target) {
@@ -700,29 +704,46 @@ void print_summary(targets_t *targets) {
         fh = target->filehandles;
 
         while (fh) {
-            loss = (fh->sent - fh->received) / (double)fh->sent * 100;
-            /* check if this is still set to the default value */
-            /* that means we never saw any responses */
-            /* TODO is this necessary if min isn't printed below? */
-            if (fh->min == ULONG_MAX) {
-                fh->min = 0;
+            if (format == ls_ping) {
+                loss = (fh->sent - fh->received) / (double)fh->sent * 100;
+                /* check if this is still set to the default value */
+                /* that means we never saw any responses */
+                /* TODO is this necessary if min isn't printed below? */
+                if (fh->min == ULONG_MAX) {
+                    fh->min = 0;
+                }
+                fprintf(stderr, "%s:%-*s : xmt/rcv/%%loss = %lu/%lu/%.0f%%",
+                    target->name,
+                    /* only pad the path */
+                    (int)(width - strlen(target->name)), /* field widths have to be ints */
+                    fh->path,
+                    fh->sent,
+                    fh->received,
+                    loss);
+                /* only print times if we got any responses */
+                if (fh->received) {
+                    fprintf(stderr, ", min/avg/max = %.2f/%.2f/%.2f",
+                        fh->min / 1000.0,
+                        fh->avg / 1000.0,
+                        fh->max / 1000.0);
+                }
+                fprintf(stderr, "\n");
+            } else if (format == ls_fping) {
+                fprintf(stderr, "%s:%-*s :",
+                    target->name,
+                    /* only pad the path */
+                    (int)(width - strlen(target->name)), /* field widths have to be ints */
+                    fh->path);
+
+                for (i = 0; i < fh->sent; i++) {
+                    if (fh->results[i]) {
+                        fprintf(stderr, " %.2f", fh->results[i] / 1000.0);
+                    } else {
+                        fprintf(stderr, " -");
+                    }
+                }
+                printf("\n");
             }
-            fprintf(stderr, "%s:%-*s : xmt/rcv/%%loss = %lu/%lu/%.0f%%",
-                target->name,
-                /* only pad the path */
-                (int)(width - strlen(target->name)), /* field widths have to be ints */
-                fh->path,
-                fh->sent,
-                fh->received,
-                loss);
-            /* only print times if we got any responses */
-            if (fh->received) {
-                fprintf(stderr, ", min/avg/max = %.2f/%.2f/%.2f",
-                    fh->min / 1000.0,
-                    fh->avg / 1000.0,
-                    fh->max / 1000.0);
-            }
-            fprintf(stderr, "\n");
 
             fh = fh->next;
         }
@@ -765,7 +786,7 @@ int main(int argc, char **argv) {
 
     cfg = CONFIG_DEFAULT;
 
-    while ((ch = getopt(argc, argv, "aAc:dhH:lLS:Tv")) != -1) {
+    while ((ch = getopt(argc, argv, "aAc:C:dhH:lLS:Tv")) != -1) {
         switch(ch) {
             /* list hidden files */
             case 'a':
@@ -788,6 +809,21 @@ int main(int argc, char **argv) {
 
                 if (cfg.format == ls_unset) {
                     cfg.format = ls_ping;
+                }
+                break;
+            case 'C':
+                if (cfg.loop) {
+                    fatal("Can't specify both -l and -C!\n");
+                }
+
+                cfg.count = strtoul(optarg, NULL, 10);
+
+                if (cfg.count == 0 || cfg.count == ULONG_MAX) {
+                   fatal("Zero count, nothing to do!\n");
+                }
+
+                if (cfg.format == ls_unset) {
+                    cfg.format = ls_fping;
                 }
                 break;
             /* display directories not contents */
@@ -886,11 +922,11 @@ int main(int argc, char **argv) {
                 filehandle = current->filehandles;
 
                 while (filehandle) {
-    #ifdef CLOCK_MONOTONIC_RAW
+#ifdef CLOCK_MONOTONIC_RAW
                     clock_gettime(CLOCK_MONOTONIC_RAW, &call_start);
-    #else
+#else
                     clock_gettime(CLOCK_MONOTONIC, &call_start);
-    #endif
+#endif
 
                     /* if we're listing directories, do a getattr no matter what */
                     /* check for a trailing slash to see if we need to do readdirplus or getattr */
@@ -901,11 +937,11 @@ int main(int argc, char **argv) {
                         filehandle->entries = do_readdirplus(current->client, current->name, filehandle);
                     }
 
-    #ifdef CLOCK_MONOTONIC_RAW
+#ifdef CLOCK_MONOTONIC_RAW
                     clock_gettime(CLOCK_MONOTONIC_RAW, &call_end);
-    #else
+#else
                     clock_gettime(CLOCK_MONOTONIC, &call_end);
-    #endif
+#endif
 
                     ls_sent++;
                     filehandle->sent++;
@@ -936,8 +972,13 @@ int main(int argc, char **argv) {
 
                     if (cfg.format == ls_json) {
                         print_filehandles(current, filehandle, usec);
-                    } else if (cfg.format == ls_ping) {
+                    } else if (cfg.format == ls_ping || cfg.format == ls_fping) {
                         print_ping(current, filehandle, usec);
+
+                        if (cfg.format == ls_fping) {
+                            /* record result for each filehandle */
+                            filehandle->results[filehandle->sent - 1] = usec;
+                        }
                     }
 
                     filehandle = filehandle->next;
@@ -985,7 +1026,7 @@ int main(int argc, char **argv) {
 
     /* if looping or counting, print a summary */
     if (cfg.loop || cfg.count) {
-        print_summary(targets);
+        print_summary(targets, cfg.format);
     }
 
     /* return success if all requests came back ok */
