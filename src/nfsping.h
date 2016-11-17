@@ -112,6 +112,8 @@ typedef struct entrypluslink3 {
 /* a singly linked list of nfs filehandles */
 typedef struct nfs_fh_list {
     char path[MNTPATHLEN];
+    /* for fping output when we need to store the individual results for the summary */
+    unsigned long *results;
     unsigned long sent, received;
     unsigned long min, max;
     float avg;
