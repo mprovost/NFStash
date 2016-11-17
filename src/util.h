@@ -13,7 +13,7 @@ targets_t *make_target(char *, const struct addrinfo *, uint16_t, int, int, unsi
 targets_t *init_target(uint16_t, unsigned long, enum outputs);
 targets_t *copy_target(targets_t *, unsigned long, enum outputs);
 targets_t *append_target(targets_t **, targets_t *);
-nfs_fh_list *nfs_fh_list_new(targets_t *);
+nfs_fh_list *nfs_fh_list_new(targets_t *, unsigned long);
 targets_t *find_target_by_ip(targets_t *, struct sockaddr_in *);
 targets_t *find_or_make_target(targets_t *, struct sockaddr_in *, uint16_t, unsigned long, enum outputs);
 unsigned long tv2us(struct timeval);
