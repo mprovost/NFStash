@@ -167,7 +167,7 @@ targets_t *parse_fh(targets_t *head, char *input, uint16_t port, unsigned long c
 
                 if (tmp) {
                     /* allocate a new filehandle struct */
-                    fh = nfs_fh_list_new(current);
+                    fh = nfs_fh_list_new(current, count);
 
                     /* TODO check length aginst MNTPATHLEN */
                     strncpy(fh->path, tmp, MNTPATHLEN);
@@ -460,13 +460,20 @@ targets_t *append_target(targets_t **head, targets_t *new_target) {
 
 /* create a new empty filehandle struct at the end of the current filehandle list in a target */
 /* return a pointer to the newly added filehandle */
-nfs_fh_list *nfs_fh_list_new(targets_t *target) {
+nfs_fh_list *nfs_fh_list_new(targets_t *target, unsigned long count) {
     /* head of the list */
     nfs_fh_list *current = target->filehandles;
     nfs_fh_list *new_fh = calloc(1, sizeof(struct nfs_fh_list));
 
     /* set this so that the first comparison will always be smaller */
     new_fh->min = ULONG_MAX;
+
+    /* allocate space for printing out a summary of all ping times at the end */
+    /* TODO only if fping output */
+    new_fh->results = calloc(count, sizeof(unsigned long));
+    if (new_fh->results == NULL) {
+        fatalx(3, "Couldn't allocate memory for results!\n");
+    }
    
     if (current) {
         /* find the last fh in the list */
