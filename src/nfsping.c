@@ -17,15 +17,15 @@ int verbose = 0;
 /* global config "object" */
 static struct config {
     /* -d reverse dns lookups */
-    int dns;
+    int reverse_dns;
     /* -A print IP addresses */
-    int ip;
+    int display_ips;
 } cfg;
 
 /* default config */
 const struct config CONFIG_DEFAULT = {
-    .dns = 0,
-    .ip  = 0,
+    .reverse_dns = 0,
+    .display_ips = 0,
 };
 
 /* dispatch table for null function calls, this saves us from a bunch of if statements */
@@ -284,15 +284,15 @@ int main(int argc, char **argv) {
                 break;
             /* show IP addresses */
             case 'A':
-                if (cfg.dns) {
+                if (cfg.reverse_dns) {
                     /* if they've specified -A, override the implied -d from -m */
                     if (multiple) {
-                        cfg.ip = 0;
+                        cfg.display_ips = 0;
                     } else {
                         fatal("Can't specify both -d and -A!\n");
                     }
                 } else {
-                    cfg.ip = 1;
+                    cfg.display_ips = 1;
                 }
                 break;
             /* number of pings per target, parseable summary */
@@ -369,17 +369,17 @@ int main(int argc, char **argv) {
                 break;
             /* do reverse dns lookups for IP addresses */
             case 'd':
-                if (cfg.ip) {
+                if (cfg.display_ips) {
                     /* check if inherited DNS lookups from -m */
                     if (multiple) {
                         /* if they've specified -d, override the implied -A from -m */
-                        cfg.ip = 0;
-                        cfg.dns = 1;
+                        cfg.display_ips = 0;
+                        cfg.reverse_dns = 1;
                     } else {
                         fatal("Can't specify both -A and -d!\n");
                     }
                 } else {
-                    cfg.dns = 1;
+                    cfg.reverse_dns = 1;
                 }
                 break;
             case 'D':
@@ -517,8 +517,8 @@ int main(int argc, char **argv) {
                 multiple = 1;
                 /* implies -A to use IP addresses so output isn't ambiguous */
                 /* unless -d already set */
-                if (cfg.dns == 0) {
-                    cfg.ip = 1;
+                if (cfg.reverse_dns == 0) {
+                    cfg.display_ips = 1;
                 }
                 break;
             /* use the portmapper */
@@ -689,7 +689,7 @@ int main(int argc, char **argv) {
 
     /* process the targets from the command line */
     for (index = optind; index < argc; index++) {
-        target->next = make_target(argv[index], &hints, port, cfg.dns, multiple, count, format);
+        target->next = make_target(argv[index], &hints, port, cfg.reverse_dns, multiple, count, format);
         target = target->next;
     }
 
