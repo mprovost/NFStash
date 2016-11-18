@@ -689,7 +689,12 @@ int main(int argc, char **argv) {
 
     /* process the targets from the command line */
     for (index = optind; index < argc; index++) {
-        target->next = make_target(argv[index], &hints, port, cfg.reverse_dns, cfg.display_ips, multiple, count, format);
+        if (format == fping) {
+            target->next = make_target(argv[index], &hints, port, cfg.reverse_dns, cfg.display_ips, multiple, count);
+        } else {
+            /* don't allocate space for storing results */
+            target->next = make_target(argv[index], &hints, port, cfg.reverse_dns, cfg.display_ips, multiple, 0);
+        }
         target = target->next;
     }
 
