@@ -318,7 +318,7 @@ targets_t *init_target(uint16_t port, unsigned long count, enum outputs format) 
 /* return the head of the list */
 /* Always store the ip address string in target->ip_address. */
 /* port should be in host byte order (ie 2049) */
-targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t port, int dns, int multiple, unsigned long count, enum outputs format) {
+targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t port, int dns, int display_ips, int multiple, unsigned long count, enum outputs format) {
     targets_t *target, *first;
     struct addrinfo *addr;
     int getaddr;
@@ -364,10 +364,6 @@ targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t
                 /* save the IP address as a string */
                 inet_ntop(AF_INET, &((struct sockaddr_in *)addr->ai_addr)->sin_addr, target->ip_address, INET_ADDRSTRLEN);
 
-                /*
-                 * always set the hostname based on the original user input
-                 * if we need to display IP addresses do that in display logic and use the ip_address
-                 */
                 /* if reverse lookups enabled */
                 if (dns) {
                     getaddr = getnameinfo((struct sockaddr *)target->client_sock, sizeof(struct sockaddr_in), target->name, NI_MAXHOST, NULL, 0, NI_NAMEREQD);
@@ -382,9 +378,13 @@ targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t
                         target->ndqf = target->name;
                     }
                 } else {
+                    /* set the hostname based on the original user input */
                     strncpy(target->name, target_name, NI_MAXHOST);
                     target->ndqf = reverse_fqdn(target->name);
                 }
+
+                /* set a pointer to which name to display in output */
+                target->display_name = display_ips ? target->ip_address : target->name;
 
                 /* multiple results */
                 /* with glibc, this can return 127.0.0.1 twice when using "localhost" if there is an IPv6 entry in /etc/hosts
