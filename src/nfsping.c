@@ -14,6 +14,20 @@ static void print_lost(enum outputs, char *, targets_t *, unsigned long, u_long,
 extern volatile sig_atomic_t quitting;
 int verbose = 0;
 
+/* global config "object" */
+static struct config {
+    /* -d reverse dns lookups */
+    int dns;
+    /* -A print IP addresses */
+    int ip;
+} cfg;
+
+/* default config */
+const struct config CONFIG_DEFAULT = {
+    .dns = 0,
+    .ip  = 0,
+};
+
 /* dispatch table for null function calls, this saves us from a bunch of if statements */
 /* array is [protocol number][protocol version] */
 /* protocol versions should relate to the corresponding NFS protocol */
@@ -234,7 +248,7 @@ int main(int argc, char **argv) {
     /* default to reconnecting to server each round */
     unsigned long reconnect = 1;
     /* command-line options */
-    int dns = 0, loop = 0, ip = 0, quiet = 0, multiple = 0;
+    int loop = 0, quiet = 0, multiple = 0;
     /* default to NFS v3 */
     u_long version = 3;
     int first, index;
@@ -244,6 +258,7 @@ int main(int argc, char **argv) {
         .sin_addr = INADDR_ANY
     };
 
+    cfg = CONFIG_DEFAULT;
 
     /* listen for ctrl-c */
     quitting = 0;
@@ -269,15 +284,15 @@ int main(int argc, char **argv) {
                 break;
             /* show IP addresses */
             case 'A':
-                if (dns) {
+                if (cfg.dns) {
                     /* if they've specified -A, override the implied -d from -m */
                     if (multiple) {
-                        ip = 0;
+                        cfg.ip = 0;
                     } else {
                         fatal("Can't specify both -d and -A!\n");
                     }
                 } else {
-                    ip = 1;
+                    cfg.ip = 1;
                 }
                 break;
             /* number of pings per target, parseable summary */
@@ -354,17 +369,17 @@ int main(int argc, char **argv) {
                 break;
             /* do reverse dns lookups for IP addresses */
             case 'd':
-                if (ip) {
+                if (cfg.ip) {
                     /* check if inherited DNS lookups from -m */
                     if (multiple) {
                         /* if they've specified -d, override the implied -A from -m */
-                        ip = 0;
-                        dns = 1;
+                        cfg.ip = 0;
+                        cfg.dns = 1;
                     } else {
                         fatal("Can't specify both -A and -d!\n");
                     }
                 } else {
-                    dns = 1;
+                    cfg.dns = 1;
                 }
                 break;
             case 'D':
@@ -502,8 +517,8 @@ int main(int argc, char **argv) {
                 multiple = 1;
                 /* implies -A to use IP addresses so output isn't ambiguous */
                 /* unless -d already set */
-                if (dns == 0) {
-                    ip = 1;
+                if (cfg.dns == 0) {
+                    cfg.ip = 1;
                 }
                 break;
             /* use the portmapper */
@@ -674,7 +689,7 @@ int main(int argc, char **argv) {
 
     /* process the targets from the command line */
     for (index = optind; index < argc; index++) {
-        target->next = make_target(argv[index], &hints, port, dns, multiple, count, format);
+        target->next = make_target(argv[index], &hints, port, cfg.dns, multiple, count, format);
         target = target->next;
     }
 
