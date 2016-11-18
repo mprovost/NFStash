@@ -66,6 +66,7 @@ typedef struct targets {
     char name[NI_MAXHOST]; /* from getnameinfo() */
     char *ndqf; /* reversed name, for Graphite etc */
     char ip_address[INET_ADDRSTRLEN]; /* the IP address as a string, from inet_ntop() */
+    char *display_name; /* pointer to which name string to use in output */
     /* TODO statically allocate */
     struct sockaddr_in *client_sock; /* used to store the port number and connect to the RPC client */
     /* for fping output when we need to store the individual results for the summary */
