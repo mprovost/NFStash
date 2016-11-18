@@ -122,7 +122,7 @@ void print_summary(targets_t *targets) {
         }
 
         fprintf(stderr, "%s : xmt/rcv/%%loss = %u/%u/%.0f%%",
-            target->name, target->sent, target->received, loss);
+            target->display_name, target->sent, target->received, loss);
         /* only print times if we got any responses */
         if (target->received) {
             fprintf(stderr, ", min/avg/max = %.2f/%.2f/%.2f",
@@ -143,7 +143,7 @@ void print_fping_summary(targets_t *targets) {
     unsigned long i;
 
     while (target) {
-        fprintf(stderr, "%s :", target->name);
+        fprintf(stderr, "%s :", target->display_name);
         for (i = 0; i < target->sent; i++) {
             if (target->results[i])
                 fprintf(stderr, " %.2f", target->results[i] / 1000.0);
@@ -178,7 +178,7 @@ void print_output(enum outputs format, char *prefix, targets_t *target, unsigned
         case ping:
         case fping:
             loss = (target->sent - target->received) / (double)target->sent * 100;
-            printf("%s : [%u], %03.2f ms (%03.2f avg, %.0f%% loss)\n", target->name, target->sent - 1, us / 1000.0, target->avg / 1000.0, loss);
+            printf("%s : [%u], %03.2f ms (%03.2f avg, %.0f%% loss)\n", target->display_name, target->sent - 1, us / 1000.0, target->avg / 1000.0, loss);
             break;
         case graphite:
             printf("%s.%s.%s.usec %lu %li\n",
@@ -689,7 +689,7 @@ int main(int argc, char **argv) {
 
     /* process the targets from the command line */
     for (index = optind; index < argc; index++) {
-        target->next = make_target(argv[index], &hints, port, cfg.reverse_dns, multiple, count, format);
+        target->next = make_target(argv[index], &hints, port, cfg.reverse_dns, cfg.display_ips, multiple, count, format);
         target = target->next;
     }
 
@@ -791,7 +791,7 @@ int main(int argc, char **argv) {
                         print_output(format, prefix, target, prognum_offset, version, wall_clock, us);
                     }
                 } else {
-                    printf("%s is alive\n", target->name);
+                    printf("%s is alive\n", target->display_name);
                 }
             /* something went wrong */
             } else {
@@ -799,7 +799,7 @@ int main(int argc, char **argv) {
                 print_lost(format, prefix, target, prognum_offset, version, wall_clock);
 
                 if (target->client) {
-                    fprintf(stderr, "%s : ", target->name);
+                    fprintf(stderr, "%s : ", target->display_name);
                     clnt_geterr(target->client, &clnt_err);
                     clnt_perror(target->client, null_dispatch[prognum_offset][version].name);
                     fprintf(stderr, "\n");
@@ -812,7 +812,7 @@ int main(int argc, char **argv) {
                 } /* TODO else? */
 
                 if (!count && !loop) {
-                    printf("%s is dead\n", target->name);
+                    printf("%s is dead\n", target->display_name);
                 }
             }
 
