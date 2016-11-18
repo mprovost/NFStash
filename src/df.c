@@ -649,7 +649,8 @@ int main(int argc, char **argv) {
      */
     while (getline(&input_fh, &n, stdin) != -1) {
 
-        current = parse_fh(targets, input_fh, cfg.port, cfg.count, cfg.format);
+        /* don't allocate space for results */
+        current = parse_fh(targets, input_fh, cfg.port, 0);
 
         /* save the longest host/paths for display formatting */
         if (current) {

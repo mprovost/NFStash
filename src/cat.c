@@ -201,7 +201,8 @@ int main(int argc, char **argv) {
 
     /* no arguments, use stdin */
     while (getline(&input_fh, &n, stdin) != -1) {
-        current = parse_fh(targets, input_fh, 0, 0, ping);
+        /* don't allocate space for results */
+        current = parse_fh(targets, input_fh, 0, 0);
     }
 
     targets = targets->next;
