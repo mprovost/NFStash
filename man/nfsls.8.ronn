@@ -3,7 +3,7 @@ nfsls(8) -- list files and directories on an NFS server
 
 ## SYNOPSIS
 
-`nfsls` [`-aAdhlLTv`] [`-c` <count>] [`-H` <hertz>] [`-S` <source>]
+`nfsls` [`-aAdhlLTv`] [`-c` <count>] [`-C` <count>] [`-H` <hertz>] [`-S` <source>]
 
 ## DESCRIPTION
 
@@ -24,7 +24,10 @@ If the NFS server requires "secure" ports (<1024), `nfsls` will have to be run a
   Display IP addresses (instead of hostnames).
 
 * `-c`:
-  Count of requests to send to each input filehandle before exiting. Note that multiple READDIRPLUS RPCs to load a full directory listing or READLINKs to lookup symlinks count as a single request.  A summary of all responses is printed when the count is reached or the program is interrupted.
+  Count of requests to send to each input filehandle before exiting. Note that multiple READDIRPLUS RPCs to load a full directory listing or READLINKs to lookup symlinks count as a single request. A summary of all responses is printed when the count is reached or the program is interrupted.
+
+* `-C` <count>:
+  Count of requests to send to each input filehandle before exiting. Note that multiple READDIRPLUS RPCs to load a full directory listing or READLINKs to lookup symlinks count as a single request. An `fping(8)` compatible parseable summary is printed when the count is reached or the program is interrupted.
 
 * `-d`:
   List directories instead of their contents. This forces `nfsls` to only send GETATTR calls.
@@ -60,8 +63,11 @@ Since both commands typically need root privileges (to bind to a "secure" port) 
 
 If the check is being run repeatedly, there is no need to query the fileserver with `nfsmount` every time. Since the root filehandles shouldn't change, the output can be stored in a file:
 
-  `sudo nfsmount dumpy > dumpy.nfs`  
-  `sudo nfsls < dumpy.nfs`  
+  `sudo nfsmount dumpy > dumpy.nfs`
+
+and used by subsequent commands:
+
+  `sudo nfsls -C 5 < dumpy.nfs`  
 
 Filters can also be used to do recursive lookups, for example to list the contents of the "/var/log/" directory:
 
