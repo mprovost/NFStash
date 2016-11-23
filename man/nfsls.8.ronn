@@ -3,7 +3,7 @@ nfsls(8) -- list files and directories on an NFS server
 
 ## SYNOPSIS
 
-`nfsls` [`-aAdhlLTv`] [`-c` <count>] [`-C` <count>] [`-H` <hertz>] [`-S` <source>]
+`nfsls` [`-aAdhlLqTv`] [`-c` <count>] [`-C` <count>] [`-H` <hertz>] [`-S` <source>]
 
 ## DESCRIPTION
 
@@ -43,6 +43,9 @@ If the NFS server requires "secure" ports (<1024), `nfsls` will have to be run a
 
 * `-L`:
   Loop forever. Exit loop with Ctrl-c.  A summary of all responses is printed when the program is interrupted.
+
+* `-q`:
+  Quiet. In looping and counting modes, only print a summary not each individual response.
 
 * `-S` <source>:
   Use the specified source IP address for request packets.
