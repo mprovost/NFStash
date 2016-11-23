@@ -50,6 +50,7 @@ static struct config {
     /* NFS version */
     unsigned long version;
     struct timeval timeout;
+    int quiet;
 } cfg;
 
 /* default config */
@@ -62,6 +63,7 @@ const struct config CONFIG_DEFAULT = {
     .count        = 0,
     .version      = 3,
     .timeout      = NFS_TIMEOUT,
+    .quiet        = 0,
 };
 
 void usage() {
@@ -76,6 +78,7 @@ List NFS files and directories from stdin\n\n\
     -H       frequency in Hertz (requests per second, default %i)\n\
     -l       print long listing\n\
     -L       loop forever\n\
+    -q       quiet, only print summary\n\
     -S addr  set source address\n\
     -T       use TCP (default UDP)\n\
     -v       verbose output\n",
@@ -670,6 +673,8 @@ int print_ping(targets_t *target, struct nfs_fh_list *fh, const unsigned long us
         loss
     );
 
+    fflush(stdout);
+
     return count;
 }
 
@@ -790,7 +795,7 @@ int main(int argc, char **argv) {
 
     cfg = CONFIG_DEFAULT;
 
-    while ((ch = getopt(argc, argv, "aAc:C:dhH:lLS:Tv")) != -1) {
+    while ((ch = getopt(argc, argv, "aAc:C:dhH:lLS:qTv")) != -1) {
         switch(ch) {
             /* list hidden files */
             case 'a':
@@ -854,6 +859,11 @@ int main(int argc, char **argv) {
                 if (cfg.format == ls_unset) {
                     cfg.format = ls_ping;
                 }
+                break;
+            /* quiet */
+            case 'q':
+                /* TODO check for conflicts with -l etc */
+                cfg.quiet = 1;
                 break;
             /* source ip address for packets */
             case 'S':
@@ -982,13 +992,13 @@ int main(int argc, char **argv) {
 
                     if (cfg.format == ls_json) {
                         print_filehandles(current, filehandle, usec);
-                    } else if (cfg.format == ls_ping || cfg.format == ls_fping) {
+                    } else if (!cfg.quiet && (cfg.format == ls_ping || cfg.format == ls_fping)) {
                         print_ping(current, filehandle, usec);
+                    }
 
-                        if (cfg.format == ls_fping) {
-                            /* record result for each filehandle */
-                            filehandle->results[filehandle->sent - 1] = usec;
-                        }
+                    if (cfg.format == ls_fping) {
+                        /* record result for each filehandle */
+                        filehandle->results[filehandle->sent - 1] = usec;
                     }
 
                     filehandle = filehandle->next;
