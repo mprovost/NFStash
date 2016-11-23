@@ -98,6 +98,7 @@ char *do_readlink(CLIENT *client, char *host, char *path, nfs_fh3 fh) {
     char *symlink = NULL; /* return a NULL pointer to signal failure */
     struct rpc_err clnt_err;
 
+    debug("nfsproc3_readlink_3(%s)\n", nfs_fh3_to_string(args.symlink));
     res = nfsproc3_readlink_3(&args, client);
 
     if (res) {
@@ -139,6 +140,7 @@ entrypluslink3 *do_getattr(CLIENT *client, char *host, nfs_fh_list *fh) {
     char *path = fh->path;
 
     /* the RPC call */
+    debug("nfsproc3_getattr_3(%s)\n", nfs_fh3_to_string(args.object));
     res = nfsproc3_getattr_3(&args, client);
 
     if (res) {
@@ -241,6 +243,7 @@ entrypluslink3 *do_readdirplus(CLIENT *client, char *host, nfs_fh_list *fh) {
 
 
     /* the RPC call */
+    debug("nfsproc3_readdirplus_3(%s, %llu)\n", nfs_fh3_to_string(args.dir), (long long unsigned)args.cookie);
     res = nfsproc3_readdirplus_3(&args, client);
 
     if (res) {
@@ -336,6 +339,7 @@ entrypluslink3 *do_readdirplus(CLIENT *client, char *host, nfs_fh_list *fh) {
                     /* free the previous result */
                     xdr_free((xdrproc_t)xdr_READDIRPLUS3res, (char *)res);
                     /* new RPC call */
+                    debug("nfsproc3_readdirplus_3(%s, %llu)\n", nfs_fh3_to_string(args.dir), (long long unsigned)args.cookie);
                     res = nfsproc3_readdirplus_3(&args, client);
 
                     if (res == NULL) {
@@ -927,6 +931,7 @@ int main(int argc, char **argv) {
                 filehandle = current->filehandles;
 
                 while (filehandle) {
+                    /* count the time it takes to do all of the RPCs required for a full listing */
 #ifdef CLOCK_MONOTONIC_RAW
                     clock_gettime(CLOCK_MONOTONIC_RAW, &call_start);
 #else
