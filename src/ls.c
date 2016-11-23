@@ -553,7 +553,7 @@ int print_long_listing(targets_t *targets) {
 
                 /* have to cast size_t to int for compiler warning (-Wformat) */
                 /* printf only accepts ints for field widths with * */
-                printf("%s %*lu %-*s %-*s %*" PRIu64 " %s %-*s %s\n",
+                printf("%s %*lu %-*s %-*s %*" PRIu64 " %s %03.2f ms %-*s %s\n",
                     /* permissions bits */
                     lsperms(bits, attributes.type, attributes.mode),
                     /* number of links */
@@ -566,6 +566,8 @@ int print_long_listing(targets_t *targets) {
                     (int)maxsize, attributes.size,
                     /* date + time */
                     buf,
+                    /* latest response time */
+                    fh->results[fh->sent - 1] / 1000.0,
                     /* hostname */
                     (int)maxhost, host_p,
                     /* filename */
@@ -900,7 +902,7 @@ int main(int argc, char **argv) {
 
     /* no arguments, use stdin */
     while (getline(&input_fh, &input_len, stdin) != -1) {
-        if (cfg.format == ls_fping) {
+        if (cfg.format == ls_fping || cfg.format == ls_longform) {
             current = parse_fh(targets, input_fh, 0, cfg.count);
         } else {
             /* don't allocate space for results */
@@ -996,7 +998,8 @@ int main(int argc, char **argv) {
                         print_ping(current, filehandle, usec);
                     }
 
-                    if (cfg.format == ls_fping) {
+                    /* store the response time for fping summary or long listing output */
+                    if (cfg.format == ls_fping || cfg.format == ls_longform) {
                         /* record result for each filehandle */
                         filehandle->results[filehandle->sent - 1] = usec;
                     }
@@ -1019,6 +1022,7 @@ int main(int argc, char **argv) {
         debug("Polling took %lld.%.9lds\n", (long long)loop_elapsed.tv_sec, loop_elapsed.tv_nsec);
 
         /* pass the whole list for printing long listing */
+        /* do this once so output can be justified to longest user/group name */
         if (cfg.format == ls_longform) {
             print_long_listing(targets);
         }
