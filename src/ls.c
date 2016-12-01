@@ -807,7 +807,7 @@ int main(int argc, char **argv) {
                 break;
             case 'c':
                 if (cfg.loop) {
-                    fatal("Can't specify both -l and -c!\n");
+                    fatal("Can't specify both -L and -c!\n");
                 }
 
                 cfg.count = strtoul(optarg, NULL, 10);
@@ -822,7 +822,7 @@ int main(int argc, char **argv) {
                 break;
             case 'C':
                 if (cfg.loop) {
-                    fatal("Can't specify both -l and -C!\n");
+                    fatal("Can't specify both -L and -C!\n");
                 }
 
                 cfg.count = strtoul(optarg, NULL, 10);
@@ -851,7 +851,11 @@ int main(int argc, char **argv) {
             /* loop */
             case 'L':
                 if (cfg.count) {
-                    fatal("Can't specify both -c and -l!\n");
+                    if (cfg.format == ls_fping) {
+                        fatal("Can't specify both -C and -L!\n");
+                    } else {
+                        fatal("Can't specify both -c and -L!\n");
+                    }
                 }
 
                 cfg.loop = 1;
