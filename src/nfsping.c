@@ -74,7 +74,7 @@ void usage() {
 
     printf("Usage: nfsping [options] [targets...]\n\
     -a         check the NFS ACL protocol (default NFS)\n\
-    -A         show IP addresses\n\
+    -A         show IP addresses (default hostnames)\n\
     -c n       count of pings to send to target\n\
     -C n       same as -c, output parseable format\n\
     -d         reverse DNS lookups for targets\n\
