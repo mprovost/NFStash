@@ -1008,15 +1008,11 @@ int main(int argc, char **argv) {
             current = current->next;
         } /* while (current) */
 
-        /* measure how long the current round took, and subtract that from the sleep time */
-        /* this keeps us on the polling frequency */
 #ifdef CLOCK_MONOTONIC_RAW
         clock_gettime(CLOCK_MONOTONIC_RAW, &loop_end);
 #else  
         clock_gettime(CLOCK_MONOTONIC, &loop_end);
 #endif 
-        timespecsub(&loop_end, &loop_start, &loop_elapsed);
-        debug("Polling took %lld.%.9lds\n", (long long)loop_elapsed.tv_sec, loop_elapsed.tv_nsec);
 
         /* pass the whole list for printing long listing */
         if (cfg.format == ls_longform) {
@@ -1030,6 +1026,11 @@ int main(int argc, char **argv) {
         /* only sleep if looping or counting */
         /* check the count against the first filehandle in the first target */
         if (cfg.loop || (cfg.count && targets->filehandles->sent < cfg.count)) {
+            /* measure how long the current round took, and subtract that from the sleep time */
+            /* this keeps us on the polling frequency */
+            timespecsub(&loop_end, &loop_start, &loop_elapsed);
+            debug("Polling took %lld.%.9lds\n", (long long)loop_elapsed.tv_sec, loop_elapsed.tv_nsec);
+
             /* don't sleep if we went over the sleep_time */
             if (timespeccmp(&loop_elapsed, &sleep_time, >)) {
                 debug("Slow poll, not sleeping\n");
