@@ -2,6 +2,7 @@
 #include "rpc.h"
 #include "util.h"
 #include "xdr_copy.h"
+#include "human.h" /* prefix_print() */
 #include <sys/stat.h> /* for file mode bits */
 #include <pwd.h> /* getpwuid() */
 #include <grp.h> /* getgrgid() */
@@ -67,6 +68,10 @@ const struct config CONFIG_DEFAULT = {
 };
 
 void usage() {
+    /* TODO
+       -h human
+       -k kb etc
+     */
     printf("Usage: nfsls [options]\n\
 List NFS files and directories from stdin\n\n\
     -a       print hidden files\n\
@@ -448,6 +453,8 @@ int print_long_listing(targets_t *targets) {
     /* string for storing permissions bits */
     /* needs to be 11 with the file type */
     char bits[11];
+    /* string for storing the formatted file size */
+    char filesize[max_prefix_width];
     struct passwd *passwd;
     struct group  *group;
     struct tm     *mtime;
@@ -526,6 +533,9 @@ int print_long_listing(targets_t *targets) {
             current = fh->entries;
 
             while (current) {
+                /* TODO
+                   if (current->name_attributes.post_op_attr_u.attributes_follow) {
+                 */
                 attributes = current->name_attributes.post_op_attr_u.attributes;
 
                 /* look up username and group locally */
@@ -551,9 +561,11 @@ int print_long_listing(targets_t *targets) {
                     name_p = current->name;
                 }
 
+                prefix_print(attributes.size, filesize, HUMAN);
+
                 /* have to cast size_t to int for compiler warning (-Wformat) */
                 /* printf only accepts ints for field widths with * */
-                printf("%s %*lu %-*s %-*s %*" PRIu64 " %s %-*s %s\n",
+                printf("%s %*lu %-*s %-*s %-*s %s %-*s %s\n",
                     /* permissions bits */
                     lsperms(bits, attributes.type, attributes.mode),
                     /* number of links */
@@ -563,7 +575,7 @@ int print_long_listing(targets_t *targets) {
                     /* group */
                     (int)maxgroup, group->gr_name,
                     /* file size */
-                    (int)maxsize, attributes.size,
+                    (int)maxsize, filesize,
                     /* date + time */
                     buf,
                     /* hostname */
