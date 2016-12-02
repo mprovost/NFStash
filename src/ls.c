@@ -578,6 +578,8 @@ int print_long_listing(targets_t *targets) {
                     (int)maxsize, filesize,
                     /* date + time */
                     buf,
+                    /* latest response time */
+                    fh->results[fh->sent - 1] / 1000.0,
                     /* hostname */
                     (int)maxhost, host_p,
                     /* filename */
@@ -916,7 +918,7 @@ int main(int argc, char **argv) {
 
     /* no arguments, use stdin */
     while (getline(&input_fh, &input_len, stdin) != -1) {
-        if (cfg.format == ls_fping) {
+        if (cfg.format == ls_fping || cfg.format == ls_longform) {
             current = parse_fh(targets, input_fh, 0, cfg.count);
         } else {
             /* don't allocate space for results */
@@ -1012,7 +1014,8 @@ int main(int argc, char **argv) {
                         print_ping(current, filehandle, usec);
                     }
 
-                    if (cfg.format == ls_fping) {
+                    /* store the response time for fping summary or long listing output */
+                    if (cfg.format == ls_fping || cfg.format == ls_longform) {
                         /* record result for each filehandle */
                         filehandle->results[filehandle->sent - 1] = usec;
                     }
@@ -1031,6 +1034,7 @@ int main(int argc, char **argv) {
 #endif 
 
         /* pass the whole list for printing long listing */
+        /* do this once so output can be justified to longest user/group name */
         if (cfg.format == ls_longform) {
             print_long_listing(targets);
         }
