@@ -100,7 +100,7 @@ bin/nfsmount: config/clock_gettime.opt $(nfsmount_objs) | bin
 	gcc ${CFLAGS} @config/clock_gettime.opt $(nfsmount_objs) -o $@
 
 nfsdf: bin/nfsdf
-nfsdf_objs = $(addprefix obj/, $(addsuffix .o, df nfs_prot_clnt nfs_prot_xdr) $(common_objs))
+nfsdf_objs = $(addprefix obj/, $(addsuffix .o, df human nfs_prot_clnt nfs_prot_xdr) $(common_objs))
 bin/nfsdf: config/clock_gettime.opt $(nfsdf_objs) | bin
 	gcc ${CFLAGS} @config/clock_gettime.opt $(nfsdf_objs) -o $@
 

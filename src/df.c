@@ -5,32 +5,9 @@
 #include "nfsping.h"
 #include "rpc.h"
 #include "util.h"
+#include "human.h"
 #include <sys/ioctl.h> /* for checking terminal size */
 
-/* for shifting */
-enum byte_prefix {
-    NONE  = -1,
-    BYTE  =  0,
-    KILO  = 10,
-    MEGA  = 20,
-    GIGA  = 30,
-    TERA  = 40,
-    PETA  = 50,
-    EXA   = 60,
-    HUMAN = 99
-};
-
-/* labels for printing size prefixes */
-static const char prefix_label[] = {
-    /* TODO something better than a space for bytes */
-    [BYTE] = ' ', /* nothing for just bytes */
-    [KILO] = 'K',
-    [MEGA] = 'M',
-    [GIGA] = 'G',
-    [TERA] = 'T',
-    [PETA] = 'P',
-    [EXA]  = 'E'
-};
 
 /* we could include the "bytes" in the output string but easier just to keep it in one place */
 /* better to keep it in a constant than to have another branch statement in the code */
@@ -46,33 +23,6 @@ static const char *header_label[] = {
     [HUMAN] = "bytes"
 };
 
-/* the value returned by fsstat is a uint64 in bytes */
-/* so the largest value is 18446744073709551615 == 15 exabytes */
-/* The longest output for each column (up to 15 exabytes in bytes) is 20 digits */
-/* these widths don't include space for labels or trailing NULL */
-/* TODO struct so we can put in a label and a width */
-static const int prefix_width[] = {
-    /* if we're using human output the number will never be longer than 4 digits */
-    /* add one for per-filesystem size labels */
-    [HUMAN] = 5,
-    /* 15EB in B  = 18446744073709551615 */
-    [BYTE]  = 20,
-    /* 15EB in KB = 18014398509481983 */
-    [KILO]  = 17,
-    /* 15EB in MB = 17592186044415 */
-    [MEGA]  = 14,
-    /* 15EB in GB = 17179869183 */
-    [GIGA]  = 11,
-    /* 15EB in TB = 16777215 */
-    [TERA]  = 8,
-    /* 15EB in PB = 16383 */
-    [PETA]  = 5,
-    /* 15EB in EB = 15 */
-    [EXA]   = 2,
-};
-
-/* 20 is enough for 15 exabytes in bytes, plus three for the label and a trailing NUL */
-static const int max_prefix_width = 25;
 
 /* FSSTAT3res returns a size3(uint64) result for inodes which is 18446744073709551615 */
 /* that's way too big */
@@ -120,7 +70,6 @@ const struct config CONFIG_DEFAULT = {
 static void usage(void);
 static FSSTAT3res *get_fsstat(CLIENT *, const char *, nfs_fh_list *);
 static void print_header(int, int, enum byte_prefix);
-static int prefix_print(size3, char *, enum byte_prefix);
 static int print_df(int, char *, char *, FSSTAT3res *, const enum byte_prefix, const unsigned long);
 static void print_inodes(int, char *, char *, FSSTAT3res *, const unsigned long);
 static char *replace_char(const char *, const char *, const char *);
@@ -233,62 +182,6 @@ void print_header(int maxhost, int maxpath, enum byte_prefix prefix) {
                 max_inode_width, "iused", max_inode_width, "ifree");
         }
     }
-}
-
-
-/* generate formatted df size strings */
-/* takes an input size and a string pointer to output into */
-/* returns the size of the output string, including NULL */
-/* in "human" mode, calculate the best fit and print the label since each filesystem can have a different "best" unit */
-/* otherwise printing the prefix has moved into the header instead of after each number */
-/* the "best" fit is the largest unit that fits into 4 digits */
-/* note that this is different than other dfs which fit it into 3 digits and use a decimal */
-/* in our case, prefer the extra resolution and avoid decimals */
-int prefix_print(size3 input, char *output, enum byte_prefix prefix) {
-    /* string position */
-    int index = 0;
-    size3 shifted;
-    enum byte_prefix shifted_prefix = prefix;
-    size_t width = prefix_width[prefix] + 1; /* add one to length for terminating NULL */
-
-    if (prefix == HUMAN) {
-        /* try and find the best fit, starting with exabytes and working down */
-        shifted_prefix = EXA;
-        while (shifted_prefix) {
-            shifted = input >> shifted_prefix;
-            if (shifted && shifted > 10)
-                break;
-            shifted_prefix -= 10;
-        }
-    } else {
-        shifted = input >> shifted_prefix;
-
-        /* check if the prefix is forcing us to print a zero result when there actually is something there */
-        /* this can happen if a large unit is specified (terabytes for a small filesystem for example) */
-        if (input > 0 && shifted == 0) {
-            /* in this case, print a less than sign before the zero to indicate that there was a nonzero result */
-            output[index++] = '<';
-        }
-    }
-
-    /* TODO check the length */
-    index += snprintf(&output[index], width, "%" PRIu64 "", shifted);
-
-    /* print the label */
-    /* only print this for human mode otherwise stuff the prefix in the header */
-    if (prefix == HUMAN) {
-        /* don't print a blank space for bytes */
-        if (shifted_prefix > BYTE) {
-            output[index] = prefix_label[shifted_prefix];
-        }
-    }
-
-    /* Don't print a B for bytes (ie KB, MB) because this is also used for inodes */
-
-    /* terminate the string */
-    output[++index] = '\0';
-
-    return index;
 }
 
 
