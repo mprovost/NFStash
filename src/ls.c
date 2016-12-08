@@ -448,6 +448,7 @@ int print_long_listing(targets_t *targets) {
     entrypluslink3 *current;
     /* shortcut */
     struct fattr3 attributes;
+    struct fattr3 empty_attributes = { 0 };
     /* number of lines of output */
     int count = 0;
     /* string for storing permissions bits */
@@ -492,19 +493,21 @@ int print_long_listing(targets_t *targets) {
             while (current) {
                 count++;
 
-                /* shortcut */
-                attributes = current->name_attributes.post_op_attr_u.attributes;
+                if (current->name_attributes.attributes_follow) {
+                    /* shortcut */
+                    attributes = current->name_attributes.post_op_attr_u.attributes;
 
-                maxlinks = attributes.nlink > maxlinks ? attributes.nlink : maxlinks;
-                maxsize = attributes.size > maxsize ? attributes.size : maxsize;
+                    maxlinks = attributes.nlink > maxlinks ? attributes.nlink : maxlinks;
+                    maxsize = attributes.size > maxsize ? attributes.size : maxsize;
 
-                /* TODO cache this ! */
-                passwd = getpwuid(attributes.uid);
-                maxuser = strlen(passwd->pw_name) > maxuser ? strlen(passwd->pw_name) : maxuser;
+                    /* TODO cache this ! */
+                    passwd = getpwuid(attributes.uid);
+                    maxuser = strlen(passwd->pw_name) > maxuser ? strlen(passwd->pw_name) : maxuser;
 
-                /* TODO cache this ! */
-                group = getgrgid(attributes.gid);
-                maxgroup = strlen(group->gr_name) > maxgroup ? strlen(group->gr_name) : maxgroup;
+                    /* TODO cache this ! */
+                    group = getgrgid(attributes.gid);
+                    maxgroup = strlen(group->gr_name) > maxgroup ? strlen(group->gr_name) : maxgroup;
+                }
 
                 current = current->next;
             } /* while (current) */
@@ -533,35 +536,36 @@ int print_long_listing(targets_t *targets) {
             current = fh->entries;
 
             while (current) {
-                /* TODO
-                   if (current->name_attributes.post_op_attr_u.attributes_follow) {
-                 */
-                attributes = current->name_attributes.post_op_attr_u.attributes;
-
-                /* look up username and group locally */
-                /* TODO -n option to keep uid/gid */
-                /* TODO check for NULL return value */
-                passwd = getpwuid(attributes.uid);
-                group  = getgrgid(attributes.gid);
-
-                /* format to ISO 8601 timestamp */
-                /* this converts an unsigned 32 bit seconds to a signed 32 bit time_t which doesn't always do what is expected! */
-                /* TODO detect values greater than 32 bit signed max and treat them as signed? */
-                /* Solaris has a setting nfs_allow_preepoch_time for this, make it into an option? */
-                /* TODO print a message in gcc output acknowledging this warning */
-                mtime = localtime(&attributes.mtime.seconds);
-                /* TODO check return value, should always be 19 */
-                strftime(buf, 20, "%Y-%m-%d %H:%M:%S", mtime);
-
-                if (attributes.type == NF3LNK) {
-                    /* TODO just allocate to name_p? */
-                    asprintf(&symlink, "%s -> %s", current->name, current->symlink);
-                    name_p = symlink;
+                if (current->name_attributes.attributes_follow) {
+                    attributes = current->name_attributes.post_op_attr_u.attributes;
                 } else {
-                    name_p = current->name;
+                    attributes = empty_attributes;
                 }
 
-                prefix_print(attributes.size, filesize, HUMAN);
+                    /* look up username and group locally */
+                    /* TODO -n option to keep uid/gid */
+                    /* TODO check for NULL return value */
+                    passwd = getpwuid(attributes.uid);
+                    group  = getgrgid(attributes.gid);
+
+                    /* format to ISO 8601 timestamp */
+                    /* this converts an unsigned 32 bit seconds to a signed 32 bit time_t which doesn't always do what is expected! */
+                    /* TODO detect values greater than 32 bit signed max and treat them as signed? */
+                    /* Solaris has a setting nfs_allow_preepoch_time for this, make it into an option? */
+                    /* TODO print a message in gcc output acknowledging this warning */
+                    mtime = localtime(&attributes.mtime.seconds);
+                    /* TODO check return value, should always be 19 */
+                    strftime(buf, 20, "%Y-%m-%d %H:%M:%S", mtime);
+
+                    if (attributes.type == NF3LNK) {
+                        /* TODO just allocate to name_p? */
+                        asprintf(&symlink, "%s -> %s", current->name, current->symlink);
+                        name_p = symlink;
+                    } else {
+                        name_p = current->name;
+                    }
+
+                    prefix_print(attributes.size, filesize, HUMAN);
 
                 /* have to cast size_t to int for compiler warning (-Wformat) */
                 /* printf only accepts ints for field widths with * */
