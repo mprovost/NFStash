@@ -578,8 +578,6 @@ int print_long_listing(targets_t *targets) {
                     (int)maxsize, filesize,
                     /* date + time */
                     buf,
-                    /* latest response time */
-                    fh->results[fh->sent - 1] / 1000.0,
                     /* hostname */
                     (int)maxhost, host_p,
                     /* filename */
