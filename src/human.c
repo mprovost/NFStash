@@ -34,24 +34,30 @@ int prefix_print(size3 input, char *output, enum byte_prefix prefix) {
     enum byte_prefix shifted_prefix = prefix;
     size_t width = prefix_width[prefix] + 1; /* add one to length for terminating NULL */
 
-    if (prefix == HUMAN) {
-        /* try and find the best fit, starting with exabytes and working down */
-        shifted_prefix = EXA;
-        while (shifted_prefix) {
+    /* skip zeroes */
+    if (input > 0) {
+        if (prefix == HUMAN) {
+            /* try and find the best fit, starting with exabytes and working down */
+            shifted_prefix = EXA;
+            /* BYTE == 0 */
+            while (shifted_prefix >= BYTE) {
+                shifted = input >> shifted_prefix;
+                if (shifted && shifted >= 10)
+                    break;
+                shifted_prefix -= 10;
+            }
+        } else {
             shifted = input >> shifted_prefix;
-            if (shifted && shifted > 10)
-                break;
-            shifted_prefix -= 10;
+
+            /* check if the prefix is forcing us to print a zero result when there actually is something there */
+            /* this can happen if a large unit is specified (terabytes for a small filesystem for example) */
+            if (input > 0 && shifted == 0) {
+                /* in this case, print a less than sign before the zero to indicate that there was a nonzero result */
+                output[index++] = '<';
+            }
         }
     } else {
-        shifted = input >> shifted_prefix;
-
-        /* check if the prefix is forcing us to print a zero result when there actually is something there */
-        /* this can happen if a large unit is specified (terabytes for a small filesystem for example) */
-        if (input > 0 && shifted == 0) {
-            /* in this case, print a less than sign before the zero to indicate that there was a nonzero result */
-            output[index++] = '<';
-        }
+        shifted = input;
     }
 
     /* TODO check the length */
@@ -59,7 +65,8 @@ int prefix_print(size3 input, char *output, enum byte_prefix prefix) {
 
     /* print the label */
     /* only print this for human mode otherwise stuff the prefix in the header */
-    if (prefix == HUMAN) {
+    /* don't print label for zero results */
+    if (input > 0 && prefix == HUMAN) {
         /* don't print a blank space for bytes */
         if (shifted_prefix > BYTE) {
             output[index] = prefix_label[shifted_prefix];
