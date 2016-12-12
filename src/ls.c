@@ -29,7 +29,7 @@ static entrypluslink3 *do_getattr(CLIENT *, char *, nfs_fh_list *);
 static entrypluslink3 *do_readdirplus(CLIENT *, char *, nfs_fh_list *);
 static char *lsperms(char *, ftype3, mode3);
 static int print_long_listing(targets_t *);
-static void print_entrypluslink3(entrypluslink3 *, char *, char *, char *, char *, const unsigned long usec);
+static void print_entrypluslink3(entrypluslink3 *, char *, char *, char *, const unsigned long usec);
 static int print_filehandles(targets_t *, nfs_fh_list *, const unsigned long);
 static int print_ping(targets_t *, struct nfs_fh_list *, const unsigned long);
 static void print_summary(targets_t *, enum ls_formats);
@@ -606,7 +606,7 @@ int print_long_listing(targets_t *targets) {
 /* print an (extended) NFS readdirplus result entry as a JSON object */
 /* maybe make a generic struct like sockaddr? */
 /* TODO take a target_t instead of individual strings */
-void print_entrypluslink3(entrypluslink3 *entryplus, char *host, char *ip_address, char *path, char *file_name, const unsigned long usec) {
+void print_entrypluslink3(entrypluslink3 *entryplus, char *host, char *ip_address, char *path, const unsigned long usec) {
     /* filehandle */
     nfs_fh3 file_handle = entryplus->name_handle.post_op_fh3_u.handle;
     /* filehandle string */
@@ -625,9 +625,9 @@ void print_entrypluslink3(entrypluslink3 *entryplus, char *host, char *ip_addres
     /* check if the path needs a separator */
     /* TODO use a static string */
     if (path[strlen(path) - 1] != '/') {
-        asprintf(&mypath, "%s/%s", path, file_name);
+        asprintf(&mypath, "%s/%s", path, entryplus->name);
     } else {
-        asprintf(&mypath, "%s%s", path, file_name);
+        asprintf(&mypath, "%s%s", path, entryplus->name);
     }
     json_object_set_string(json_obj, "path", mypath);
     free(mypath);
@@ -656,7 +656,7 @@ int print_filehandles(targets_t *target, struct nfs_fh_list *fh, const unsigned 
         /* if there is no filehandle (/dev, /proc, etc) don't print */
         /* none of the other utilities can do anything without a filehandle */
         if (current->name_handle.post_op_fh3_u.handle.data.data_len) {
-            print_entrypluslink3(current, target->name, target->ip_address, fh->path, current->name, usec);
+            print_entrypluslink3(current, target->name, target->ip_address, fh->path, usec);
         }
 
         current = current->next;
