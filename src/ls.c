@@ -609,6 +609,8 @@ int print_long_listing(targets_t *targets) {
 void print_entrypluslink3(entrypluslink3 *entryplus, char *host, char *ip_address, char *path, const unsigned long usec) {
     /* filehandle */
     nfs_fh3 file_handle = entryplus->name_handle.post_op_fh3_u.handle;
+    /* file attributes */
+    fattr3 attributes = entryplus->name_attributes.post_op_attr_u.attributes;
     /* filehandle string */
     char *fh;
     /* cookie string */
@@ -644,6 +646,16 @@ void print_entrypluslink3(entrypluslink3 *entryplus, char *host, char *ip_addres
     /* JSON only has doubles and we need the exact value not a conversion, so use a string */
     snprintf(cookie, COOKIE_MAX, "%llu", (unsigned long long) entryplus->cookie);
     json_object_set_string(json_obj, "cookie", cookie);
+
+    if (entryplus->name_attributes.attributes_follow) {
+        json_object_set_number(json_obj, "size", (double) attributes.size);
+        json_object_set_number(json_obj, "used", (double) attributes.used);
+        json_object_set_number(json_obj, "nlink", (double) attributes.nlink);
+        json_object_set_number(json_obj, "fsid", (double) attributes.fsid);
+        /* this also exists in the entry itself */
+        /* TODO check that they're equal */
+        json_object_set_number(json_obj, "fileid", (double) attributes.fileid);
+    }
 
     my_json_string = json_serialize_to_string(json_root);
     printf("%s\n", my_json_string);
