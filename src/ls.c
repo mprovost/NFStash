@@ -29,7 +29,7 @@ static entrypluslink3 *do_getattr(CLIENT *, char *, nfs_fh_list *);
 static entrypluslink3 *do_readdirplus(CLIENT *, char *, nfs_fh_list *);
 static char *lsperms(char *, ftype3, mode3);
 static int print_long_listing(targets_t *);
-static void print_nfs_fh3(char *, char *, char *, char *, nfs_fh3, const unsigned long);
+static void print_entrypluslink3(entrypluslink3 *, char *, char *, char *, char *, const unsigned long usec);
 static int print_filehandles(targets_t *, nfs_fh_list *, const unsigned long);
 static int print_ping(targets_t *, struct nfs_fh_list *, const unsigned long);
 static void print_summary(targets_t *, enum ls_formats);
@@ -603,10 +603,12 @@ int print_long_listing(targets_t *targets) {
 }
 
 
-/* print an NFS filehandle as a JSON object */
+/* print an (extended) NFS readdirplus result entry as a JSON object */
 /* maybe make a generic struct like sockaddr? */
 /* TODO take a target_t instead of individual strings */
-void print_nfs_fh3(char *host, char *ip_address, char *path, char *file_name, nfs_fh3 file_handle, const unsigned long usec) {
+void print_entrypluslink3(entrypluslink3 *entryplus, char *host, char *ip_address, char *path, char *file_name, const unsigned long usec) {
+    /* filehandle */
+    nfs_fh3 file_handle = entryplus->name_handle.post_op_fh3_u.handle;
     /* filehandle string */
     char *fh;
     /* output string */
@@ -654,7 +656,7 @@ int print_filehandles(targets_t *target, struct nfs_fh_list *fh, const unsigned 
         /* if there is no filehandle (/dev, /proc, etc) don't print */
         /* none of the other utilities can do anything without a filehandle */
         if (current->name_handle.post_op_fh3_u.handle.data.data_len) {
-            print_nfs_fh3(target->name, target->ip_address, fh->path, current->name, current->name_handle.post_op_fh3_u.handle, usec);
+            print_entrypluslink3(current, target->name, target->ip_address, fh->path, current->name, usec);
         }
 
         current = current->next;
