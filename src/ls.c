@@ -644,6 +644,7 @@ void print_entrypluslink3(entrypluslink3 *entryplus, char *host, char *ip_addres
 
     /* cookie */
     /* JSON only has doubles and we need the exact value not a conversion, so use a string */
+    /* it's really an opaque value not a number */
     snprintf(cookie, COOKIE_MAX, "%llu", (unsigned long long) entryplus->cookie);
     json_object_set_string(json_obj, "cookie", cookie);
 
@@ -655,6 +656,8 @@ void print_entrypluslink3(entrypluslink3 *entryplus, char *host, char *ip_addres
         /* this also exists in the entry itself */
         /* TODO check that they're equal */
         json_object_set_number(json_obj, "fileid", (double) attributes.fileid);
+        json_object_set_number(json_obj, "uid", (double) attributes.uid);
+        json_object_set_number(json_obj, "gid", (double) attributes.gid);
     }
 
     my_json_string = json_serialize_to_string(json_root);
