@@ -611,6 +611,8 @@ void print_entrypluslink3(entrypluslink3 *entryplus, char *host, char *ip_addres
     nfs_fh3 file_handle = entryplus->name_handle.post_op_fh3_u.handle;
     /* filehandle string */
     char *fh;
+    /* cookie string */
+    char cookie[COOKIE_MAX];
     /* output string */
     char *my_json_string;
     /* path + filename */
@@ -637,6 +639,11 @@ void print_entrypluslink3(entrypluslink3 *entryplus, char *host, char *ip_addres
     fh = nfs_fh3_to_string(file_handle);
     json_object_set_string(json_obj, "filehandle", fh);
     free(fh);
+
+    /* cookie */
+    /* JSON only has doubles and we need the exact value not a conversion, so use a string */
+    snprintf(cookie, COOKIE_MAX, "%llu", (unsigned long long) entryplus->cookie);
+    json_object_set_string(json_obj, "cookie", cookie);
 
     my_json_string = json_serialize_to_string(json_root);
     printf("%s\n", my_json_string);

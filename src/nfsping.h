@@ -60,6 +60,10 @@
 /* 9223372036854775807 is LLONG_MAX, add one for a '-' (just in case!) and another for a terminating NUL */
 #define TIME_T_MAX_DIGITS 21
 
+/* max length of a uint64 cookie string */
+/* ULLONG_MAX = 18446744073709551615 = 20 + NUL */
+#define COOKIE_MAX 21
+
 typedef struct targets {
     /* make the first field a pointer so that assigning to {0} works */
     CLIENT *client; /* RPC client */
