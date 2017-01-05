@@ -387,32 +387,15 @@ entrypluslink3 *do_readdirplus(CLIENT *client, char *host, nfs_fh_list *fh) {
 /* based on http://stackoverflow.com/questions/10323060/printing-file-permissions-like-ls-l-using-stat2-in-c */
 char *lsperms(char *bits, ftype3 type, mode3 mode) {
     const char *rwx[] = {"---", "--x", "-w-", "-wx", "r--", "r-x", "rw-", "rwx"};
+    /* string to store the characters for different file types */
+    const char *ftypes = "-dbclsp";
 
-    switch (type) {
-        case NF3REG:
-            bits[0] = '-';
-            break;
-        case NF3DIR:
-            bits[0] = 'd';
-            break;
-        case NF3BLK:
-            bits[0] = 'b';
-            break;
-        case NF3CHR:
-            bits[0] = 'c';
-            break;
-        case NF3LNK:
-            bits[0] = 'l';
-            break;
-        case NF3SOCK:
-            bits[0] = 's';
-            break;
-        case NF3FIFO:
-            bits[0] = 'p';
-            break;
-        default:
-            /* Unknown type - this shows up for /proc, /dev, /sys etc */
-            bits[0] = '?';
+    if (type > 0 && type < 8) {
+        /* use the type as an offset into the string */
+        bits[0] = ftypes[type - 1];
+    } else {
+        /* Unknown type - this shows up for /proc, /dev, /sys etc */
+        bits[0] = '?';
     }
 
     strcpy(&bits[1], rwx[(mode >> 6)& 7]);
