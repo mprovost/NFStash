@@ -38,6 +38,8 @@ static void print_summary(targets_t *, enum ls_formats);
 static struct config {
     /* output format */
     enum ls_formats format;
+    /* output size prefix */
+    enum byte_prefix prefix;
     /* ls -d */
     int listdir;
     /* ls -a */
@@ -57,6 +59,7 @@ static struct config {
 /* default config */
 const struct config CONFIG_DEFAULT = {
     .format       = ls_unset,
+    .prefix       = HUMAN,
     .listdir      = 0,
     .listdot      = 0,
     .display_ips  = 0,
@@ -548,7 +551,7 @@ int print_long_listing(targets_t *targets) {
                         name_p = current->name;
                     }
 
-                    prefix_print(attributes.size, filesize, HUMAN);
+                    prefix_print(attributes.size, filesize, cfg.prefix);
 
                 /* have to cast size_t to int for compiler warning (-Wformat) */
                 /* printf only accepts ints for field widths with * */
