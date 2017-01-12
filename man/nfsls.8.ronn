@@ -33,7 +33,7 @@ If the NFS server requires "secure" ports (<1024), `nfsls` will have to be run a
   List directories instead of their contents. This forces `nfsls` to only send GETATTR calls.
 
 * `-h`:
-  Display a help message and exit.
+  In long listing mode (`-l`), display file sizes in human readable format. This selects whichever unit is the most compact to display in 4 digits of precision. This is the default.
 
 * `-H` <hertz>:
   The polling frequency in Hertz when in looping (`-L`) or counting (`-c`) modes. This is the number of requests sent to each target filehandle per second. Note that for larger directories, multiple READDIRPLUS RPCs can be sent but are only counted as a single request. Default = 1.

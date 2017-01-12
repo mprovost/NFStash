@@ -72,7 +72,6 @@ const struct config CONFIG_DEFAULT = {
 
 void usage() {
     /* TODO
-       -h human
        -k kb etc
      */
     printf("Usage: nfsls [options]\n\
@@ -82,7 +81,7 @@ List NFS files and directories from stdin\n\n\
     -c n     count of requests to send for each filehandle\n\
     -C n     same as -c, output parseable format\n\
     -d       list actual directory not contents\n\
-    -h       display this help and exit\n\
+    -h       display human readable sizes (default)\n\
     -H       frequency in Hertz (requests per second, default %i)\n\
     -l       print long listing\n\
     -L       loop forever\n\
@@ -865,6 +864,13 @@ int main(int argc, char **argv) {
             case 'd':
                 cfg.listdir = 1;
                 break;
+            /* human sizes */
+            case 'h':
+                /* human size is the default, check if another option has already changed it */
+                if (cfg.prefix != HUMAN) {
+                    fatal("Can't specify multiple size formats!\n");
+                }
+                break;
             /* polling frequency */
             case 'H':
                 /* TODO check for reasonable values */
@@ -909,7 +915,6 @@ int main(int argc, char **argv) {
             case 'v':
                 verbose = 1;
                 break;
-            case 'h':
             default:
                 usage();
         }
