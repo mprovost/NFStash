@@ -59,7 +59,7 @@ static struct config {
 /* default config */
 const struct config CONFIG_DEFAULT = {
     .format       = ls_unset,
-    .prefix       = HUMAN,
+    .prefix       = NONE,
     .listdir      = 0,
     .listdot      = 0,
     .display_ips  = 0,
@@ -70,21 +70,25 @@ const struct config CONFIG_DEFAULT = {
     .quiet        = 0,
 };
 
+
 void usage() {
     /* TODO
-       -k kb etc
+       -P for NFS port
      */
     printf("Usage: nfsls [options]\n\
 List NFS files and directories from stdin\n\n\
     -a       print hidden files\n\
     -A       show IP addresses (default hostnames)\n\
+    -b       display sizes in bytes\n\
     -c n     count of requests to send for each filehandle\n\
     -C n     same as -c, output parseable format\n\
     -d       list actual directory not contents\n\
     -h       display human readable sizes (default)\n\
     -H       frequency in Hertz (requests per second, default %i)\n\
+    -k       display sizes in kilobytes\n\
     -l       print long listing\n\
     -L       loop forever\n\
+    -m       display sizes in megabytes\n\
     -q       quiet, only print summary\n\
     -S addr  set source address\n\
     -T       use TCP (default UDP)\n\
@@ -820,7 +824,7 @@ int main(int argc, char **argv) {
 
     cfg = CONFIG_DEFAULT;
 
-    while ((ch = getopt(argc, argv, "aAc:C:dhH:lLS:qTv")) != -1) {
+    while ((ch = getopt(argc, argv, "aAbc:C:dhH:klLmS:qTv")) != -1) {
         switch(ch) {
             /* list hidden files */
             case 'a':
@@ -829,6 +833,14 @@ int main(int argc, char **argv) {
             /* display IPs instead of hostnames */
             case 'A':
                 cfg.display_ips = 1;
+                break;
+            /* display bytes */
+            case 'b':
+                if (cfg.prefix == NONE) {
+                    cfg.prefix = BYTE;
+                } else {
+                    fatal("Can't specify multiple units!\n");
+                }
                 break;
             case 'c':
                 if (cfg.loop) {
@@ -866,15 +878,24 @@ int main(int argc, char **argv) {
                 break;
             /* human sizes */
             case 'h':
-                /* human size is the default, check if another option has already changed it */
-                if (cfg.prefix != HUMAN) {
-                    fatal("Can't specify multiple size formats!\n");
+                if (cfg.prefix == NONE) {
+                    cfg.prefix = HUMAN;
+                } else {
+                    fatal("Can't specify multiple units!\n");
                 }
                 break;
             /* polling frequency */
             case 'H':
                 /* TODO check for reasonable values */
                 hertz = strtoul(optarg, NULL, 10);
+                break;
+            /* display kilobytes */
+            case 'k':
+                if (cfg.prefix == NONE) {
+                    cfg.prefix = KILO;
+                } else {
+                    fatal("Can't specify multiple units!\n");
+                }
                 break;
             /* long listing */
             case 'l':
@@ -894,6 +915,14 @@ int main(int argc, char **argv) {
 
                 if (cfg.format == ls_unset) {
                     cfg.format = ls_ping;
+                }
+                break;
+            /* display megabytes */
+            case 'm':
+                if (cfg.prefix == NONE) {
+                    cfg.prefix = MEGA;
+                } else {
+                    fatal("Can't specify multiple units!\n");
                 }
                 break;
             /* quiet */
@@ -923,6 +952,11 @@ int main(int argc, char **argv) {
     /* set default to JSON if nothing else was specified */
     if (cfg.format == ls_unset) {
         cfg.format = ls_json;
+    }
+
+    /* default to human output unless specified */
+    if (cfg.prefix == NONE) {
+        cfg.prefix = HUMAN;
     }
 
     /* calculate the sleep_time based on the frequency */
