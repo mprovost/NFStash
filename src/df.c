@@ -398,10 +398,10 @@ int main(int argc, char **argv) {
                 break;
             /* display bytes */
             case 'b':
-                if (prefix != NONE) {
-                    fatal("Can't specify multiple units!\n");
-                } else {
+                if (prefix == NONE) {
                     prefix = BYTE;
+                } else {
+                    fatal("Can't specify multiple units!\n");
                 }
                 break;
             /* loop count */
@@ -419,26 +419,26 @@ int main(int argc, char **argv) {
                 break;
             /* display gigabytes */
             case 'g':
-                if (prefix != NONE) {
-                    fatal("Can't specify multiple units!\n");
-                } else {
+                if (prefix == NONE) {
                     prefix = GIGA;
+                } else {
+                    fatal("Can't specify multiple units!\n");
                 }
                 break;
             /* Graphite output */
             case 'G':
-                if (prefix != NONE) {
-                    fatal("Can't specify units and -G!\n");
-                } else {
+                if (prefix == NONE) {
                     cfg.format = graphite;
+                } else {
+                    fatal("Can't specify units and -G!\n");
                 }
                 break;
             /* display human readable (default, set below) */
             case 'h':
-                if (prefix != NONE) {
-                    fatal("Can't specify multiple units!\n");
-                } else {
+                if (prefix == NONE) {
                     prefix = HUMAN;
+                } else {
+                    fatal("Can't specify multiple units!\n");
                 }
                 break;
             /* polling frequency */
@@ -452,10 +452,10 @@ int main(int argc, char **argv) {
                 break;
             /* display kilobytes */
             case 'k':
-                if (prefix != NONE) {
-                    fatal("Can't specify multiple units!\n");
-                } else {
+                if (prefix == NONE) {
                     prefix = KILO;
+                } else {
+                    fatal("Can't specify multiple units!\n");
                 }
                 break;
             /* loop forever */
@@ -470,10 +470,10 @@ int main(int argc, char **argv) {
                 break;
             /* display megabytes */
             case 'm':
-                if (prefix != NONE) {
-                    fatal("Can't specify multiple units!\n");
-                } else {
+                if (prefix == NONE) {
                     prefix = MEGA;
+                } else {
+                    fatal("Can't specify multiple units!\n");
                 }
                 break;
             /* portmapper */
@@ -496,10 +496,10 @@ int main(int argc, char **argv) {
                 break;
             /* display terabytes */
             case 't':
-                if (prefix != NONE) {
-                    fatal("Can't specify multiple units!\n");
-                } else {
+                if (prefix == NONE) {
                     prefix = TERA;
+                } else {
+                    fatal("Can't specify multiple units!\n");
                 }
                 break;
             /* use TCP */
