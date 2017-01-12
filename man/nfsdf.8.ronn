@@ -25,7 +25,7 @@ If the NFS server requires "secure" ports (<1024), `nfsdf` will have to be run a
   Count of FSSTAT requests to send to each input filehandle before exiting.
 
 * `-g`:
-  Report disk space in gigabytes.
+  Report disk space in gigabytes. Results that have a nonzero size but that are less than 1GB are shown as >0 to distinguish them from zero length results.
 
 * `-G`:
   Graphite format output. Default is human readable (`-h`).
@@ -40,13 +40,13 @@ If the NFS server requires "secure" ports (<1024), `nfsdf` will have to be run a
   Report inodes (files) instead of disk space. Displays the total number of inodes on the filesystem, the amounts used and free, the capacity as a percentage and the time in milliseconds that each FSSTAT RPC call took.
 
 * `-k`:
-  Report disk space in kilobytes.
+  Report disk space in kilobytes. Results that have a nonzero size but that are less than 1KB are shown as >0 to distinguish them from zero length results.
 
 * `-l`:
   Loop forever. Exit loop with Ctrl-c.
 
 * `-m`:
-  Report disk space in megabytes.
+  Report disk space in megabytes. Results that have a nonzero size but that are less than 1MB are shown as >0 to distinguish them from zero length results.
 
 * `-M`:
   Query the RPC portmapper on the server to lookup the NFS port. Otherwise connect directly to the standard port (2049). Uses UDP by default or TCP if the `-T` option is specified.
@@ -61,7 +61,7 @@ If the NFS server requires "secure" ports (<1024), `nfsdf` will have to be run a
   Use the specified source IP address for request packets.
 
 * `-t`:
-  Report disk space in terabytes.
+  Report disk space in terabytes. Results that have a nonzero size but that are less than 1TB are shown as >0 to distinguish them from zero length results.
 
 * `-T`:
   Use TCP to connect to servers. Default = UDP.

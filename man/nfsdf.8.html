@@ -98,19 +98,19 @@
 <dt class="flush"><code>-A</code></dt><dd><p>Display IP addresses (instead of hostnames).</p></dd>
 <dt class="flush"><code>-b</code></dt><dd><p>Report disk space in bytes.</p></dd>
 <dt><code>-c</code> <var>count</var></dt><dd><p>Count of FSSTAT requests to send to each input filehandle before exiting.</p></dd>
-<dt class="flush"><code>-g</code></dt><dd><p>Report disk space in gigabytes.</p></dd>
+<dt class="flush"><code>-g</code></dt><dd><p>Report disk space in gigabytes. Results that have a nonzero size but that are less than 1GB are shown as >0 to distinguish them from zero length results.</p></dd>
 <dt class="flush"><code>-G</code></dt><dd><p>Graphite format output. Default is human readable (<code>-h</code>).</p></dd>
 <dt class="flush"><code>-h</code></dt><dd><p>Report disk space in human readable format (default). This selects whichever unit is the most compact to display in 4 digits of precision.</p></dd>
 <dt><code>-H</code> <var>hertz</var></dt><dd><p>The polling frequency in Hertz when in looping (<code>-l</code>) or counting (<code>-c</code>) mode. This is the number of requests sent to each target filesystem per second. Default = 1.</p></dd>
 <dt class="flush"><code>-i</code></dt><dd><p>Report inodes (files) instead of disk space. Displays the total number of inodes on the filesystem, the amounts used and free, the capacity as a percentage and the time in milliseconds that each FSSTAT RPC call took.</p></dd>
-<dt class="flush"><code>-k</code></dt><dd><p>Report disk space in kilobytes.</p></dd>
+<dt class="flush"><code>-k</code></dt><dd><p>Report disk space in kilobytes. Results that have a nonzero size but that are less than 1KB are shown as >0 to distinguish them from zero length results.</p></dd>
 <dt class="flush"><code>-l</code></dt><dd><p>Loop forever. Exit loop with Ctrl-c.</p></dd>
-<dt class="flush"><code>-m</code></dt><dd><p>Report disk space in megabytes.</p></dd>
+<dt class="flush"><code>-m</code></dt><dd><p>Report disk space in megabytes. Results that have a nonzero size but that are less than 1MB are shown as >0 to distinguish them from zero length results.</p></dd>
 <dt class="flush"><code>-M</code></dt><dd><p>Query the RPC portmapper on the server to lookup the NFS port. Otherwise connect directly to the standard port (2049). Uses UDP by default or TCP if the <code>-T</code> option is specified.</p></dd>
 <dt class="flush"><code>-n</code></dt><dd><p>Only print the header once. Otherwise, the header is repeated once per screen of output. No header is printed in Graphite (<code>-G</code>) mode.</p></dd>
 <dt><code>-p</code> <var>prefix</var></dt><dd><p>Specify string prefix for Graphite metric names. Default = "nfs".</p></dd>
 <dt><code>-S</code> <var>source</var></dt><dd><p>Use the specified source IP address for request packets.</p></dd>
-<dt class="flush"><code>-t</code></dt><dd><p>Report disk space in terabytes.</p></dd>
+<dt class="flush"><code>-t</code></dt><dd><p>Report disk space in terabytes. Results that have a nonzero size but that are less than 1TB are shown as >0 to distinguish them from zero length results.</p></dd>
 <dt class="flush"><code>-T</code></dt><dd><p>Use TCP to connect to servers. Default = UDP.</p></dd>
 <dt class="flush"><code>-v</code></dt><dd><p>Display debug output on <code>stderr</code>.</p></dd>
 </dl>
