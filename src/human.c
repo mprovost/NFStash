@@ -50,10 +50,10 @@ int prefix_print(size3 input, char *output, enum byte_prefix prefix) {
             shifted = input >> shifted_prefix;
 
             /* check if the prefix is forcing us to print a zero result when there actually is something there */
-            /* this can happen if a large unit is specified (terabytes for a small filesystem for example) */
+            /* this can happen if a large unit is specified (MB for a 1KB file for example) */
             if (input > 0 && shifted == 0) {
-                /* in this case, print a less than sign before the zero to indicate that there was a nonzero result */
-                output[index++] = '<';
+                /* in this case, print a greater than sign before the zero to indicate that there was a nonzero result */
+                output[index++] = '>';
             }
         }
     } else {
