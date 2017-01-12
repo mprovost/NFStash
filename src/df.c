@@ -48,6 +48,7 @@ static struct config {
     unsigned long count;
     int loop;
     enum outputs format;
+    enum byte_prefix prefix;
     int inodes;
     int display_ips;
     int one_header;
@@ -60,6 +61,7 @@ const struct config CONFIG_DEFAULT = {
     .count  = 0,
     .loop   = 0,
     .format = unset,
+    .prefix = NONE,
     .inodes = 0,
     .display_ips = 0,
     .one_header = 0,
@@ -348,7 +350,6 @@ void print_format(enum outputs format, char *prefix, char *ndqf, char *path, FSS
 
 int main(int argc, char **argv) {
     int ch;
-    enum byte_prefix prefix = NONE;
     char output_prefix[255] = "nfs";
     char *input_fh = NULL;
     size_t n = 0; /* for getline() */
@@ -398,8 +399,8 @@ int main(int argc, char **argv) {
                 break;
             /* display bytes */
             case 'b':
-                if (prefix == NONE) {
-                    prefix = BYTE;
+                if (cfg.prefix == NONE) {
+                    cfg.prefix = BYTE;
                 } else {
                     fatal("Can't specify multiple units!\n");
                 }
@@ -419,15 +420,15 @@ int main(int argc, char **argv) {
                 break;
             /* display gigabytes */
             case 'g':
-                if (prefix == NONE) {
-                    prefix = GIGA;
+                if (cfg.prefix == NONE) {
+                    cfg.prefix = GIGA;
                 } else {
                     fatal("Can't specify multiple units!\n");
                 }
                 break;
             /* Graphite output */
             case 'G':
-                if (prefix == NONE) {
+                if (cfg.prefix == NONE) {
                     cfg.format = graphite;
                 } else {
                     fatal("Can't specify units and -G!\n");
@@ -435,8 +436,8 @@ int main(int argc, char **argv) {
                 break;
             /* display human readable (default, set below) */
             case 'h':
-                if (prefix == NONE) {
-                    prefix = HUMAN;
+                if (cfg.prefix == NONE) {
+                    cfg.prefix = HUMAN;
                 } else {
                     fatal("Can't specify multiple units!\n");
                 }
@@ -452,8 +453,8 @@ int main(int argc, char **argv) {
                 break;
             /* display kilobytes */
             case 'k':
-                if (prefix == NONE) {
-                    prefix = KILO;
+                if (cfg.prefix == NONE) {
+                    cfg.prefix = KILO;
                 } else {
                     fatal("Can't specify multiple units!\n");
                 }
@@ -470,8 +471,8 @@ int main(int argc, char **argv) {
                 break;
             /* display megabytes */
             case 'm':
-                if (prefix == NONE) {
-                    prefix = MEGA;
+                if (cfg.prefix == NONE) {
+                    cfg.prefix = MEGA;
                 } else {
                     fatal("Can't specify multiple units!\n");
                 }
@@ -496,8 +497,8 @@ int main(int argc, char **argv) {
                 break;
             /* display terabytes */
             case 't':
-                if (prefix == NONE) {
-                    prefix = TERA;
+                if (cfg.prefix == NONE) {
+                    cfg.prefix = TERA;
                 } else {
                     fatal("Can't specify multiple units!\n");
                 }
@@ -518,8 +519,8 @@ int main(int argc, char **argv) {
     }
 
     /* default to human readable */
-    if (prefix == NONE) {
-        prefix = HUMAN;
+    if (cfg.prefix == NONE) {
+        cfg.prefix = HUMAN;
     }
 
     /* default output */
@@ -576,7 +577,7 @@ int main(int argc, char **argv) {
      */
 
     /* always print one header at the start */
-    print_header(maxhost, maxpath, prefix);
+    print_header(maxhost, maxpath, cfg.prefix);
 
     /* listen for ctrl-c */
     quitting = 0;
@@ -643,7 +644,7 @@ int main(int argc, char **argv) {
                     /* print header once per screen like vmstat */
                     /* TODO maybe a better number than df_ok? What about errors? Or the header line itself? */
                     if (cfg.one_header == 0 && (df_ok % rows == 0)) {
-                        print_header(maxhost, maxpath, prefix);
+                        print_header(maxhost, maxpath, cfg.prefix);
                     }
 
                     if (cfg.format == ping) {
@@ -657,9 +658,9 @@ int main(int argc, char **argv) {
                             /* are we printing ip_addresses or hostnames */
                             /* TODO move this logic into print_df? But then have to pass in the filehandle struct */
                             if (cfg.display_ips) {
-                                print_df(maxpath, current->ip_address, filehandle->path, fsstatres, prefix, usec);
+                                print_df(maxpath, current->ip_address, filehandle->path, fsstatres, cfg.prefix, usec);
                             } else {
-                                print_df(maxpath, current->name, filehandle->path, fsstatres, prefix, usec);
+                                print_df(maxpath, current->name, filehandle->path, fsstatres, cfg.prefix, usec);
                             }
                         }
                     } else {
