@@ -83,6 +83,7 @@ List NFS files and directories from stdin\n\n\
     -c n     count of requests to send for each filehandle\n\
     -C n     same as -c, output parseable format\n\
     -d       list actual directory not contents\n\
+    -g       display sizes in gigabytes\n\
     -h       display human readable sizes (default)\n\
     -H       frequency in Hertz (requests per second, default %i)\n\
     -k       display sizes in kilobytes\n\
@@ -91,6 +92,7 @@ List NFS files and directories from stdin\n\n\
     -m       display sizes in megabytes\n\
     -q       quiet, only print summary\n\
     -S addr  set source address\n\
+    -t       display sizes in terabytes\n\
     -T       use TCP (default UDP)\n\
     -v       verbose output\n",
     NFS_HERTZ); 
@@ -824,7 +826,7 @@ int main(int argc, char **argv) {
 
     cfg = CONFIG_DEFAULT;
 
-    while ((ch = getopt(argc, argv, "aAbc:C:dhH:klLmS:qTv")) != -1) {
+    while ((ch = getopt(argc, argv, "aAbc:C:dghH:klLmqS:tTv")) != -1) {
         switch(ch) {
             /* list hidden files */
             case 'a':
@@ -875,6 +877,14 @@ int main(int argc, char **argv) {
             /* display directories not contents */
             case 'd':
                 cfg.listdir = 1;
+                break;
+            /* display gigabytes */
+            case 'g':
+                if (cfg.prefix == NONE) {
+                    cfg.prefix = GIGA;
+                } else {
+                    fatal("Can't specify multiple units!\n");
+                }
                 break;
             /* human sizes */
             case 'h':
@@ -936,6 +946,14 @@ int main(int argc, char **argv) {
                     fatal("Invalid source IP address!\n");
                 }
                 break; 
+            /* display terabytes */
+            case 't':
+                if (cfg.prefix == NONE) {
+                    cfg.prefix = TERA;
+                } else {
+                    fatal("Can't specify multiple units!\n");
+                }
+                break;
             /* use TCP */
             case 'T':
                 hints.ai_socktype = SOCK_STREAM;
@@ -955,6 +973,7 @@ int main(int argc, char **argv) {
     }
 
     /* default to human output unless specified */
+    /* TODO error or warning if size set but not -l? */
     if (cfg.prefix == NONE) {
         cfg.prefix = HUMAN;
     }

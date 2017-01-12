@@ -103,6 +103,7 @@
 <dt class="flush"><code>-c</code></dt><dd><p>Count of requests to send to each input filehandle before exiting. Note that multiple READDIRPLUS RPCs to load a full directory listing or READLINKs to lookup symlinks count as a single request. A summary of all responses is printed when the count is reached or the program is interrupted.</p></dd>
 <dt><code>-C</code> <var>count</var></dt><dd><p>Count of requests to send to each input filehandle before exiting. Note that multiple READDIRPLUS RPCs to load a full directory listing or READLINKs to lookup symlinks count as a single request. An <code>fping(8)</code> compatible parseable summary is printed when the count is reached or the program is interrupted.</p></dd>
 <dt class="flush"><code>-d</code></dt><dd><p>List directories instead of their contents. This forces <code>nfsls</code> to only send GETATTR calls.</p></dd>
+<dt class="flush"><code>-g</code></dt><dd><p>In long listing (<code>-l</code>) mode, display file sizes in gigabytes. (Default is human readable.) Files that have a nonzero size but that are less than 1GB are shown as >0 to distinguish them from zero length files.</p></dd>
 <dt class="flush"><code>-h</code></dt><dd><p>In long listing (<code>-l</code>) mode, display file sizes in human readable format. This selects whichever unit is the most compact to display in 4 digits of precision. This is the default.</p></dd>
 <dt><code>-H</code> <var>hertz</var></dt><dd><p>The polling frequency in Hertz when in looping (<code>-L</code>) or counting (<code>-c</code>) modes. This is the number of requests sent to each target filehandle per second. Note that for larger directories, multiple READDIRPLUS RPCs can be sent but are only counted as a single request. Default = 1.</p></dd>
 <dt class="flush"><code>-k</code></dt><dd><p>In long listing (<code>-l</code>) mode, display file sizes in kilobytes. (Default is human readable.) Files that have a nonzero size but that are less than 1KB are shown as >0 to distinguish them from zero length files.</p></dd>
@@ -111,6 +112,7 @@
 <dt class="flush"><code>-m</code></dt><dd><p>In long listing (<code>-l</code>) mode, display file sizes in megabytes. (Default is human readable.) Files that have a nonzero size but that are less than 1MB are shown as >0 to distinguish them from zero length files.</p></dd>
 <dt class="flush"><code>-q</code></dt><dd><p>Quiet. In looping and counting modes, only print a summary not each individual response.</p></dd>
 <dt><code>-S</code> <var>source</var></dt><dd><p>Use the specified source IP address for request packets.</p></dd>
+<dt class="flush"><code>-t</code></dt><dd><p>In long listing (<code>-l</code>) mode, display file sizes in terabytes. (Default is human readable.) Files that have a nonzero size but that are less than 1TB are shown as >0 to distinguish them from zero length files.</p></dd>
 <dt class="flush"><code>-T</code></dt><dd><p>Use TCP to connect to server. Default = UDP.</p></dd>
 <dt class="flush"><code>-v</code></dt><dd><p>Display debug output on <code>stderr</code>.</p></dd>
 </dl>

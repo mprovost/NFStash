@@ -35,6 +35,9 @@ If the NFS server requires "secure" ports (<1024), `nfsls` will have to be run a
 * `-d`:
   List directories instead of their contents. This forces `nfsls` to only send GETATTR calls.
 
+* `-g`:
+  In long listing (`-l`) mode, display file sizes in gigabytes. (Default is human readable.) Files that have a nonzero size but that are less than 1GB are shown as >0 to distinguish them from zero length files.
+
 * `-h`:
   In long listing (`-l`) mode, display file sizes in human readable format. This selects whichever unit is the most compact to display in 4 digits of precision. This is the default.
 
@@ -58,6 +61,9 @@ If the NFS server requires "secure" ports (<1024), `nfsls` will have to be run a
 
 * `-S` <source>:
   Use the specified source IP address for request packets.
+
+* `-t`:
+  In long listing (`-l`) mode, display file sizes in terabytes. (Default is human readable.) Files that have a nonzero size but that are less than 1TB are shown as >0 to distinguish them from zero length files.
 
 * `-T`:
   Use TCP to connect to server. Default = UDP.
