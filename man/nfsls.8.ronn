@@ -3,7 +3,7 @@ nfsls(8) -- list files and directories on an NFS server
 
 ## SYNOPSIS
 
-`nfsls` [`-aAbdhklmLqTv`] [`-c` <count>] [`-C` <count>] [`-H` <hertz>] [`-S` <source>]
+`nfsls` [`-aAbdhklmMLqTv`] [`-c` <count>] [`-C` <count>] [`-H` <hertz>] [`-S` <source>]
 
 ## DESCRIPTION
 
@@ -55,6 +55,10 @@ If the NFS server requires "secure" ports (<1024), `nfsls` will have to be run a
 
 * `-m`:
   In long listing (`-l`) mode, display file sizes in megabytes. (Default is human readable.) Files that have a nonzero size but that are less than 1MB are shown as >0 to distinguish them from zero length files.
+
+* `-M`:
+  Query the RPC portmapper on the server to lookup the NFS port. Otherwise connect directly to the standard port (2049). Uses UDP by defa
+ult or TCP if the `-T` option is specified.
 
 * `-q`:
   Quiet. In looping and counting modes, only print a summary not each individual response.

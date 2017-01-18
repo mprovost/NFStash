@@ -36,6 +36,8 @@ static void print_summary(targets_t *, enum ls_formats);
 
 /* global config "object" */
 static struct config {
+    /* NFS port */
+    uint16_t port;
     /* output format */
     enum ls_formats format;
     /* output size prefix */
@@ -58,6 +60,7 @@ static struct config {
 
 /* default config */
 const struct config CONFIG_DEFAULT = {
+    .port         = NFS_PORT,
     .format       = ls_unset,
     .prefix       = NONE,
     .listdir      = 0,
@@ -90,12 +93,13 @@ List NFS files and directories from stdin\n\n\
     -l       print long listing\n\
     -L       loop forever\n\
     -m       display sizes in megabytes\n\
+    -M       use the portmapper (default: %i)\n\
     -q       quiet, only print summary\n\
     -S addr  set source address\n\
     -t       display sizes in terabytes\n\
     -T       use TCP (default UDP)\n\
     -v       verbose output\n",
-    NFS_HERTZ); 
+    NFS_HERTZ, NFS_PORT); 
 
     exit(3);
 }
@@ -826,7 +830,7 @@ int main(int argc, char **argv) {
 
     cfg = CONFIG_DEFAULT;
 
-    while ((ch = getopt(argc, argv, "aAbc:C:dghH:klLmqS:tTv")) != -1) {
+    while ((ch = getopt(argc, argv, "aAbc:C:dghH:klLmMqS:tTv")) != -1) {
         switch(ch) {
             /* list hidden files */
             case 'a':
@@ -935,6 +939,10 @@ int main(int argc, char **argv) {
                     fatal("Can't specify multiple units!\n");
                 }
                 break;
+            /* portmapper */
+            case 'M':
+                cfg.port = 0;
+                break;
             /* quiet */
             case 'q':
                 /* TODO check for conflicts with -l etc */
@@ -989,10 +997,10 @@ int main(int argc, char **argv) {
     /* no arguments, use stdin */
     while (getline(&input_fh, &input_len, stdin) != -1) {
         if (cfg.format == ls_fping || cfg.format == ls_longform) {
-            current = parse_fh(targets, input_fh, 0, cfg.count);
+            current = parse_fh(targets, input_fh, cfg.port, cfg.count);
         } else {
             /* don't allocate space for results */
-            current = parse_fh(targets, input_fh, 0, 0);
+            current = parse_fh(targets, input_fh, cfg.port, 0);
         }
     }
 
