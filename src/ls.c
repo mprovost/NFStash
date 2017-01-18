@@ -465,6 +465,7 @@ int print_long_listing(targets_t *targets) {
     /* sizes for justifying columns */
     /* set these to 1 so log10() doesn't have 0 as an input and returns -HUGE_VAL */
     /* we're always going to need one space to output "0" */
+    uint64        maxinode = 1;
     unsigned long maxlinks = 1;
     size3         maxsize  = 1;
     size_t        maxuser  = 0;
@@ -492,6 +493,7 @@ int print_long_listing(targets_t *targets) {
                     /* shortcut */
                     attributes = current->name_attributes.post_op_attr_u.attributes;
 
+                    maxinode = attributes.fileid > maxinode ? attributes.fileid : maxinode;
                     maxlinks = attributes.nlink > maxlinks ? attributes.nlink : maxlinks;
                     maxsize = attributes.size > maxsize ? attributes.size : maxsize;
 
@@ -514,6 +516,7 @@ int print_long_listing(targets_t *targets) {
     } /* while (target) */
 
     /* calculate the maximum string widths */
+    maxinode = floor(log10(abs(maxinode))) + 1;
     maxlinks = floor(log10(abs(maxlinks))) + 1;
     maxsize  = floor(log10(abs(maxsize))) + 1;
 
@@ -564,7 +567,9 @@ int print_long_listing(targets_t *targets) {
 
                 /* have to cast size_t to int for compiler warning (-Wformat) */
                 /* printf only accepts ints for field widths with * */
-                printf("%s %*lu %-*s %-*s %-*s %s %-*s %s\n",
+                printf("%*llu %s %*lu %-*s %-*s %-*s %s %-*s %s\n",
+                    /* inode */
+                    (int)maxinode, (unsigned long long)attributes.fileid,
                     /* permissions bits */
                     lsperms(bits, attributes.type, attributes.mode),
                     /* number of links */
