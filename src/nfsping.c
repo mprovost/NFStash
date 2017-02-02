@@ -4,8 +4,7 @@
 
 /* local prototypes */
 static void usage(void);
-static void print_summary(targets_t *);
-static void print_fping_summary(targets_t *);
+static void print_summary(enum outputs, targets_t *);
 static void print_output(enum outputs, char *, targets_t *, unsigned long, u_long, const struct timespec, unsigned long);
 static void print_lost(enum outputs, char *, targets_t *, unsigned long, u_long, const struct timespec);
 
@@ -112,49 +111,43 @@ void usage() {
 }
 
 
-void print_summary(targets_t *targets) {
+/* TODO target output spacing */
+void print_summary(enum outputs format, targets_t *targets) {
     targets_t *target = targets;
+    unsigned long i;
     double loss;
 
     while (target) {
-        loss = (target->sent - target->received) / (double)target->sent * 100;
+        /* print a parseable summary string in fping-compatible format */
+        if (format == fping) {
+            fprintf(stderr, "%s :", target->display_name);
+            for (i = 0; i < target->sent; i++) {
+                if (target->results[i]) {
+                    fprintf(stderr, " %.2f", target->results[i] / 1000.0);
+                } else {
+                    fprintf(stderr, " -");
+                }
+            }
+            fprintf(stderr, "\n");
+        } else if (format == ping || format == unixtime) {
+            loss = (target->sent - target->received) / (double)target->sent * 100;
 
-        /* check if this is still set to the default value */
-        /* that means we never saw any responses */
-        if (target->min == ULONG_MAX) {
-            target->min = 0;
+            /* check if this is still set to the default value */
+            /* that means we never saw any responses */
+            if (target->min == ULONG_MAX) {
+                target->min = 0;
+            }
+
+            fprintf(stderr, "%s : xmt/rcv/%%loss = %u/%u/%.0f%%",
+                target->display_name, target->sent, target->received, loss);
+            /* only print times if we got any responses */
+            if (target->received) {
+                fprintf(stderr, ", min/avg/max = %.2f/%.2f/%.2f",
+                    target->min / 1000.0, target->avg / 1000.0, target->max / 1000.0);
+            }
+            fprintf(stderr, "\n");
         }
 
-        fprintf(stderr, "%s : xmt/rcv/%%loss = %u/%u/%.0f%%",
-            target->display_name, target->sent, target->received, loss);
-        /* only print times if we got any responses */
-        if (target->received) {
-            fprintf(stderr, ", min/avg/max = %.2f/%.2f/%.2f",
-                target->min / 1000.0, target->avg / 1000.0, target->max / 1000.0);
-        }
-        fprintf(stderr, "\n");
-
-        target = target->next;
-    }
-}
-
-
-/* TODO ip as parameter */
-/* TODO target output spacing */
-/* print a parseable summary string when finished in fping-compatible format */
-void print_fping_summary(targets_t *targets) {
-    targets_t *target = targets;
-    unsigned long i;
-
-    while (target) {
-        fprintf(stderr, "%s :", target->display_name);
-        for (i = 0; i < target->sent; i++) {
-            if (target->results[i])
-                fprintf(stderr, " %.2f", target->results[i] / 1000.0);
-            else
-                fprintf(stderr, " -");
-        }
-        fprintf(stderr, "\n");
         target = target->next;
     }
 }
@@ -882,8 +875,9 @@ int main(int argc, char **argv) {
 
         /* check if we should print a periodic summary */
         if (cfg.summary_interval) {
+            /* This doesn't use an actual timer, it just sees if we've sent the expected number of packets based on the configured hertz. We should be pretty close. */
             if (targets->sent % (hertz * cfg.summary_interval) == 0) {
-                print_summary(targets);
+                print_summary(format, targets);
             }
         }
 
@@ -893,14 +887,12 @@ int main(int argc, char **argv) {
 
     /* only print summary if looping */
     if (count || loop) {
-        /* these print to stderr */
-        if (!quiet && (format == ping || format == fping || format == unixtime))
+        /* blank line to separate from results */
+        if (!quiet) {
             fprintf(stderr, "\n");
-        /* don't print summary for formatted output */
-        if (format == fping)
-            print_fping_summary(targets);
-        else if (format == ping || format == unixtime)
-            print_summary(targets);
+        }
+        /* this prints to stderr */
+        print_summary(format, targets);
     }
 
     /* loop through the targets and find any that didn't get a response
