@@ -20,12 +20,15 @@ static struct config {
     int reverse_dns;
     /* -A print IP addresses */
     int display_ips;
+    /* -Q quiet summary interval (seconds) */
+    unsigned int summary_interval;
 } cfg;
 
 /* default config */
 const struct config CONFIG_DEFAULT = {
-    .reverse_dns = 0,
-    .display_ips = 0,
+    .reverse_dns      = 0,
+    .display_ips      = 0,
+    .summary_interval = 0,
 };
 
 /* dispatch table for null function calls, this saves us from a bunch of if statements */
@@ -94,12 +97,13 @@ void usage() {
     -N         check the portmap protocol (default NFS)\n\
     -P n       specify port (default: NFS %i, portmap %i)\n\
     -q         quiet, only print summary\n\
-    -Q         check the rquota protocol (default NFS)\n\
+    -Q n       same as -q, but show summary every n seconds\n\
     -R         don't reconnect to server every ping\n\
     -s         check the network status monitor (NSM) protocol (default NFS)\n\
     -S addr    set source address\n\
     -t n       timeout (in ms, default %lu)\n\
     -T         use TCP (default UDP)\n\
+    -u         check the rquota protocol (default NFS)\n\
     -v         verbose output\n\
     -V n       specify NFS version (2/3/4, default 3)\n",
     NFS_HERTZ, ts2ms(wait_time), NFS_PORT, PMAPPORT, tv2ms(timeout));
@@ -272,7 +276,7 @@ int main(int argc, char **argv) {
         usage();
 
 
-    while ((ch = getopt(argc, argv, "aAc:C:dDEg:GhH:i:KlLmMnNP:qQRsS:t:TvV:")) != -1) {
+    while ((ch = getopt(argc, argv, "aAc:C:dDEg:GhH:i:KlLmMnNP:qQ:RsS:t:TuvV:")) != -1) {
         switch(ch) {
             /* NFS ACL protocol */
             case 'a':
@@ -569,11 +573,13 @@ int main(int argc, char **argv) {
             case 'q':
                 quiet = 1;
                 break;
+            /* quiet with regular summaries */
             case 'Q':
-                if (prognum == NFS_PROGRAM) {
-                    prognum = RQUOTAPROG;
-                } else {
-                    fatal("Only one protocol!\n");
+                quiet = 1;
+                errno = 0;
+                cfg.summary_interval = strtoul(optarg, NULL, 10);
+                if (errno) {
+                    fatal("Invalid interval for -Q!\n");
                 }
                 break;
             case 'R':
@@ -604,6 +610,15 @@ int main(int argc, char **argv) {
             /* use TCP */
             case 'T':
                 hints.ai_socktype = SOCK_STREAM;
+                break;
+            /* check rquota protocol */
+            /* previously -Q */
+            case 'u':
+                if (prognum == NFS_PROGRAM) {
+                    prognum = RQUOTAPROG;
+                } else {
+                    fatal("Only one protocol!\n");
+                }
                 break;
             /* verbose */
             case 'v':
@@ -863,6 +878,13 @@ int main(int argc, char **argv) {
             }
         } else {
             break;
+        }
+
+        /* check if we should print a periodic summary */
+        if (cfg.summary_interval) {
+            if (targets->sent % (hertz * cfg.summary_interval) == 0) {
+                print_summary(targets);
+            }
         }
 
     } /* while(1) */
