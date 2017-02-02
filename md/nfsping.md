@@ -81,7 +81,7 @@ The manual page for NFSping is available [here](https://rawgit.com/mprovost/NFSt
 ```console
 Usage: nfsping [options] [targets...]
     -a         check the NFS ACL protocol (default NFS)
-    -A         show IP addresses
+    -A         show IP addresses (default hostnames)
     -c n       count of pings to send to target
     -C n       same as -c, output parseable format
     -d         reverse DNS lookups for targets
@@ -91,7 +91,7 @@ Usage: nfsping [options] [targets...]
     -G         Graphite format output (default human readable)
     -h         display this help and exit
     -H n       frequency in Hertz (pings per second, default 1)
-    -i n       interval between sending packets (in ms, default 25)
+    -i n       interval between sending packets (in ms, default 1)
     -K         check the kernel lock manager (KLM) protocol (default NFS)
     -l         loop forever
     -L         check the network lock manager (NLM) protocol (default NFS)
@@ -101,12 +101,13 @@ Usage: nfsping [options] [targets...]
     -N         check the portmap protocol (default NFS)
     -P n       specify port (default: NFS 2049, portmap 111)
     -q         quiet, only print summary
-    -Q         check the rquota protocol (default NFS)
+    -Q n       same as -q, but show summary every n seconds
     -R         don't reconnect to server every ping
     -s         check the network status monitor (NSM) protocol (default NFS)
     -S addr    set source address
     -t n       timeout (in ms, default 1000)
     -T         use TCP (default UDP)
+    -u         check the rquota protocol (default NFS)
     -v         verbose output
     -V n       specify NFS version (2/3/4, default 3)
 ```

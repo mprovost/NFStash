@@ -82,11 +82,11 @@
 
 <h2 id="SYNOPSIS">SYNOPSIS</h2>
 
-<p><code>nfsping</code> [<code>-aAdDEGhKlLmMnNqQRsTv</code>] [<code>-c</code> <var>count</var>] [<code>-C</code> <var>count</var>] [<code>-g</code> <var>prefix</var>] [<code>-H</code> <var>hertz</var>] [<code>-i</code> <var>interval</var>] [<code>-P</code> <var>port</var>] [<code>-S</code> <var>source</var>] [<code>-t</code> <var>timeout</var>] [<code>-V</code> <var>version</var>] &lt;servers...></p>
+<p><code>nfsping</code> [<code>-aAdDEGhKlLmMnNqRsTuv</code>] [<code>-c</code> <var>count</var>] [<code>-C</code> <var>count</var>] [<code>-g</code> <var>prefix</var>] [<code>-H</code> <var>hertz</var>] [<code>-i</code> <var>interval</var>] [<code>-P</code> <var>port</var>] [<code>-Q</code> <var>interval</var> ] [<code>-S</code> <var>source</var>] [<code>-t</code> <var>timeout</var>] [<code>-V</code> <var>version</var>] &lt;servers...></p>
 
 <h2 id="DESCRIPTION">DESCRIPTION</h2>
 
-<p><code>nfsping</code> sends RPC NULL requests to an NFS server to determine if it is responding and to measure the response time. It supports the network file system (NFS), mount (<code>-n</code>), portmap/rpcbind (<code>-N</code>), network lock manager (NLM) (<code>-L</code>), NFS ACL (<code>-a</code>), network status monitor (NSM) (<code>-s</code>), rquota (<code>-Q</code>) and kernel lock manager (KLM) (<code>-K</code>) protocols. The default protocol is NFS version 3. Use TCP with <code>-T</code>, and specify a port with <code>-P</code>. The portmapper is used by default with most protocols but can be forced with <code>-M</code> for NFS. Without any options <code>nfsping</code> will send a single NFS version 3 NULL request over UDP to port 2049 on the specified server and report whether it is alive or dead based on whether it receives a response or not.</p>
+<p><code>nfsping</code> sends RPC NULL requests to an NFS server to determine if it is responding and to measure the response time. It supports the network file system (NFS), mount (<code>-n</code>), portmap/rpcbind (<code>-N</code>), network lock manager (NLM) (<code>-L</code>), NFS ACL (<code>-a</code>), network status monitor (NSM) (<code>-s</code>), rquota (<code>-u</code>) and kernel lock manager (KLM) (<code>-K</code>) protocols. The default protocol is NFS version 3. Use TCP with <code>-T</code>, and specify a port with <code>-P</code>. The portmapper is used by default with most protocols but can be forced with <code>-M</code> for NFS. Without any options <code>nfsping</code> will send a single NFS version 3 NULL request over UDP to port 2049 on the specified server and report whether it is alive or dead based on whether it receives a response or not.</p>
 
 <p>With the <code>-l</code> option <code>nfsping</code> will loop forever, sending packets every second by default like <code>ping</code>. It is designed to be compatible with <code>fping</code> for use in scripts. With the <code>-c</code> option it will send the specified number of requests to each target server and then exit. The <code>-C</code> option behaves the same but outputs in <code>fping</code>-compatible format for easy parsing.</p>
 
@@ -120,13 +120,14 @@
 <dt class="flush"><code>-N</code></dt><dd><p>Send portmap protocol NULL requests.</p></dd>
 <dt><code>-o</code> <var>format</var></dt><dd><p>Specify output format for input to another program. Currently supported are [<code>G</code>]raphite and [<code>S</code>]tatsd.</p></dd>
 <dt class="flush"><code>-P</code> <var>port</var></dt><dd><p>The port on the server. Default = 2049 for NFS and NFS ACL, 111 for portmap. The portmapper on the server is queried for other protocols.</p></dd>
-<dt class="flush"><code>-q</code></dt><dd><p>Quiet. Only print a summary.</p></dd>
-<dt class="flush"><code>-Q</code></dt><dd><p>Send rquota protocol NULL requests. Implies <code>-M</code>.</p></dd>
+<dt class="flush"><code>-q</code></dt><dd><p>Quiet. Only print a summary when finished running.</p></dd>
+<dt><code>-Q</code> <var>interval</var></dt><dd><p>Quiet. Print a summary every <var>interval</var> seconds.</p></dd>
 <dt class="flush"><code>-R</code></dt><dd><p>By default nfsping disconnects and reconnects to each server for each ping. Disable this behaviour and maintain the connection(s).</p></dd>
 <dt class="flush"><code>-s</code></dt><dd><p>Send network status monitor (NSM) protocol NULL requests. Implies <code>-M</code>.</p></dd>
 <dt><code>-S</code> <var>source</var></dt><dd><p>Use the specified source IP address for request packets.</p></dd>
 <dt><code>-t</code> <var>timeout</var></dt><dd><p>Timeout in milliseconds to wait for a RPC response from the server. Default = 1000.</p></dd>
 <dt class="flush"><code>-T</code></dt><dd><p>Use TCP to connect to server. Default = UDP.</p></dd>
+<dt class="flush"><code>-u</code></dt><dd><p>Send rquota protocol NULL requests. Implies <code>-M</code>.</p></dd>
 <dt class="flush"><code>-v</code></dt><dd><p>Display debug output on <code>stderr</code>.</p></dd>
 <dt><code>-V</code> <var>version</var></dt><dd><p>Use NFS protocol <code>version</code>. Default = 3 for NFS, supports versions 2/3/4. Other protocols use the version corresponding to the specified NFS version (except the portmapper which always uses version 2 of the portmap protocol). An error is returned for illegal or unsupported versions of the specified protocol.</p></dd>
 </dl>
