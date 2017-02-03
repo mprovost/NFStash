@@ -244,6 +244,8 @@ int main(int argc, char **argv) {
     int ch;
     unsigned long count = 0;
     unsigned long loop_count = 0;
+    unsigned long total_sent = 0;
+    unsigned long total_recv = 0;
     /* default to reconnecting to server each round */
     unsigned long reconnect = 1;
     /* command-line options */
@@ -783,10 +785,12 @@ int main(int argc, char **argv) {
 
             /* count this no matter what to stop from looping in case server isn't listening */
             target->sent++;
+            total_sent++;
 
             /* check for success */
             if (status) {
                 target->received++;
+                total_recv++;
 
                 /* check if we're looping */
                 if (count || loop) {
@@ -911,15 +915,11 @@ int main(int argc, char **argv) {
         print_summary(format, targets);
     }
 
-    /* loop through the targets and find any that didn't get a response
-     * exit with a failure if there were any missing responses */
-    target = targets;
-    while (target) {
-        if (target->received < target->sent)
-            exit(EXIT_FAILURE);
-        else
-            target = target->next;
+    /* exit with a failure if there were any missing responses */
+    if (total_recv < total_sent) {
+        exit(EXIT_FAILURE);
+    } else {
+        /* otherwise exit successfully */
+        exit(EXIT_SUCCESS);
     }
-    /* otherwise exit successfully */
-    exit(EXIT_SUCCESS);
 }
