@@ -243,6 +243,7 @@ int main(int argc, char **argv) {
     targets_t *targets = target;
     int ch;
     unsigned long count = 0;
+    unsigned long loop_count = 0;
     /* default to reconnecting to server each round */
     unsigned long reconnect = 1;
     /* command-line options */
@@ -695,7 +696,12 @@ int main(int argc, char **argv) {
     /* process the targets from the command line */
     for (index = optind; index < argc; index++) {
         if (format == fping) {
-            target->next = make_target(argv[index], &hints, port, cfg.reverse_dns, cfg.display_ips, multiple, count);
+            if (cfg.summary_interval) {
+                /* calculate the number of pings per summary interval */
+                target->next = make_target(argv[index], &hints, port, cfg.reverse_dns, cfg.display_ips, multiple, cfg.summary_interval * hertz);
+            } else {
+                target->next = make_target(argv[index], &hints, port, cfg.reverse_dns, cfg.display_ips, multiple, count);
+            }
         } else {
             /* don't allocate space for storing results */
             target->next = make_target(argv[index], &hints, port, cfg.reverse_dns, cfg.display_ips, multiple, 0);
@@ -724,6 +730,8 @@ int main(int argc, char **argv) {
     /* the main loop */
     while(1) {
         target = targets;
+
+        loop_count++;
 
         /* grab the starting time of each loop */
 #ifdef CLOCK_MONOTONIC_RAW
@@ -846,8 +854,7 @@ int main(int argc, char **argv) {
 
         /* at the end of the targets list, see if we need to loop */
         /* check the first target */
-        /* TODO do we even need to store the sent number for each target or just once globally? */
-        if ((count && targets->sent < count) || loop) {
+        if ((count && loop_count < count) || loop) {
             /* sleep between rounds */
             /* measure how long the current round took, and subtract that from the sleep time */
             /* this tries to ensure that each polling round takes the same time */
@@ -873,8 +880,20 @@ int main(int argc, char **argv) {
         /* check if we should print a periodic summary */
         if (cfg.summary_interval) {
             /* This doesn't use an actual timer, it just sees if we've sent the expected number of packets based on the configured hertz. We should be pretty close. */
-            if (targets->sent % (hertz * cfg.summary_interval) == 0) {
+            if (loop_count % (hertz * cfg.summary_interval) == 0) {
                 print_summary(format, targets);
+
+                /* reset target counters */
+                target = targets;
+                while (target) {
+                    target->sent = 0;
+                    target->received = 0;
+                    target->min = ULONG_MAX;
+                    target->max = 0;
+                    target->avg = 0;
+
+                    target = target->next;
+                }
             }
         }
 
