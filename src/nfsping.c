@@ -821,10 +821,10 @@ int main(int argc, char **argv) {
                 print_lost(format, prefix, target, prognum_offset, version, wall_clock);
 
                 if (target->client) {
+                    /* TODO make a string to pass to clnt_perror */
                     fprintf(stderr, "%s : ", target->display_name);
                     clnt_geterr(target->client, &clnt_err);
                     clnt_perror(target->client, null_dispatch[prognum_offset][version].name);
-                    fprintf(stderr, "\n");
                     fflush(stderr);
 
                     /* check for broken pipes or reset connections and try and reconnect next time */
