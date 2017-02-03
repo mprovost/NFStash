@@ -237,9 +237,10 @@ int main(int argc, char **argv) {
     /* default to unset so we can check in getopt */
     enum outputs format = unset;
     char prefix[255] = "nfsping";
-    targets_t *targets;
-    targets_t *target;
     targets_t target_dummy;
+    /* pointer to head of list */
+    targets_t *target = &target_dummy;
+    targets_t *targets = target;
     int ch;
     unsigned long count = 0;
     /* default to reconnecting to server each round */
@@ -690,10 +691,6 @@ int main(int argc, char **argv) {
     if (first == argc) {
         usage();
     }
-
-    /* pointer to head of list */
-    target = &target_dummy;
-    targets = target;
 
     /* process the targets from the command line */
     for (index = optind; index < argc; index++) {
