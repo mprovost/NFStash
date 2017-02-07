@@ -21,6 +21,9 @@ RPC_CFLAGS = -I.
 # generate header dependencies
 CPPFLAGS += -MMD -MP
 
+HDR_CFLAGS = -Wall -Wno-unknown-pragmas -Wextra -Wshadow -Winit-self -Wmissing-prototypes -D_GNU_SOURCE -O3 -g
+HDR_LIBS = -lm
+
 # http://blog.jgc.org/2015/04/the-one-line-you-should-add-to-every.html
 print-%: ; @echo $*=$($*)
 
@@ -80,6 +83,10 @@ obj/%.o: rpcsrc/%.c | obj
 obj/parson.o: parson/parson.c | obj
 	gcc ${CFLAGS} -c -o $@ $<
 
+# hdr histogram
+obj/%.o: hdr/src/%.c | obj
+	gcc ${HDR_CFLAGS} -c -o $@ $<
+
 # config - check for clock_gettime in libc or librt
 # this opt file gets included as a gcc option
 config/clock_gettime.opt:
@@ -90,9 +97,9 @@ common_objs = $(addsuffix .o, pmap_prot_clnt pmap_prot_xdr util rpc parson)
 
 # make the bin directory first if it's not already there
 nfsping: bin/nfsping
-nfsping_objs = $(addprefix obj/, $(addsuffix .o, nfsping nfs_prot_clnt nfs_prot_xdr nfsv4_prot_clnt nfsv4_prot_xdr mount_clnt mount_xdr nlm_prot_clnt nlm_prot_xdr nfs_acl_clnt sm_inter_clnt sm_inter_xdr rquota_clnt rquota_xdr klm_prot_clnt klm_prot_xdr) $(common_objs))
+nfsping_objs = $(addprefix obj/, $(addsuffix .o, nfsping nfs_prot_clnt nfs_prot_xdr nfsv4_prot_clnt nfsv4_prot_xdr mount_clnt mount_xdr nlm_prot_clnt nlm_prot_xdr nfs_acl_clnt sm_inter_clnt sm_inter_xdr rquota_clnt rquota_xdr klm_prot_clnt klm_prot_xdr hdr_histogram) $(common_objs))
 bin/nfsping: config/clock_gettime.opt $(nfsping_objs) | bin
-	gcc ${CFLAGS} @config/clock_gettime.opt $(nfsping_objs) -o $@
+	gcc ${CFLAGS} ${HDR_LIBS} @config/clock_gettime.opt $(nfsping_objs) -o $@
 
 nfsmount: bin/nfsmount
 nfsmount_objs = $(addprefix obj/, $(addsuffix .o, mount mount_clnt mount_xdr) $(common_objs))
