@@ -700,13 +700,13 @@ int main(int argc, char **argv) {
         if (format == fping) {
             if (cfg.summary_interval) {
                 /* calculate the number of pings per summary interval */
-                target->next = make_target(argv[index], &hints, port, cfg.reverse_dns, cfg.display_ips, multiple, cfg.summary_interval * hertz);
+                target->next = make_target(argv[index], &hints, port, cfg.reverse_dns, cfg.display_ips, multiple, cfg.summary_interval * hertz, timeout);
             } else {
-                target->next = make_target(argv[index], &hints, port, cfg.reverse_dns, cfg.display_ips, multiple, count);
+                target->next = make_target(argv[index], &hints, port, cfg.reverse_dns, cfg.display_ips, multiple, count, timeout);
             }
         } else {
             /* don't allocate space for storing results */
-            target->next = make_target(argv[index], &hints, port, cfg.reverse_dns, cfg.display_ips, multiple, 0);
+            target->next = make_target(argv[index], &hints, port, cfg.reverse_dns, cfg.display_ips, multiple, 0, timeout);
         }
         target = target->next;
     }
@@ -806,6 +806,8 @@ int main(int argc, char **argv) {
 
                     if (format == fping)
                         target->results[target->sent - 1] = us;
+
+                    hdr_record_value(target->histogram, us);
 
                     if (!quiet) {
                         /* use the start time for the call since some calls may not return */
@@ -913,6 +915,7 @@ int main(int argc, char **argv) {
         }
         /* this prints to stderr */
         print_summary(format, targets);
+        hdr_percentiles_print(targets->histogram, stdout, 5, 1000.0, CLASSIC);
     }
 
     /* exit with a failure if there were any missing responses */
