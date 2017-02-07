@@ -42,6 +42,9 @@
 /* Parson JSON */
 #include "parson/parson.h"
 
+/* HDR Histogram */
+#include "hdr/src/hdr_histogram.h"
+
 #define fatal(x...) do { fflush(stdout); fprintf(stderr,x); fflush(stderr); usage(); } while (0)
 #define fatalx(x, y...) do { fflush(stdout); fprintf(stderr,y); fflush(stderr); exit(x); } while (0)
 #define debug(x...) do { if (verbose) { fflush(stdout); fprintf(stderr,x); fflush(stderr); } } while (0)
@@ -78,6 +81,7 @@ typedef struct targets {
     unsigned int sent, received;
     unsigned long min, max;
     float avg;
+    struct hdr_histogram* histogram;
     /* anonymous union to store different types of target data */
     /* TODO make for ping and fping (results etc) */
     /* TODO enum to specify type */
