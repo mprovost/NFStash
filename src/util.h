@@ -6,16 +6,16 @@
 
 void sigint_handler(int);
 int nfs_perror(nfsstat3, const char *);
-targets_t *parse_fh(targets_t *, char *, uint16_t, unsigned long);
+targets_t *parse_fh(targets_t *, char *, uint16_t, unsigned long, struct timeval);
 char *nfs_fh3_to_string(nfs_fh3);
 char* reverse_fqdn(char *);
-targets_t *make_target(char *, const struct addrinfo *, uint16_t, int, int, int, unsigned long);
-targets_t *init_target(uint16_t, unsigned long);
+targets_t *make_target(char *, const struct addrinfo *, uint16_t, int, int, int, unsigned long, struct timeval);
+targets_t *init_target(uint16_t, unsigned long, struct timeval);
 targets_t *copy_target(targets_t *, unsigned long);
 targets_t *append_target(targets_t **, targets_t *);
 nfs_fh_list *nfs_fh_list_new(targets_t *, unsigned long);
 targets_t *find_target_by_ip(targets_t *, struct sockaddr_in *);
-targets_t *find_or_make_target(targets_t *, struct sockaddr_in *, uint16_t, unsigned long);
+targets_t *find_or_make_target(targets_t *, struct sockaddr_in *, uint16_t, unsigned long, struct timeval);
 unsigned long tv2us(struct timeval);
 unsigned long tv2ms(struct timeval);
 void ms2tv(struct timeval *, unsigned long);
