@@ -142,8 +142,12 @@ void print_summary(enum outputs format, targets_t *targets) {
                 target->display_name, target->sent, target->received, loss);
             /* only print times if we got any responses */
             if (target->received) {
-                fprintf(stderr, ", min/avg/max = %.2f/%.2f/%.2f",
-                    target->min / 1000.0, target->avg / 1000.0, target->max / 1000.0);
+                fprintf(stderr, ", min/50/90/99/max = %.2f/%.2f/%.2f/%.2f/%.2f",
+                    hdr_min(target->histogram) / 1000.0,
+                    hdr_value_at_percentile(target->histogram, 50.0) / 1000.0,
+                    hdr_value_at_percentile(target->histogram, 90.0) / 1000.0,
+                    hdr_value_at_percentile(target->histogram, 99.0) / 1000.0,
+                    hdr_max(target->histogram) / 1000.0);
             }
             fprintf(stderr, "\n");
         }
@@ -897,6 +901,7 @@ int main(int argc, char **argv) {
                     target->min = ULONG_MAX;
                     target->max = 0;
                     target->avg = 0;
+                    hdr_reset(target->histogram);
 
                     target = target->next;
                 }
