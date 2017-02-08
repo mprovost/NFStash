@@ -5,6 +5,7 @@
 /* local prototypes */
 static void usage(void);
 static void print_summary(enum outputs, targets_t *);
+static void print_final_summary(enum outputs, unsigned long, targets_t *);
 static void print_output(enum outputs, char *, targets_t *, unsigned long, u_long, const struct timespec, unsigned long);
 static void print_lost(enum outputs, char *, targets_t *, unsigned long, u_long, const struct timespec);
 
@@ -112,47 +113,79 @@ void usage() {
 
 
 /* TODO target output spacing */
-void print_summary(enum outputs format, targets_t *targets) {
-    targets_t *target = targets;
-    unsigned long i;
-    double loss;
+/* TODO rename print_interval? */
+void print_summary(enum outputs format, targets_t *target) {
+    /* TODO check for division by zero */
+    double loss = (target->sent - target->received) / (double)target->sent * 100;
 
-    while (target) {
+    if (format == fping) {
+        /* fping output with -Q looks like:
+           [13:27:03]
+           localhost : xmt/rcv/%loss = 3/3/0%, min/avg/max = 0.02/0.04/0.06
+         */
+        fprintf(stderr, "%s : xmt/rcv/%%loss = %u/%u/%.0f%%",
+            target->display_name, target->sent, target->received, loss);
+
+        /* only print times if we got any responses */
+        if (target->received) {
+            fprintf(stderr, ", min/avg/max = %.2f/%.2f/%.2f",
+                target->min / 1000.0, target->avg / 1000.0, target->max / 1000.0);
+        }
+
+        fprintf(stderr, "\n");
+    } else if (format == ping || format == unixtime) {
+        /* check if this is still set to the default value */
+        /* that means we never saw any responses */
+        if (target->min == ULONG_MAX) {
+            target->min = 0;
+        }
+
+        fprintf(stderr, "%s : xmt/rcv/%%loss = %u/%u/%.0f%%",
+            target->display_name, target->sent, target->received, loss);
+
+        /* only print times if we got any responses */
+        if (target->received) {
+            fprintf(stderr, ", min/50/90/99/max = %.2f/%.2f/%.2f/%.2f/%.2f",
+                hdr_min(target->histogram) / 1000.0,
+                hdr_value_at_percentile(target->histogram, 50.0) / 1000.0,
+                hdr_value_at_percentile(target->histogram, 90.0) / 1000.0,
+                hdr_value_at_percentile(target->histogram, 99.0) / 1000.0,
+                hdr_max(target->histogram) / 1000.0);
+        }
+
+        fprintf(stderr, "\n");
+    }
+}
+
+
+/* print a final summary before exiting */
+/* TODO stderr or stdout? */
+void print_final_summary(enum outputs format, unsigned long total_sent, targets_t *targets) {
+    targets_t *current = targets;
+    unsigned long i;
+
+    while (current) {
         /* print a parseable summary string in fping-compatible format */
         if (format == fping) {
-            fprintf(stderr, "%s :", target->display_name);
-            for (i = 0; i < target->sent; i++) {
-                if (target->results[i]) {
-                    fprintf(stderr, " %.2f", target->results[i] / 1000.0);
+            fprintf(stderr, "%s :", current->display_name);
+            for (i = 0; i < total_sent; i++) {
+                if (current->results[i]) {
+                    fprintf(stderr, " %.2f", current->results[i] / 1000.0);
                 } else {
                     fprintf(stderr, " -");
                 }
             }
             fprintf(stderr, "\n");
-        } else if (format == ping || format == unixtime) {
-            loss = (target->sent - target->received) / (double)target->sent * 100;
+        } else {
+            /* blank line to separate from results */
+            /* TODO only if !quiet */
+            printf("\n");
 
-            /* check if this is still set to the default value */
-            /* that means we never saw any responses */
-            if (target->min == ULONG_MAX) {
-                target->min = 0;
-            }
-
-            fprintf(stderr, "%s : xmt/rcv/%%loss = %u/%u/%.0f%%",
-                target->display_name, target->sent, target->received, loss);
-            /* only print times if we got any responses */
-            if (target->received) {
-                fprintf(stderr, ", min/50/90/99/max = %.2f/%.2f/%.2f/%.2f/%.2f",
-                    hdr_min(target->histogram) / 1000.0,
-                    hdr_value_at_percentile(target->histogram, 50.0) / 1000.0,
-                    hdr_value_at_percentile(target->histogram, 90.0) / 1000.0,
-                    hdr_value_at_percentile(target->histogram, 99.0) / 1000.0,
-                    hdr_max(target->histogram) / 1000.0);
-            }
-            fprintf(stderr, "\n");
+            printf("%s :\n", current->display_name);
+            hdr_percentiles_print(current->histogram, stdout, 5, 1000.0, CLASSIC);
         }
 
-        target = target->next;
+        current = current->next;
     }
 }
 
@@ -702,12 +735,11 @@ int main(int argc, char **argv) {
     /* process the targets from the command line */
     for (index = optind; index < argc; index++) {
         if (format == fping) {
-            if (cfg.summary_interval) {
-                /* calculate the number of pings per summary interval */
-                target->next = make_target(argv[index], &hints, port, cfg.reverse_dns, cfg.display_ips, multiple, cfg.summary_interval * hertz, timeout);
-            } else {
-                target->next = make_target(argv[index], &hints, port, cfg.reverse_dns, cfg.display_ips, multiple, count, timeout);
-            }
+            /* allocate space for all results */
+            target->next = make_target(argv[index], &hints, port, cfg.reverse_dns, cfg.display_ips, multiple, count, timeout);
+        } else if (cfg.summary_interval) {
+            /* calculate the number of pings per summary interval */
+            target->next = make_target(argv[index], &hints, port, cfg.reverse_dns, cfg.display_ips, multiple, cfg.summary_interval * hertz, timeout);
         } else {
             /* don't allocate space for storing results */
             target->next = make_target(argv[index], &hints, port, cfg.reverse_dns, cfg.display_ips, multiple, 0, timeout);
@@ -803,15 +835,17 @@ int main(int argc, char **argv) {
                     timespecsub(&call_end, &call_start, &call_elapsed);
                     us = ts2us(call_elapsed);
 
-                    if (us < target->min) target->min = us;
-                    if (us > target->max) target->max = us;
-                    /* calculate the average time */
-                    target->avg = (target->avg * (target->received - 1) + us) / target->received;
+                    if (format == fping) {
+                        if (us < target->min) target->min = us;
+                        if (us > target->max) target->max = us;
+                        /* calculate the average time */
+                        target->avg = (target->avg * (target->received - 1) + us) / target->received;
 
-                    if (format == fping)
-                        target->results[target->sent - 1] = us;
-
-                    hdr_record_value(target->histogram, us);
+                        /* store the result for the final output */
+                        target->results[total_sent - 1] = us;
+                    } else {
+                        hdr_record_value(target->histogram, us);
+                    }
 
                     if (!quiet) {
                         /* use the start time for the call since some calls may not return */
@@ -914,13 +948,7 @@ int main(int argc, char **argv) {
 
     /* only print summary if looping */
     if (count || loop) {
-        /* blank line to separate from results */
-        if (!quiet) {
-            fprintf(stderr, "\n");
-        }
-        /* this prints to stderr */
-        print_summary(format, targets);
-        hdr_percentiles_print(targets->histogram, stdout, 5, 1000.0, CLASSIC);
+        print_final_summary(format, total_sent, targets);
     }
 
     /* exit with a failure if there were any missing responses */
