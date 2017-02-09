@@ -133,8 +133,8 @@ bin/clear_locks: config/clock_gettime.opt $(clear_locks_objs) | bin
 	gcc ${CFLAGS} ${HDR_LIBS} @config/clock_gettime.opt $(clear_locks_objs) -o $@
 
 tests: tests/util_tests
-tests/util_tests: tests/util_tests.c tests/minunit.h src/util.o obj/parson.o src/util.h | rpcgen
-	gcc ${CFLAGS} tests/util_tests.c obj/util.o obj/parson.o -o $@
+tests/util_tests: tests/util_tests.c tests/minunit.h src/util.o obj/parson.o obj/hdr_histogram.o src/util.h | rpcgen
+	gcc ${CFLAGS} ${HDR_LIBS} tests/util_tests.c obj/util.o obj/parson.o obj/hdr_histogram.o -o $@
 	tests/util_tests
 
 # man pages

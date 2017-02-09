@@ -17,7 +17,7 @@ static char *test_reverse_fqdn() {
 static char *test_nfs_perror_nfs3ok() {
     nfsstat3 status = NFS3_OK;
 
-    mu_assert("error, NFS3_OK!", nfs_perror(status) == 0);
+    mu_assert("error, NFS3_OK!", nfs_perror(status, "test_nfs_perror_nfs3ok") == 0);
     return 0;
 }
 
@@ -28,7 +28,7 @@ static char *test_nfs_perror_toobig() {
     /* make this too big */
     status++;
 
-    mu_assert("error, input too large!", nfs_perror(status) == -1);
+    mu_assert("error, input too large!", nfs_perror(status, "test_nfs_perror_toobig") == -1);
     return 0;
 }
 
@@ -39,7 +39,7 @@ static char *test_nfs_perror_toobig_low() {
     /* make this one too big */
     status++;
 
-    mu_assert("error, input too large!", nfs_perror(status) == -1);
+    mu_assert("error, input too large!", nfs_perror(status, "test_nfs_perror_toobig_low") == -1);
     return 0;
 }
 
