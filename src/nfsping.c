@@ -930,10 +930,13 @@ int main(int argc, char **argv) {
                 while (target) {
                     target->sent = 0;
                     target->received = 0;
-                    target->min = ULONG_MAX;
-                    target->max = 0;
-                    target->avg = 0;
-                    hdr_reset(target->interval_histogram);
+                    if (format == fping) {
+                        target->min = ULONG_MAX;
+                        target->max = 0;
+                        target->avg = 0;
+                    } else {
+                        hdr_reset(target->interval_histogram);
+                    }
 
                     target = target->next;
                 }
