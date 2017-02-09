@@ -4,8 +4,8 @@
 
 /* local prototypes */
 static void usage(void);
-static void print_summary(enum outputs, targets_t *);
-static void print_final_summary(enum outputs, unsigned long, targets_t *);
+static void print_interval(enum outputs, targets_t *);
+static void print_summary(enum outputs, unsigned long, targets_t *);
 static void print_output(enum outputs, char *, targets_t *, unsigned long, u_long, const struct timespec, unsigned long);
 static void print_lost(enum outputs, char *, targets_t *, unsigned long, u_long, const struct timespec);
 
@@ -114,7 +114,7 @@ void usage() {
 
 /* TODO target output spacing */
 /* TODO rename print_interval? */
-void print_summary(enum outputs format, targets_t *target) {
+void print_interval(enum outputs format, targets_t *target) {
     /* TODO check for division by zero */
     double loss = (target->sent - target->received) / (double)target->sent * 100;
 
@@ -160,7 +160,7 @@ void print_summary(enum outputs format, targets_t *target) {
 
 /* print a final summary before exiting */
 /* TODO stderr or stdout? */
-void print_final_summary(enum outputs format, unsigned long total_sent, targets_t *targets) {
+void print_summary(enum outputs format, unsigned long total_sent, targets_t *targets) {
     targets_t *current = targets;
     unsigned long i;
 
@@ -925,7 +925,7 @@ int main(int argc, char **argv) {
         if (cfg.summary_interval) {
             /* This doesn't use an actual timer, it just sees if we've sent the expected number of packets based on the configured hertz. We should be pretty close. */
             if (loop_count % (hertz * cfg.summary_interval) == 0) {
-                print_summary(format, targets);
+                print_interval(format, targets);
 
                 /* reset target counters */
                 target = targets;
@@ -948,7 +948,7 @@ int main(int argc, char **argv) {
 
     /* only print summary if looping */
     if (count || loop) {
-        print_final_summary(format, total_sent, targets);
+        print_summary(format, total_sent, targets);
     }
 
     /* exit with a failure if there were any missing responses */
