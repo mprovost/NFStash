@@ -112,6 +112,7 @@ void usage() {
 }
 
 
+/* print an interval summary (-Q) for a target */
 /* TODO target output spacing */
 void print_interval(enum outputs format, struct timespec now, targets_t *target) {
     struct tm *curr_tm;
@@ -879,6 +880,23 @@ int main(int argc, char **argv) {
                 }
             }
 
+            /* check if we should print a periodic summary */
+            /* This doesn't use an actual timer, it just sees if we've sent the expected number of packets based on the configured hertz. We should be pretty close. */
+            if (cfg.summary_interval && (loop_count % (hertz * cfg.summary_interval) == 0)) {
+                print_interval(format, wall_clock, target);
+
+                /* reset target counters */
+                target->sent = 0;
+                target->received = 0;
+                if (format == fping) {
+                    target->min = ULONG_MAX;
+                    target->max = 0;
+                    target->avg = 0;
+                } else {
+                    hdr_reset(target->interval_histogram);
+                }
+            }
+
             /* see if we should disconnect and reconnect */
             if (reconnect) {
                 target->client = destroy_rpc_client(target->client);
@@ -922,29 +940,6 @@ int main(int argc, char **argv) {
             break;
         }
 
-        /* check if we should print a periodic summary */
-        if (cfg.summary_interval) {
-            /* This doesn't use an actual timer, it just sees if we've sent the expected number of packets based on the configured hertz. We should be pretty close. */
-            if (loop_count % (hertz * cfg.summary_interval) == 0) {
-                print_interval(format, wall_clock, targets);
-
-                /* reset target counters */
-                target = targets;
-                while (target) {
-                    target->sent = 0;
-                    target->received = 0;
-                    if (format == fping) {
-                        target->min = ULONG_MAX;
-                        target->max = 0;
-                        target->avg = 0;
-                    } else {
-                        hdr_reset(target->interval_histogram);
-                    }
-
-                    target = target->next;
-                }
-            }
-        }
 
     } /* while(1) */
 
