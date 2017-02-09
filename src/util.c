@@ -297,16 +297,19 @@ targets_t *init_target(uint16_t port, struct timeval timeout, unsigned long coun
     /* set this so that the first comparison will always be smaller */
     target->min = ULONG_MAX;
 
-    /* initialise the histogram */
-    //hdr_init(1, INT64_C(tv2us(timeout)), 3, target->histogram);
-    hdr_init(1, tv2us(timeout), 3, &target->histogram);
-
     /* allocate space for printing out a summary of all ping times at the end */
     if (count) {
         target->results = calloc(count, sizeof(unsigned long));
         if (target->results == NULL) {
             fatalx(3, "Couldn't allocate memory for results!\n");
         }
+    /* otherwise use histograms for storing results */
+    } else {
+        /* initialise the histogram */
+        //hdr_init(1, INT64_C(tv2us(timeout)), 3, target->histogram);
+        hdr_init(1, tv2us(timeout), 3, &target->histogram);
+        /* TODO only if -Q intervals specified! */
+        hdr_init(1, tv2us(timeout), 3, &target->interval_histogram);
     }
 
     target->client_sock = calloc(1, sizeof(struct sockaddr_in));

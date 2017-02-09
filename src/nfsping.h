@@ -81,6 +81,9 @@ typedef struct targets {
     unsigned int sent, received;
     unsigned long min, max;
     float avg;
+    /* histogram for each interval if using -Q */
+    struct hdr_histogram* interval_histogram;
+    /* histogram for all results */
     struct hdr_histogram* histogram;
     /* anonymous union to store different types of target data */
     /* TODO make for ping and fping (results etc) */

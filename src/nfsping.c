@@ -146,11 +146,11 @@ void print_interval(enum outputs format, targets_t *target) {
         /* only print times if we got any responses */
         if (target->received) {
             fprintf(stderr, ", min/50/90/99/max = %.2f/%.2f/%.2f/%.2f/%.2f",
-                hdr_min(target->histogram) / 1000.0,
-                hdr_value_at_percentile(target->histogram, 50.0) / 1000.0,
-                hdr_value_at_percentile(target->histogram, 90.0) / 1000.0,
-                hdr_value_at_percentile(target->histogram, 99.0) / 1000.0,
-                hdr_max(target->histogram) / 1000.0);
+                hdr_min(target->interval_histogram) / 1000.0,
+                hdr_value_at_percentile(target->interval_histogram, 50.0) / 1000.0,
+                hdr_value_at_percentile(target->interval_histogram, 90.0) / 1000.0,
+                hdr_value_at_percentile(target->interval_histogram, 99.0) / 1000.0,
+                hdr_max(target->interval_histogram) / 1000.0);
         }
 
         fprintf(stderr, "\n");
@@ -737,9 +737,6 @@ int main(int argc, char **argv) {
         if (format == fping) {
             /* allocate space for all results */
             target->next = make_target(argv[index], &hints, port, cfg.reverse_dns, cfg.display_ips, multiple, timeout, count);
-        } else if (cfg.summary_interval) {
-            /* calculate the number of pings per summary interval */
-            target->next = make_target(argv[index], &hints, port, cfg.reverse_dns, cfg.display_ips, multiple, timeout, cfg.summary_interval * hertz);
         } else {
             /* don't allocate space for storing results */
             target->next = make_target(argv[index], &hints, port, cfg.reverse_dns, cfg.display_ips, multiple, timeout, 0);
@@ -845,6 +842,7 @@ int main(int argc, char **argv) {
                         target->results[total_sent - 1] = us;
                     } else {
                         hdr_record_value(target->histogram, us);
+                        hdr_record_value(target->interval_histogram, us);
                     }
 
                     if (!quiet) {
@@ -935,7 +933,7 @@ int main(int argc, char **argv) {
                     target->min = ULONG_MAX;
                     target->max = 0;
                     target->avg = 0;
-                    hdr_reset(target->histogram);
+                    hdr_reset(target->interval_histogram);
 
                     target = target->next;
                 }
