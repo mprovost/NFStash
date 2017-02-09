@@ -4,7 +4,7 @@
 
 /* local prototypes */
 static void usage(void);
-static void print_interval(enum outputs, targets_t *);
+static void print_interval(enum outputs, struct timespec, targets_t *);
 static void print_summary(enum outputs, unsigned long, targets_t *);
 static void print_output(enum outputs, char *, targets_t *, unsigned long, u_long, const struct timespec, unsigned long);
 static void print_lost(enum outputs, char *, targets_t *, unsigned long, u_long, const struct timespec);
@@ -113,8 +113,8 @@ void usage() {
 
 
 /* TODO target output spacing */
-/* TODO rename print_interval? */
-void print_interval(enum outputs format, targets_t *target) {
+void print_interval(enum outputs format, struct timespec now, targets_t *target) {
+    struct tm *curr_tm;
     /* TODO check for division by zero */
     double loss = (target->sent - target->received) / (double)target->sent * 100;
 
@@ -123,6 +123,9 @@ void print_interval(enum outputs format, targets_t *target) {
            [13:27:03]
            localhost : xmt/rcv/%loss = 3/3/0%, min/avg/max = 0.02/0.04/0.06
          */
+        curr_tm = localtime(&now.tv_sec);
+        fprintf(stderr, "[%2.2d:%2.2d:%2.2d]\n",
+            curr_tm->tm_hour, curr_tm->tm_min, curr_tm->tm_sec);
         fprintf(stderr, "%s : xmt/rcv/%%loss = %u/%u/%.0f%%",
             target->display_name, target->sent, target->received, loss);
 
@@ -923,7 +926,7 @@ int main(int argc, char **argv) {
         if (cfg.summary_interval) {
             /* This doesn't use an actual timer, it just sees if we've sent the expected number of packets based on the configured hertz. We should be pretty close. */
             if (loop_count % (hertz * cfg.summary_interval) == 0) {
-                print_interval(format, targets);
+                print_interval(format, wall_clock, targets);
 
                 /* reset target counters */
                 target = targets;
