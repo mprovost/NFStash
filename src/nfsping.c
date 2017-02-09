@@ -766,10 +766,11 @@ int main(int argc, char **argv) {
         }
     }
 
-    /* the main loop */
-    while(1) {
-        target = targets;
+    /* reset to start of target list */
+    target = targets;
 
+    /* the main loop */
+    while(target) {
         loop_count++;
 
         /* grab the starting time of each loop */
@@ -916,7 +917,6 @@ int main(int argc, char **argv) {
         }
 
         /* at the end of the targets list, see if we need to loop */
-        /* check the first target */
         if ((count && loop_count < count) || loop) {
             /* sleep between rounds */
             /* measure how long the current round took, and subtract that from the sleep time */
@@ -936,12 +936,11 @@ int main(int argc, char **argv) {
                 debug("Sleeping for %lld.%.9lds\n", (long long)sleepy.tv_sec, sleepy.tv_nsec);
                 nanosleep(&sleepy, NULL);
             }
-        } else {
-            break;
+
+            /* reset to start of target list */
+            target = targets;
         }
-
-
-    } /* while(1) */
+    } /* while(target) */
 
     fflush(stdout);
 
