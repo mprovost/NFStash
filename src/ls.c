@@ -1002,10 +1002,10 @@ int main(int argc, char **argv) {
     /* no arguments, use stdin */
     while (getline(&input_fh, &input_len, stdin) != -1) {
         if (cfg.format == ls_fping || cfg.format == ls_longform) {
-            current = parse_fh(targets, input_fh, cfg.port, cfg.count);
+            current = parse_fh(targets, input_fh, cfg.port, cfg.timeout, cfg.count);
         } else {
             /* don't allocate space for results */
-            current = parse_fh(targets, input_fh, cfg.port, 0);
+            current = parse_fh(targets, input_fh, cfg.port, cfg.timeout, 0);
         }
     }
 

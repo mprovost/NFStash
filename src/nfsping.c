@@ -736,13 +736,13 @@ int main(int argc, char **argv) {
     for (index = optind; index < argc; index++) {
         if (format == fping) {
             /* allocate space for all results */
-            target->next = make_target(argv[index], &hints, port, cfg.reverse_dns, cfg.display_ips, multiple, count, timeout);
+            target->next = make_target(argv[index], &hints, port, cfg.reverse_dns, cfg.display_ips, multiple, timeout, count);
         } else if (cfg.summary_interval) {
             /* calculate the number of pings per summary interval */
-            target->next = make_target(argv[index], &hints, port, cfg.reverse_dns, cfg.display_ips, multiple, cfg.summary_interval * hertz, timeout);
+            target->next = make_target(argv[index], &hints, port, cfg.reverse_dns, cfg.display_ips, multiple, timeout, cfg.summary_interval * hertz);
         } else {
             /* don't allocate space for storing results */
-            target->next = make_target(argv[index], &hints, port, cfg.reverse_dns, cfg.display_ips, multiple, 0, timeout);
+            target->next = make_target(argv[index], &hints, port, cfg.reverse_dns, cfg.display_ips, multiple, timeout, 0);
         }
         target = target->next;
     }

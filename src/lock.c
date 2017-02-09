@@ -197,7 +197,7 @@ int main(int argc, char **argv) {
     /* no arguments, use stdin */
     while (getline(&input_fh, &n, stdin) != -1) {
         /* don't allocate space for results */
-        current = parse_fh(targets, input_fh, 0, 0);
+        current = parse_fh(targets, input_fh, 0, timeout, 0);
     }
 
     targets = targets->next;

@@ -1013,7 +1013,7 @@ int main(int argc, char **argv) {
         }
 
         /* make possibly multiple new targets */
-        current->next = make_target(host, &hints, cfg.port, cfg.dns, cfg.ip, cfg.multiple, cfg.count);
+        current->next = make_target(host, &hints, cfg.port, cfg.dns, cfg.ip, cfg.multiple, cfg.timeout, cfg.count);
 
         /* go through the new targets and make a list of exports */
         while (current->next) {
