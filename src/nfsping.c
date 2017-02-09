@@ -2,17 +2,25 @@
 #include "util.h"
 #include "rpc.h"
 
-/* local prototypes */
-static void usage(void);
-static void print_interval(enum outputs, struct timespec, targets_t *);
-static void print_summary(enum outputs, unsigned long, targets_t *);
-static void print_output(enum outputs, char *, targets_t *, unsigned long, u_long, const struct timespec, unsigned long);
-static void print_lost(enum outputs, char *, targets_t *, unsigned long, u_long, const struct timespec);
-
-
 /* Globals! */
 extern volatile sig_atomic_t quitting;
 int verbose = 0;
+
+enum ping_outputs {
+    ping_unset,     /* use as a default for getopt checks */
+    ping_ping,      /* classic ping */
+    ping_fping,     /* fping compatible */
+    ping_unixtime,  /* ping prefixed with unix timestamp */
+    ping_graphite,
+    ping_statsd,
+};
+
+/* local prototypes */
+static void usage(void);
+static void print_interval(enum ping_outputs, struct timespec, targets_t *);
+static void print_summary(enum ping_outputs, unsigned long, targets_t *);
+static void print_output(enum ping_outputs, char *, targets_t *, unsigned long, u_long, const struct timespec, unsigned long);
+static void print_lost(enum ping_outputs, char *, targets_t *, unsigned long, u_long, const struct timespec);
 
 /* global config "object" */
 static struct config {
@@ -114,12 +122,12 @@ void usage() {
 
 /* print an interval summary (-Q) for a target */
 /* TODO target output spacing */
-void print_interval(enum outputs format, struct timespec now, targets_t *target) {
+void print_interval(enum ping_outputs format, struct timespec now, targets_t *target) {
     struct tm *curr_tm;
     /* TODO check for division by zero */
     double loss = (target->sent - target->received) / (double)target->sent * 100;
 
-    if (format == fping) {
+    if (format == ping_fping) {
         /* fping output with -Q looks like:
            [13:27:03]
            localhost : xmt/rcv/%loss = 3/3/0%, min/avg/max = 0.02/0.04/0.06
@@ -137,7 +145,7 @@ void print_interval(enum outputs format, struct timespec now, targets_t *target)
         }
 
         fprintf(stderr, "\n");
-    } else if (format == ping || format == unixtime) {
+    } else if (format == ping_ping || format == ping_unixtime) {
         /* check if this is still set to the default value */
         /* that means we never saw any responses */
         if (target->min == ULONG_MAX) {
@@ -164,13 +172,13 @@ void print_interval(enum outputs format, struct timespec now, targets_t *target)
 
 /* print a final summary before exiting */
 /* TODO stderr or stdout? */
-void print_summary(enum outputs format, unsigned long total_sent, targets_t *targets) {
+void print_summary(enum ping_outputs format, unsigned long total_sent, targets_t *targets) {
     targets_t *current = targets;
     unsigned long i;
 
     while (current) {
         /* print a parseable summary string in fping-compatible format */
-        if (format == fping) {
+        if (format == ping_fping) {
             fprintf(stderr, "%s :", current->display_name);
             for (i = 0; i < total_sent; i++) {
                 if (current->results[i]) {
@@ -195,16 +203,16 @@ void print_summary(enum outputs format, unsigned long total_sent, targets_t *tar
 
 
 /* print formatted output after each ping */
-void print_output(enum outputs format, char *prefix, targets_t *target, unsigned long prognum_offset, u_long version, const struct timespec now, unsigned long us) {
+void print_output(enum ping_outputs format, char *prefix, targets_t *target, unsigned long prognum_offset, u_long version, const struct timespec now, unsigned long us) {
     double loss;
     char epoch[TIME_T_MAX_DIGITS]; /* the largest time_t seconds value, plus a terminating NUL */
     struct tm *secs;
 
     switch (format) {
-        case unset:
+        case ping_unset:
             fatal("No format!\n");
             break;
-        case unixtime:
+        case ping_unixtime:
             /* get the epoch time in seconds in the local timezone */
             /* TODO should we be doing everything in UTC? */
             /* strftime needs a struct tm so use localtime to convert from time_t */
@@ -213,24 +221,18 @@ void print_output(enum outputs format, char *prefix, targets_t *target, unsigned
             printf("[%s.%06li] ", epoch, now.tv_nsec / 1000);
             /* fall through to ping output, this just prepends the current time */
             /*FALLTHROUGH*/
-        case ping:
-        case fping:
+        case ping_ping:
+        case ping_fping:
             loss = (target->sent - target->received) / (double)target->sent * 100;
             printf("%s : [%u], %03.2f ms (%03.2f avg, %.0f%% loss)\n", target->display_name, target->sent - 1, us / 1000.0, target->avg / 1000.0, loss);
             break;
-        case graphite:
+        case ping_graphite:
             printf("%s.%s.%s.usec %lu %li\n",
                 prefix, target->ndqf, null_dispatch[prognum_offset][version].protocol, us, now.tv_sec);
             break;
-        case statsd:
+        case ping_statsd:
             printf("%s.%s.%s:%03.2f|ms\n",
                 prefix, target->ndqf, null_dispatch[prognum_offset][version].protocol, us / 1000.0);
-            break;
-        case json:
-            fatal("JSON output not implemented!\n");
-            break;
-        case showmount:
-            fatal("showmount output not implemented!\n");
             break;
     }
 
@@ -239,16 +241,16 @@ void print_output(enum outputs format, char *prefix, targets_t *target, unsigned
 
 
 /* print missing packets for formatted output */
-void print_lost(enum outputs format, char *prefix, targets_t *target, unsigned long prognum_offset, u_long version, const struct timespec now) {
+void print_lost(enum ping_outputs format, char *prefix, targets_t *target, unsigned long prognum_offset, u_long version, const struct timespec now) {
     /* send to stdout even though it could be considered an error, presumably these are being piped somewhere */
     /* stderr prints the errors themselves which can be discarded */
     /* todo switch (format) */
-    if (format == graphite || format == statsd) {
+    if (format == ping_graphite || format == ping_statsd) {
         printf("%s.%s.", prefix, target->ndqf);
         printf("%s", null_dispatch[prognum_offset][version].protocol);
-        if (format == graphite) {
+        if (format == ping_graphite) {
             printf(".lost 1 %li\n", now.tv_sec);
-        } else if (format == statsd) {
+        } else if (format == ping_statsd) {
             /* send it as a counter */
             printf(".lost:1|c\n");
         }
@@ -276,7 +278,7 @@ int main(int argc, char **argv) {
     struct rpc_err clnt_err;
     unsigned long us;
     /* default to unset so we can check in getopt */
-    enum outputs format = unset;
+    enum ping_outputs format = ping_unset;
     char prefix[255] = "nfsping";
     targets_t target_dummy;
     /* pointer to head of list */
@@ -343,29 +345,21 @@ int main(int argc, char **argv) {
                     fatal("Can't specify both -l and -C!\n");
                 } else {
                     switch (format) {
-                        case unset:
-                        case fping:
-                            format = fping;
+                        case ping_unset:
+                        case ping_fping:
+                            format = ping_fping;
                             break;
-                        case ping:
+                        case ping_ping:
                             fatal("Can't specify both -c and -C!\n");
                             break;
-                        case unixtime:
+                        case ping_unixtime:
                             fatal("Can't specify both -D and -C!\n");
                             break;
-                        case statsd:
+                        case ping_statsd:
                             fatal("Can't specify both -E and -C!\n");
                             break;
-                        case graphite:
+                        case ping_graphite:
                             fatal("Can't specify both -G and -C!\n");
-                            break;
-                        case json:
-                            /* no -J option in nfsping */
-                            fatal("-J not implemented!\n");
-                            break;
-                        case showmount:
-                            /* no -e option in nfsping */
-                            fatal("-e not implemented!\n");
                             break;
                     }
                 }
@@ -381,25 +375,17 @@ int main(int argc, char **argv) {
                     fatal("Can't specify both -l and -c!\n");
                 } else {
                     switch (format) {
-                        case unset:
-                        case ping:
-                            format = ping;
+                        case ping_unset:
+                        case ping_ping:
+                            format = ping_ping;
                             break;
-                        case fping:
+                        case ping_fping:
                             fatal("Can't specify both -C and -c!\n");
                             break;
-                        case json:
-                            /* no -J option in nfsping */
-                            fatal("-J not implemented!\n");
-                            break;
-                        case showmount:
-                            /* no -e option in nfsping */
-                            fatal("-e not implemented!\n");
-                            break;
                         /* other fornats are ok, don't change format though */
-                        case unixtime:
-                        case statsd:
-                        case graphite:
+                        case ping_unixtime:
+                        case ping_statsd:
+                        case ping_graphite:
                             break;
                     }
                 }
@@ -426,55 +412,39 @@ int main(int argc, char **argv) {
                 break;
             case 'D':
                 switch (format) {
-                    case unset:
-                    case ping:
-                    case unixtime:
-                        format = unixtime;
+                    case ping_unset:
+                    case ping_ping:
+                    case ping_unixtime:
+                        format = ping_unixtime;
                         break;
-                    case fping:
+                    case ping_fping:
                         /* TODO this should probably work, maybe a format=fpingunix? */
                         fatal("Can't specify both -C and -D!\n");
                         break;
-                    case statsd:
+                    case ping_statsd:
                         fatal("Can't specify both -E and -D!\n");
                         break;
-                    case graphite:
+                    case ping_graphite:
                         fatal("Can't specify both -G and -D!\n");
-                        break;
-                    case json:
-                        /* no -J option in nfsping */
-                        fatal("-J not implemented!\n");
-                        break;
-                    case showmount:
-                        /* no -e option in nfsping */
-                        fatal("-e not implemented!\n");
                         break;
                 }
                 break;
             /* [E]tsy's StatsD output */
             case 'E':
                 switch (format) {
-                    case unset:
-                    case ping:
-                    case statsd:
-                        format = statsd;
+                    case ping_unset:
+                    case ping_ping:
+                    case ping_statsd:
+                        format = ping_statsd;
                         break;
-                    case fping:
+                    case ping_fping:
                         fatal("Can't specify both -C and -E!\n");
                         break;
-                    case unixtime:
+                    case ping_unixtime:
                         fatal("Can't specify both -D and -E!\n");
                         break;
-                    case graphite:
+                    case ping_graphite:
                         fatal("Can't specify both -G and -E!\n");
-                        break;
-                    case json:
-                        /* no -J option in nfsping */
-                        fatal("-J not implemented!\n");
-                        break;
-                    case showmount:
-                        /* no -e option in nfsping */
-                        fatal("-e not implemented!\n");
                         break;
                 }
                 break;
@@ -485,27 +455,19 @@ int main(int argc, char **argv) {
             /* Graphite output */
             case 'G':
                 switch (format) {
-                    case unset:
-                    case ping:
-                    case graphite:
-                        format = graphite;
+                    case ping_unset:
+                    case ping_ping:
+                    case ping_graphite:
+                        format = ping_graphite;
                         break;
-                    case fping:
+                    case ping_fping:
                         fatal("Can't specify both -C and -G!\n");
                         break;
-                    case unixtime:
+                    case ping_unixtime:
                         fatal("Can't specify both -D and -G!\n");
                         break;
-                    case statsd:
+                    case ping_statsd:
                         fatal("Can't specify both -E and -G!\n");
-                        break;
-                    case json:
-                        /* no -J option in nfsping */
-                        fatal("-J not implemented!\n");
-                        break;
-                    case showmount:
-                        /* no -e option in nfsping */
-                        fatal("-e not implemented!\n");
                         break;
                 }
                 break;
@@ -529,11 +491,11 @@ int main(int argc, char **argv) {
             case 'l':
                 if (count) {
                     switch (format) {
-                        case ping:
-                        case unixtime:
+                        case ping_ping:
+                        case ping_unixtime:
                             fatal("Can't specify both -c and -l!\n");
                             break;
-                        case fping:
+                        case ping_fping:
                             fatal("Can't specify both -C and -l!\n");
                             break;
                         /* shouldn't get here */
@@ -678,8 +640,8 @@ int main(int argc, char **argv) {
     }
 
     /* default */
-    if (format == unset) {
-        format = ping;
+    if (format == ping_unset) {
+        format = ping_ping;
     }
 
     /* calculate the sleep_time based on the frequency */
@@ -724,7 +686,7 @@ int main(int argc, char **argv) {
     }
 
     /* output formatting doesn't make sense for the simple check */
-    if (count == 0 && loop == 0 && format != ping) {
+    if (count == 0 && loop == 0 && format != ping_ping) {
         fatal("Can't specify output format without ping count!\n");
     }
 
@@ -738,7 +700,7 @@ int main(int argc, char **argv) {
 
     /* process the targets from the command line */
     for (index = optind; index < argc; index++) {
-        if (format == fping) {
+        if (format == ping_fping) {
             /* allocate space for all results */
             target->next = make_target(argv[index], &hints, port, cfg.reverse_dns, cfg.display_ips, multiple, timeout, count);
         } else {
@@ -837,7 +799,7 @@ int main(int argc, char **argv) {
                     timespecsub(&call_end, &call_start, &call_elapsed);
                     us = ts2us(call_elapsed);
 
-                    if (format == fping) {
+                    if (format == ping_fping) {
                         if (us < target->min) target->min = us;
                         if (us > target->max) target->max = us;
                         /* calculate the average time */
@@ -889,7 +851,7 @@ int main(int argc, char **argv) {
                 /* reset target counters */
                 target->sent = 0;
                 target->received = 0;
-                if (format == fping) {
+                if (format == ping_fping) {
                     target->min = ULONG_MAX;
                     target->max = 0;
                     target->avg = 0;
