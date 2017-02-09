@@ -121,57 +121,68 @@ void usage() {
 
 
 /* print an interval summary (-Q) for a target */
+/* fping format prints to stderr for compatibility */
 /* TODO target output spacing */
 void print_interval(enum ping_outputs format, struct timespec now, targets_t *target) {
-    struct tm *curr_tm;
+    struct tm *secs;
+    char epoch[TIME_T_MAX_DIGITS]; /* the largest time_t seconds value, plus a terminating NUL */
     /* TODO check for division by zero */
     double loss = (target->sent - target->received) / (double)target->sent * 100;
 
-    if (format == ping_fping) {
-        /* fping output with -Q looks like:
-           [13:27:03]
-           localhost : xmt/rcv/%loss = 3/3/0%, min/avg/max = 0.02/0.04/0.06
-         */
-        curr_tm = localtime(&now.tv_sec);
-        fprintf(stderr, "[%2.2d:%2.2d:%2.2d]\n",
-            curr_tm->tm_hour, curr_tm->tm_min, curr_tm->tm_sec);
-        fprintf(stderr, "%s : xmt/rcv/%%loss = %u/%u/%.0f%%",
-            target->display_name, target->sent, target->received, loss);
+    switch (format) {
+        case ping_unset:
+            fatal("No format!\n");
+            break;
+        case ping_unixtime:
+            /* get the epoch time in seconds in the local timezone */
+            /* TODO should we be doing everything in UTC? */
+            /* strftime needs a struct tm so use localtime to convert from time_t */
+            secs = localtime(&now.tv_sec);
+            strftime(epoch, sizeof(epoch), "%s", secs);
+            printf("[%s.%06li] ", epoch, now.tv_nsec / 1000);
+            /* fall through to ping output, this just prepends the current time */
+            /*FALLTHROUGH*/
+        case ping_ping:
+            fprintf(stdout, "%s : xmt/rcv/%%loss = %u/%u/%.0f%%",
+                target->display_name, target->sent, target->received, loss);
 
-        /* only print times if we got any responses */
-        if (target->received) {
-            fprintf(stderr, ", min/avg/max = %.2f/%.2f/%.2f",
-                target->min / 1000.0, target->avg / 1000.0, target->max / 1000.0);
-        }
+            /* only print times if we got any responses */
+            if (target->received) {
+                fprintf(stdout, ", min/50/90/99/max = %.2f/%.2f/%.2f/%.2f/%.2f",
+                    hdr_min(target->interval_histogram) / 1000.0,
+                    hdr_value_at_percentile(target->interval_histogram, 50.0) / 1000.0,
+                    hdr_value_at_percentile(target->interval_histogram, 90.0) / 1000.0,
+                    hdr_value_at_percentile(target->interval_histogram, 99.0) / 1000.0,
+                    hdr_max(target->interval_histogram) / 1000.0);
+            }
 
-        fprintf(stderr, "\n");
-    } else if (format == ping_ping || format == ping_unixtime) {
-        /* check if this is still set to the default value */
-        /* that means we never saw any responses */
-        if (target->min == ULONG_MAX) {
-            target->min = 0;
-        }
+            fprintf(stdout, "\n");
+            break;
+        case ping_fping:
+            /* fping output with -Q looks like:
+               [13:27:03]
+               localhost : xmt/rcv/%loss = 3/3/0%, min/avg/max = 0.02/0.04/0.06
+             */
+            secs = localtime(&now.tv_sec);
+            fprintf(stderr, "[%2.2d:%2.2d:%2.2d]\n",
+                secs->tm_hour, secs->tm_min, secs->tm_sec);
+            fprintf(stderr, "%s : xmt/rcv/%%loss = %u/%u/%.0f%%",
+                target->display_name, target->sent, target->received, loss);
 
-        fprintf(stderr, "%s : xmt/rcv/%%loss = %u/%u/%.0f%%",
-            target->display_name, target->sent, target->received, loss);
+            /* only print times if we got any responses */
+            if (target->received) {
+                fprintf(stderr, ", min/avg/max = %.2f/%.2f/%.2f",
+                    target->min / 1000.0, target->avg / 1000.0, target->max / 1000.0);
+            }
 
-        /* only print times if we got any responses */
-        if (target->received) {
-            fprintf(stderr, ", min/50/90/99/max = %.2f/%.2f/%.2f/%.2f/%.2f",
-                hdr_min(target->interval_histogram) / 1000.0,
-                hdr_value_at_percentile(target->interval_histogram, 50.0) / 1000.0,
-                hdr_value_at_percentile(target->interval_histogram, 90.0) / 1000.0,
-                hdr_value_at_percentile(target->interval_histogram, 99.0) / 1000.0,
-                hdr_max(target->interval_histogram) / 1000.0);
-        }
-
-        fprintf(stderr, "\n");
+            fprintf(stderr, "\n");
+            break;
     }
 }
 
 
 /* print a final summary before exiting */
-/* TODO stderr or stdout? */
+/* fping format prints to stderr for compatibility */
 void print_summary(enum ping_outputs format, unsigned long total_sent, targets_t *targets) {
     targets_t *current = targets;
     unsigned long i;
