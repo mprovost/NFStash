@@ -116,7 +116,7 @@ int nfs_perror(nfsstat3 status, const char *s) {
 /* break up a JSON filehandle into parts */
 /* this uses parson */
 /* port should be in host byte order (ie 2049) */
-targets_t *parse_fh(targets_t *head, char *input, uint16_t port, unsigned long count, struct timeval timeout) {
+targets_t *parse_fh(targets_t *head, char *input, uint16_t port, struct timeval timeout, unsigned long count) {
     unsigned int i;
     const char *tmp;
     u_int fh_len = 0;
@@ -144,7 +144,7 @@ targets_t *parse_fh(targets_t *head, char *input, uint16_t port, unsigned long c
         /* convert the IP string back into a network address */
         if (inet_pton(AF_INET, tmp, &sock.sin_addr)) {
             /* see if there's already a target for this IP, or make a new one */
-            current = find_or_make_target(head, &sock, port, count, timeout);
+            current = find_or_make_target(head, &sock, port, timeout, count);
 
             /* TODO reverse DNS lookup? */
 
@@ -288,7 +288,7 @@ char* reverse_fqdn(char *fqdn) {
 
 /* allocate and initialise a target struct */
 /* port should be in host byte order (ie 2049) */
-targets_t *init_target(uint16_t port, unsigned long count, struct timeval timeout) {
+targets_t *init_target(uint16_t port, struct timeval timeout, unsigned long count) {
     targets_t *target;
     
     target = calloc(1, sizeof(targets_t));
@@ -322,13 +322,13 @@ targets_t *init_target(uint16_t port, unsigned long count, struct timeval timeou
 /* return the head of the list */
 /* Always store the ip address string in target->ip_address. */
 /* port should be in host byte order (ie 2049) */
-targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t port, int dns, int display_ips, int multiple, unsigned long count, struct timeval timeout) {
+targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t port, int dns, int display_ips, int multiple, struct timeval timeout, unsigned long count) {
     targets_t *target, *first;
     struct addrinfo *addr;
     int getaddr;
 
     /* first build a blank target */
-    target = init_target(port, count, timeout);
+    target = init_target(port, timeout, count);
 
     /* save the head of the list in case of multiple DNS responses */
     first = target;
@@ -397,7 +397,7 @@ targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t
                 if (addr->ai_next) {
                     if (multiple) {
                         /* make the next target */
-                        target->next = init_target(port, count, timeout);
+                        target->next = init_target(port, timeout, count);
                         target = target->next;
                     } else {
                         /* assume that all utilities use -m to check multiple addresses */
@@ -533,7 +533,7 @@ targets_t *find_target_by_ip(targets_t *head, struct sockaddr_in *ip_address) {
     separate function to find target by IP in list
  */
 /* port should be in host byte order (ie 2049) */
-targets_t *find_or_make_target(targets_t *head, struct sockaddr_in *ip_address, uint16_t port, unsigned long count, struct timeval timeout) {
+targets_t *find_or_make_target(targets_t *head, struct sockaddr_in *ip_address, uint16_t port, struct timeval timeout, unsigned long count) {
     targets_t *current;
     
     /* first look for a duplicate in the target list */
@@ -542,7 +542,7 @@ targets_t *find_or_make_target(targets_t *head, struct sockaddr_in *ip_address, 
     /* not found */
     if (current == NULL) {
         /* make a blank one */
-        current = init_target(port, count, timeout);
+        current = init_target(port, timeout, count);
 
         /* copy the IP address */
         /* TODO should this be another argument to init_target()? */
