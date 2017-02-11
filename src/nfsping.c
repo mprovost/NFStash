@@ -17,7 +17,7 @@ enum ping_outputs {
 
 /* local prototypes */
 static void usage(void);
-static void print_interval(enum ping_outputs, struct timespec, targets_t *);
+static void print_interval(enum ping_outputs, char *, targets_t *, unsigned long, u_long, const struct timespec);
 static void print_summary(enum ping_outputs, unsigned long, targets_t *);
 static void print_output(enum ping_outputs, char *, targets_t *, unsigned long, u_long, const struct timespec, unsigned long);
 static void print_lost(enum ping_outputs, char *, targets_t *, unsigned long, u_long, const struct timespec);
@@ -123,11 +123,12 @@ void usage() {
 /* print an interval summary (-Q) for a target */
 /* fping format prints to stderr for compatibility */
 /* TODO target output spacing */
-void print_interval(enum ping_outputs format, struct timespec now, targets_t *target) {
+void print_interval(enum ping_outputs format, char *prefix, targets_t *target, unsigned long prognum_offset, u_long version, const struct timespec now) {
     struct tm *secs;
     char epoch[TIME_T_MAX_DIGITS]; /* the largest time_t seconds value, plus a terminating NUL */
+    long unsigned lost = target->sent - target->received;
     /* TODO check for division by zero */
-    double loss = (target->sent - target->received) / (double)target->sent * 100;
+    double loss = lost / (double)target->sent * 100;
 
     switch (format) {
         case ping_unset:
@@ -150,6 +151,7 @@ void print_interval(enum ping_outputs format, struct timespec now, targets_t *ta
             if (target->received) {
                 fprintf(stdout, ", min/50/90/99/max = %.2f/%.2f/%.2f/%.2f/%.2f",
                     hdr_min(target->interval_histogram) / 1000.0,
+                    /* TODO hdr_mean? */
                     hdr_value_at_percentile(target->interval_histogram, 50.0) / 1000.0,
                     hdr_value_at_percentile(target->interval_histogram, 90.0) / 1000.0,
                     hdr_value_at_percentile(target->interval_histogram, 99.0) / 1000.0,
@@ -176,6 +178,54 @@ void print_interval(enum ping_outputs format, struct timespec now, targets_t *ta
             }
 
             fprintf(stderr, "\n");
+            break;
+        /* don't just print each individual result, summarise (kind of like statsd) */
+        case ping_graphite:
+            /* total count of requests this interval */
+            printf("%s.%s.%s.count %u %li\n",
+                prefix, target->ndqf, null_dispatch[prognum_offset][version].protocol,
+                target->sent,
+                now.tv_sec);
+
+            /* lost */
+            printf("%s.%s.%s.lost %lu %li\n",
+                prefix, target->ndqf, null_dispatch[prognum_offset][version].protocol,
+                lost,
+                now.tv_sec);
+
+            /* max */
+            printf("%s.%s.%s.usec.max %.2f %li\n",
+                prefix, target->ndqf, null_dispatch[prognum_offset][version].protocol,
+                hdr_max(target->interval_histogram) / 1000.0,
+                now.tv_sec);
+
+            /* min */
+            printf("%s.%s.%s.usec.min %.2f %li\n",
+                prefix, target->ndqf, null_dispatch[prognum_offset][version].protocol,
+                hdr_min(target->interval_histogram) / 1000.0,
+                now.tv_sec);
+
+            /* sum */
+            /* there's no way to get the sum of values from the histogram */
+
+            /* mean */
+            printf("%s.%s.%s.usec.mean %.2f %li\n",
+                prefix, target->ndqf, null_dispatch[prognum_offset][version].protocol,
+                hdr_mean(target->interval_histogram) / 1000.0,
+                now.tv_sec);
+
+            /* sum_95th */
+            /* there's no way to get the sum of values at a percentile from the histogram */
+
+            /* 95th */
+            printf("%s.%s.%s.usec.upper_95th %.2f %li\n",
+                prefix, target->ndqf, null_dispatch[prognum_offset][version].protocol,
+                hdr_value_at_percentile(target->interval_histogram, 95.0) / 1000.0,
+                now.tv_sec);
+
+            /* mean_95th */
+            /* there's no way to get the mean of values at a percentile from the histogram */
+
             break;
     }
 }
@@ -214,6 +264,7 @@ void print_summary(enum ping_outputs format, unsigned long total_sent, targets_t
 
 
 /* print formatted output after each ping */
+/* TODO rename print_result */
 void print_output(enum ping_outputs format, char *prefix, targets_t *target, unsigned long prognum_offset, u_long version, const struct timespec now, unsigned long us) {
     double loss;
     char epoch[TIME_T_MAX_DIGITS]; /* the largest time_t seconds value, plus a terminating NUL */
@@ -820,6 +871,7 @@ int main(int argc, char **argv) {
                         target->results[total_sent - 1] = us;
                     } else {
                         hdr_record_value(target->histogram, us);
+                        /* TODO hdr_add()? */
                         hdr_record_value(target->interval_histogram, us);
                     }
 
@@ -857,7 +909,7 @@ int main(int argc, char **argv) {
             /* check if we should print a periodic summary */
             /* This doesn't use an actual timer, it just sees if we've sent the expected number of packets based on the configured hertz. We should be pretty close. */
             if (cfg.summary_interval && (loop_count % (hertz * cfg.summary_interval) == 0)) {
-                print_interval(format, wall_clock, target);
+                print_interval(format, prefix, target, prognum_offset, version, wall_clock);
 
                 /* reset target counters */
                 target->sent = 0;
