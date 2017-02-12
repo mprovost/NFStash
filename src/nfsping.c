@@ -122,11 +122,10 @@ void usage() {
 
 /* print an interval summary (-Q) for a target */
 /* fping format prints to stderr for compatibility */
-/* TODO target output spacing */
 void print_interval(enum ping_outputs format, char *prefix, targets_t *target, unsigned long prognum_offset, u_long version, const struct timespec now) {
     struct tm *secs;
     char epoch[TIME_T_MAX_DIGITS]; /* the largest time_t seconds value, plus a terminating NUL */
-    long unsigned lost = target->sent - target->received;
+    unsigned int lost = target->sent - target->received;
     /* TODO check for division by zero */
     double loss = lost / (double)target->sent * 100;
 
@@ -151,7 +150,7 @@ void print_interval(enum ping_outputs format, char *prefix, targets_t *target, u
             if (target->received) {
                 fprintf(stdout, ", min/50/90/99/max = %.2f/%.2f/%.2f/%.2f/%.2f",
                     hdr_min(target->interval_histogram) / 1000.0,
-                    /* TODO hdr_mean? */
+                    /* median not mean! */
                     hdr_value_at_percentile(target->interval_histogram, 50.0) / 1000.0,
                     hdr_value_at_percentile(target->interval_histogram, 90.0) / 1000.0,
                     hdr_value_at_percentile(target->interval_histogram, 99.0) / 1000.0,
@@ -179,7 +178,7 @@ void print_interval(enum ping_outputs format, char *prefix, targets_t *target, u
 
             fprintf(stderr, "\n");
             break;
-        /* don't just print each individual result, summarise (kind of like statsd) */
+        /* don't just print each individual result, try and emulate statsd aggregates */
         case ping_graphite:
             /* total count of requests this interval */
             printf("%s.%s.%s.count %u %li\n",
@@ -188,44 +187,64 @@ void print_interval(enum ping_outputs format, char *prefix, targets_t *target, u
                 now.tv_sec);
 
             /* lost */
-            printf("%s.%s.%s.lost %lu %li\n",
+            /* only print if we lost any packets this interval */
+            if (lost) {
+                printf("%s.%s.%s.lost %u %li\n",
+                    prefix, target->ndqf, null_dispatch[prognum_offset][version].protocol,
+                    lost,
+                    now.tv_sec);
+            }
+
+            /* the histogram will be empty if there weren't any results */
+            if (target->received) {
+                /* max */
+                printf("%s.%s.%s.usec.upper %.2f %li\n",
+                    prefix, target->ndqf, null_dispatch[prognum_offset][version].protocol,
+                    hdr_max(target->interval_histogram) / 1000.0,
+                    now.tv_sec);
+
+                /* min */
+                printf("%s.%s.%s.usec.lower %.2f %li\n",
+                    prefix, target->ndqf, null_dispatch[prognum_offset][version].protocol,
+                    hdr_min(target->interval_histogram) / 1000.0,
+                    now.tv_sec);
+
+                /* sum */
+                /* there's no way to get the sum of values from the histogram */
+
+                /* mean */
+                printf("%s.%s.%s.usec.mean %.2f %li\n",
+                    prefix, target->ndqf, null_dispatch[prognum_offset][version].protocol,
+                    hdr_mean(target->interval_histogram) / 1000.0,
+                    now.tv_sec);
+
+                /* sum_95th */
+                /* there's no way to get the sum of values at a percentile from the histogram */
+
+                /* 95th */
+                printf("%s.%s.%s.usec.upper_95th %.2f %li\n",
+                    prefix, target->ndqf, null_dispatch[prognum_offset][version].protocol,
+                    hdr_value_at_percentile(target->interval_histogram, 95.0) / 1000.0,
+                    now.tv_sec);
+
+                /* mean_95th */
+                /* there's no way to get the mean of values at a percentile from the histogram */
+            }
+            break;
+        /* statsd output */
+        /* it's unclear what to send to statsd - we're already aggregating latencies */
+        /* for now just send a few counters */
+        case ping_statsd:
+            /* counter of pings sent */
+            printf("%s.%s.%s.count:%u|c\n",
                 prefix, target->ndqf, null_dispatch[prognum_offset][version].protocol,
-                lost,
-                now.tv_sec);
-
-            /* max */
-            printf("%s.%s.%s.usec.max %.2f %li\n",
-                prefix, target->ndqf, null_dispatch[prognum_offset][version].protocol,
-                hdr_max(target->interval_histogram) / 1000.0,
-                now.tv_sec);
-
-            /* min */
-            printf("%s.%s.%s.usec.min %.2f %li\n",
-                prefix, target->ndqf, null_dispatch[prognum_offset][version].protocol,
-                hdr_min(target->interval_histogram) / 1000.0,
-                now.tv_sec);
-
-            /* sum */
-            /* there's no way to get the sum of values from the histogram */
-
-            /* mean */
-            printf("%s.%s.%s.usec.mean %.2f %li\n",
-                prefix, target->ndqf, null_dispatch[prognum_offset][version].protocol,
-                hdr_mean(target->interval_histogram) / 1000.0,
-                now.tv_sec);
-
-            /* sum_95th */
-            /* there's no way to get the sum of values at a percentile from the histogram */
-
-            /* 95th */
-            printf("%s.%s.%s.usec.upper_95th %.2f %li\n",
-                prefix, target->ndqf, null_dispatch[prognum_offset][version].protocol,
-                hdr_value_at_percentile(target->interval_histogram, 95.0) / 1000.0,
-                now.tv_sec);
-
-            /* mean_95th */
-            /* there's no way to get the mean of values at a percentile from the histogram */
-
+                target->sent);
+            /* only send lost packets if there were any */
+            if (lost) {
+                printf("%s.%s.%s.lost:%u|c\n",
+                    prefix, target->ndqf, null_dispatch[prognum_offset][version].protocol,
+                    lost);
+            }
             break;
     }
 }
