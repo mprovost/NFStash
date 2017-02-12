@@ -19,7 +19,7 @@ enum ping_outputs {
 static void usage(void);
 static void print_interval(enum ping_outputs, char *, targets_t *, unsigned long, u_long, const struct timespec);
 static void print_summary(enum ping_outputs, unsigned long, targets_t *);
-static void print_output(enum ping_outputs, char *, targets_t *, unsigned long, u_long, const struct timespec, unsigned long);
+static void print_result(enum ping_outputs, char *, targets_t *, unsigned long, u_long, const struct timespec, unsigned long);
 static void print_lost(enum ping_outputs, char *, targets_t *, unsigned long, u_long, const struct timespec);
 
 /* global config "object" */
@@ -283,8 +283,7 @@ void print_summary(enum ping_outputs format, unsigned long total_sent, targets_t
 
 
 /* print formatted output after each ping */
-/* TODO rename print_result */
-void print_output(enum ping_outputs format, char *prefix, targets_t *target, unsigned long prognum_offset, u_long version, const struct timespec now, unsigned long us) {
+void print_result(enum ping_outputs format, char *prefix, targets_t *target, unsigned long prognum_offset, u_long version, const struct timespec now, unsigned long us) {
     double loss;
     char epoch[TIME_T_MAX_DIGITS]; /* the largest time_t seconds value, plus a terminating NUL */
     struct tm *secs;
@@ -897,7 +896,7 @@ int main(int argc, char **argv) {
                     if (!quiet) {
                         /* use the start time for the call since some calls may not return */
                         /* if there's an error we use print_lost() but stay consistent with timing */
-                        print_output(format, prefix, target, prognum_offset, version, wall_clock, us);
+                        print_result(format, prefix, target, prognum_offset, version, wall_clock, us);
                     }
                 } else {
                     printf("%s is alive\n", target->display_name);
