@@ -142,23 +142,6 @@ void print_interval(enum ping_outputs format, char *prefix, targets_t *target, u
             printf("[%s.%06li] ", epoch, now.tv_nsec / 1000);
             /* fall through to ping output, this just prepends the current time */
             /*FALLTHROUGH*/
-        case ping_ping:
-            fprintf(stdout, "%s : xmt/rcv/%%loss = %u/%u/%.0f%%",
-                target->display_name, target->sent, target->received, loss);
-
-            /* only print times if we got any responses */
-            if (target->received) {
-                fprintf(stdout, ", min/50/90/99/max = %.2f/%.2f/%.2f/%.2f/%.2f",
-                    hdr_min(target->interval_histogram) / 1000.0,
-                    /* median not mean! */
-                    hdr_value_at_percentile(target->interval_histogram, 50.0) / 1000.0,
-                    hdr_value_at_percentile(target->interval_histogram, 90.0) / 1000.0,
-                    hdr_value_at_percentile(target->interval_histogram, 99.0) / 1000.0,
-                    hdr_max(target->interval_histogram) / 1000.0);
-            }
-
-            fprintf(stdout, "\n");
-            break;
         case ping_fping:
             /* fping output with -Q looks like:
                [13:27:03]
@@ -177,6 +160,19 @@ void print_interval(enum ping_outputs format, char *prefix, targets_t *target, u
             }
 
             fprintf(stderr, "\n");
+            break;
+        case ping_ping:
+            /* only print times if we got any responses */
+            if (target->received) {
+                printf("%s : %.3f %.3f %.3f %.3f %.3f\n",
+                    target->display_name,
+                    hdr_min(target->interval_histogram) / 1000.0,
+                    /* median not mean! */
+                    hdr_value_at_percentile(target->interval_histogram, 50.0) / 1000.0,
+                    hdr_value_at_percentile(target->interval_histogram, 90.0) / 1000.0,
+                    hdr_value_at_percentile(target->interval_histogram, 99.0) / 1000.0,
+                    hdr_max(target->interval_histogram) / 1000.0);
+            }
             break;
         /* don't just print each individual result, try and emulate statsd aggregates */
         case ping_graphite:
@@ -268,7 +264,7 @@ void print_summary(enum ping_outputs format, unsigned long total_sent, targets_t
                 }
             }
             fprintf(stderr, "\n");
-        } else {
+        } else if (format == ping_ping) {
             /* blank line to separate from results */
             /* TODO only if !quiet */
             printf("\n");
@@ -284,7 +280,7 @@ void print_summary(enum ping_outputs format, unsigned long total_sent, targets_t
 
 /* print formatted output after each ping */
 void print_result(enum ping_outputs format, char *prefix, targets_t *target, unsigned long prognum_offset, u_long version, const struct timespec now, unsigned long us) {
-    double loss;
+    double loss = (target->sent - target->received) / (double)target->sent * 100;
     char epoch[TIME_T_MAX_DIGITS]; /* the largest time_t seconds value, plus a terminating NUL */
     struct tm *secs;
 
@@ -294,17 +290,27 @@ void print_result(enum ping_outputs format, char *prefix, targets_t *target, uns
             break;
         case ping_unixtime:
             /* get the epoch time in seconds in the local timezone */
-            /* TODO should we be doing everything in UTC? */
             /* strftime needs a struct tm so use localtime to convert from time_t */
             secs = localtime(&now.tv_sec);
             strftime(epoch, sizeof(epoch), "%s", secs);
             printf("[%s.%06li] ", epoch, now.tv_nsec / 1000);
-            /* fall through to ping output, this just prepends the current time */
+            /* fall through to fping output, this just prepends the current time */
             /*FALLTHROUGH*/
-        case ping_ping:
         case ping_fping:
-            loss = (target->sent - target->received) / (double)target->sent * 100;
-            printf("%s : [%u], %03.2f ms (%03.2f avg, %.0f%% loss)\n", target->display_name, target->sent - 1, us / 1000.0, target->avg / 1000.0, loss);
+            printf("%s : [%u], %03.2f ms (%03.2f avg, %.0f%% loss)\n",
+                target->display_name, target->sent - 1, us / 1000.0, target->avg / 1000.0, loss);
+            break;
+        case ping_ping:
+            /* TODO print the hostname and (ip address) */
+            printf("%s : %03.3f ms %.3f %.3f %.3f %.3f %.3f\n",
+                target->display_name,
+                us / 1000.0,
+                hdr_min(target->interval_histogram) / 1000.0,
+                /* median not mean! */
+                hdr_value_at_percentile(target->interval_histogram, 50.0) / 1000.0,
+                hdr_value_at_percentile(target->interval_histogram, 90.0) / 1000.0,
+                hdr_value_at_percentile(target->interval_histogram, 99.0) / 1000.0,
+                hdr_max(target->interval_histogram) / 1000.0);
             break;
         case ping_graphite:
             printf("%s.%s.%s.usec %lu %li\n",
