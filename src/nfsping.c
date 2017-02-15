@@ -1,6 +1,7 @@
 #include "nfsping.h"
 #include "util.h"
 #include "rpc.h"
+#include <sys/ioctl.h> /* for checking terminal size */
 
 /* Globals! */
 extern volatile sig_atomic_t quitting;
@@ -21,6 +22,7 @@ static void print_interval(enum ping_outputs, char *, targets_t *, unsigned long
 static void print_summary(enum ping_outputs, unsigned long, targets_t *);
 static void print_result(enum ping_outputs, char *, targets_t *, unsigned long, u_long, const struct timespec, unsigned long);
 static void print_lost(enum ping_outputs, char *, targets_t *, unsigned long, u_long, const struct timespec);
+static void print_header(enum ping_outputs, unsigned int, unsigned long, u_long);
 
 /* global config "object" */
 static struct config {
@@ -345,6 +347,27 @@ void print_lost(enum ping_outputs format, char *prefix, targets_t *target, unsig
 }
 
 
+/* prints a header line */
+void print_header(enum ping_outputs format, unsigned int maxhost, unsigned long prognum_offset, u_long version) {
+    int spacing = 5;
+
+    if (format == ping_ping) {
+        /* check that the biggest hostname isn't smaller than the protocol name */
+        maxhost = (strlen(null_dispatch[prognum_offset][version].protocol) > maxhost) ?
+            strlen(null_dispatch[prognum_offset][version].protocol) : maxhost;
+
+        printf("%-*s     RTT    %*s %*s %*s %*s %*s\n",
+            maxhost,
+            null_dispatch[prognum_offset][version].protocol,
+            spacing, "min",
+            spacing, "p50",
+            spacing, "p90",
+            spacing, "p99",
+            spacing, "max");
+    }
+}
+
+
 int main(int argc, char **argv) {
     void *status;
     struct timeval timeout = NFS_TIMEOUT;
@@ -387,6 +410,9 @@ int main(int argc, char **argv) {
         .sin_family = AF_INET,
         .sin_addr = INADDR_ANY
     };
+    struct winsize winsz;
+    unsigned short rows = 0; /* number of rows in terminal window */
+    unsigned int maxhost = 0; /* has to be int not size_t for printf width */
 
     cfg = CONFIG_DEFAULT;
 
@@ -793,6 +819,7 @@ int main(int argc, char **argv) {
             /* don't allocate space for storing results */
             target->next = make_target(argv[index], &hints, port, cfg.reverse_dns, cfg.display_ips, multiple, timeout, 0);
         }
+
         target = target->next;
     }
 
@@ -800,26 +827,38 @@ int main(int argc, char **argv) {
     targets = targets->next;
     target = targets;
 
-    /* check that the total waiting time between targets isn't going to cause us to miss our frequency (Hertz) */
-    if (wait_time.tv_sec || wait_time.tv_nsec) {
-        /* add up the wait interval for each target */
-        while (target) {
+    while (target) {
+        /* find the longest name for output spacing */
+        maxhost = (strlen(target->display_name) > maxhost) ? strlen(target->display_name) : maxhost;
+
+        /* check that the total waiting time between targets isn't going to cause us to miss our frequency (Hertz) */
+        if (wait_time.tv_sec || wait_time.tv_nsec) {
+            /* add up the wait interval for each target */
             timespecadd(&wait_time, &sleepy, &sleepy);
 
-            target = target->next;
+            if (timespeccmp(&sleepy, &sleep_time, >=)) {
+                fatal("wait interval (-i) doesn't allow polling frequency (-H)!\n");
+            }
         }
 
-        if (timespeccmp(&sleepy, &sleep_time, >=)) {
-            fatal("wait interval (-i) doesn't allow polling frequency (-H)!\n");
-        }
+        target = target->next;
     }
 
     /* reset to start of target list */
     target = targets;
 
+    /* print a header at the start */
+    if (!quiet) {
+        print_header(format, maxhost, prognum_offset, version);
+    }
+
     /* the main loop */
     while(target) {
         loop_count++;
+
+        /* find the current number of rows in the terminal for printing the header once per screen */
+        ioctl(STDOUT_FILENO, TIOCGWINSZ, &winsz);
+        rows = winsz.ws_row;
 
         /* grab the starting time of each loop */
 #ifdef CLOCK_MONOTONIC_RAW
@@ -872,6 +911,10 @@ int main(int argc, char **argv) {
             /* count this no matter what to stop from looping in case server isn't listening */
             target->sent++;
             total_sent++;
+
+            if (!quiet && (total_sent % rows == 0)) {
+                print_header(format, maxhost, prognum_offset, version);
+            }
 
             /* check for success */
             if (status) {
