@@ -166,7 +166,7 @@ void print_interval(enum ping_outputs format, char *prefix, targets_t *target, u
         case ping_ping:
             /* only print times if we got any responses */
             if (target->received) {
-                printf("%s : %.3f %.3f %.3f %.3f %.3f\n",
+                printf("%s : %7.3f %7.3f %7.3f %7.3f %7.3f\n",
                     target->display_name,
                     hdr_min(target->interval_histogram) / 1000.0,
                     /* median not mean! */
@@ -304,7 +304,7 @@ void print_result(enum ping_outputs format, char *prefix, targets_t *target, uns
             break;
         case ping_ping:
             /* TODO print the hostname and (ip address) */
-            printf("%s : %03.3f ms %.3f %.3f %.3f %.3f %.3f\n",
+            printf("%s : %7.3f ms %7.3f %7.3f %7.3f %7.3f %7.3f\n",
                 target->display_name,
                 us / 1000.0,
                 hdr_min(target->interval_histogram) / 1000.0,
@@ -349,14 +349,14 @@ void print_lost(enum ping_outputs format, char *prefix, targets_t *target, unsig
 
 /* prints a header line */
 void print_header(enum ping_outputs format, unsigned int maxhost, unsigned long prognum_offset, u_long version) {
-    int spacing = 5;
+    int spacing = 7;
 
     if (format == ping_ping) {
         /* check that the biggest hostname isn't smaller than the protocol name */
         maxhost = (strlen(null_dispatch[prognum_offset][version].protocol) > maxhost) ?
             strlen(null_dispatch[prognum_offset][version].protocol) : maxhost;
 
-        printf("%-*s     RTT    %*s %*s %*s %*s %*s\n",
+        printf("%-*s       RTT    %*s %*s %*s %*s %*s\n",
             maxhost,
             null_dispatch[prognum_offset][version].protocol,
             spacing, "min",
