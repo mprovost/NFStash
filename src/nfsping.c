@@ -166,7 +166,7 @@ void print_interval(enum ping_outputs format, char *prefix, targets_t *target, u
         case ping_ping:
             /* only print times if we got any responses */
             if (target->received) {
-                printf("%s : %7.3f %7.3f %7.3f %7.3f %7.3f\n",
+                printf("%s : %7.3f %7.3f %7.3f %7.3f %7.3f ms\n",
                     target->display_name,
                     hdr_min(target->interval_histogram) / 1000.0,
                     /* median not mean! */
@@ -304,7 +304,7 @@ void print_result(enum ping_outputs format, char *prefix, targets_t *target, uns
             break;
         case ping_ping:
             /* TODO print the hostname and (ip address) */
-            printf("%s : %7.3f ms %7.3f %7.3f %7.3f %7.3f %7.3f\n",
+            printf("%s : %7.3f %7.3f %7.3f %7.3f %7.3f %7.3f ms\n",
                 target->display_name,
                 us / 1000.0,
                 hdr_min(target->interval_histogram) / 1000.0,
@@ -356,9 +356,15 @@ void print_header(enum ping_outputs format, unsigned int maxhost, unsigned long 
         maxhost = (strlen(null_dispatch[prognum_offset][version].protocol) > maxhost) ?
             strlen(null_dispatch[prognum_offset][version].protocol) : maxhost;
 
-        printf("%-*s       RTT    %*s %*s %*s %*s %*s\n",
+        printf("%-*s   ",
             maxhost,
-            null_dispatch[prognum_offset][version].protocol,
+            null_dispatch[prognum_offset][version].protocol);
+
+        if (cfg.summary_interval == 0) {
+            printf("    RTT ");
+        }
+
+        printf("%*s %*s %*s %*s %*s\n",
             spacing, "min",
             spacing, "p50",
             spacing, "p90",
@@ -848,7 +854,7 @@ int main(int argc, char **argv) {
     target = targets;
 
     /* print a header at the start */
-    if (!quiet) {
+    if (!quiet || cfg.summary_interval) {
         print_header(format, maxhost, prognum_offset, version);
     }
 
