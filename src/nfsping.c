@@ -166,8 +166,9 @@ void print_interval(enum ping_outputs format, char *prefix, targets_t *target, u
         case ping_ping:
             /* only print times if we got any responses */
             if (target->received) {
-                printf("%s : %7.3f %7.3f %7.3f %7.3f %7.3f ms\n",
+                printf("%s : %3u %7.3f %7.3f %7.3f %7.3f %7.3f ms\n",
                     target->display_name,
+                    target->received,
                     hdr_min(target->interval_histogram) / 1000.0,
                     /* median not mean! */
                     hdr_value_at_percentile(target->interval_histogram, 50.0) / 1000.0,
@@ -360,7 +361,9 @@ void print_header(enum ping_outputs format, unsigned int maxhost, unsigned long 
             maxhost,
             null_dispatch[prognum_offset][version].protocol);
 
-        if (cfg.summary_interval == 0) {
+        if (cfg.summary_interval) {
+            printf("rcv ");
+        } else {
             printf("    RTT ");
         }
 
