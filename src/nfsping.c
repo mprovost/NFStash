@@ -163,6 +163,7 @@ void print_interval(enum ping_outputs format, char *prefix, targets_t *target, u
 
             fprintf(stderr, "\n");
             break;
+        /* our own format */
         case ping_ping:
             /* only print times if we got any responses */
             if (target->received) {
@@ -350,6 +351,7 @@ void print_lost(enum ping_outputs format, char *prefix, targets_t *target, unsig
 
 /* prints a header line */
 void print_header(enum ping_outputs format, unsigned int maxhost, unsigned long prognum_offset, u_long version) {
+    /* column spacing */
     int spacing = 7;
 
     if (format == ping_ping) {
@@ -855,7 +857,7 @@ int main(int argc, char **argv) {
     target = targets;
 
     /* print a header at the start */
-    if (!quiet || cfg.summary_interval) {
+    if ((!quiet && (count || loop)) || cfg.summary_interval) {
         print_header(format, maxhost, prognum_offset, version);
     }
 
@@ -919,7 +921,8 @@ int main(int argc, char **argv) {
             target->sent++;
             total_sent++;
 
-            if (!quiet && (total_sent % rows == 0)) {
+            /* print a header for every screen of output */
+            if (!quiet && (count || loop) && (total_sent % rows == 0)) {
                 print_header(format, maxhost, prognum_offset, version);
             }
 
