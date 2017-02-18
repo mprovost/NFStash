@@ -17,7 +17,6 @@ static void free_mountres3(mountres3 *);
 static mountres3 *mountproc_mnt_x(char *, CLIENT *);
 static fhandle3 *get_root_filehandle(CLIENT *, char *, char *, fhandle3 *, unsigned long *);
 static int print_exports(char *, struct exportnode *);
-static struct mount_exports *init_export(targets_t *, char *);
 static struct mount_exports *make_exports(targets_t *);
 static int print_fhandle3(JSON_Value *, const fhandle3, const unsigned long, const struct timespec);
 void print_output(enum outputs, const char *, const int, const char *, const char *, struct mount_exports *, const fhandle3, const struct timespec, unsigned long);
@@ -396,40 +395,6 @@ int print_exports(char *host, struct exportnode *ex) {
 }
 
 
-/* allocate and initialise a new mount_exports struct */
-struct mount_exports *init_export(struct targets *target, char *path) {
-    struct mount_exports *export = calloc(1, sizeof(struct mount_exports));
-    JSON_Object *json_obj;
-
-    /* copy the hostname from the mount result into the target */
-    strncpy(export->path, path, MNTPATHLEN);
-
-    /* allocate space for printing out a summary of all ping times at the end */
-    if (cfg.format == fping) {
-        export->results = calloc(cfg.count, sizeof(unsigned long));
-        if (export->results == NULL) {
-            fatalx(3, "Couldn't allocate memory for results!\n");
-        }
-    } else if (cfg.format == json) {
-        /* create an empty JSON value for output */
-        export->json_root = json_value_init_object();
-        /* get a handle to the JSON object */
-        json_obj = json_value_get_object(export->json_root);
-        /* add the hostname to JSON */
-        json_object_set_string(json_obj, "host", target->name);
-        /* copy the IP into the JSON object */
-        json_object_set_string(json_obj, "ip", target->ip_address);
-        /* this escapes / to \/ */
-        json_object_set_string(json_obj, "path", path);
-    }
-
-    /* terminate the list */
-    export->next = NULL;
-
-    return export;
-}
-
-
 /* make an export list by querying the server for a list of exports */
 struct mount_exports *make_exports(targets_t *target) {
     exports ex;
@@ -443,7 +408,7 @@ struct mount_exports *make_exports(targets_t *target) {
         ex = get_exports(target);
 
         while (ex) {
-            current->next = init_export(target, ex->ex_dir);
+            current->next = init_export(target, ex->ex_dir, cfg.count);
             current = current->next;
 
             ex = ex->ex_next;
@@ -1013,37 +978,37 @@ int main(int argc, char **argv) {
         }
 
         /* make possibly multiple new targets */
-        current->next = make_target(host, &hints, cfg.port, cfg.dns, cfg.ip, cfg.multiple, cfg.timeout, cfg.count);
+        make_target(targets, host, &hints, cfg.port, cfg.dns, cfg.ip, cfg.multiple, cfg.timeout, path, cfg.count);
 
-        /* go through the new targets and make a list of exports */
-        while (current->next) {
-            current = current->next;
+        optind++;
+    }
 
-            /* if we've been passed a specific path */
-            if (path) {
-                /* make a new blank export */
-                /* this doesn't check on the server that the path is valid */
-                current->exports = init_export(current, path);
-            /* no path given, look up exports on server */
-            } else {
-                /* first create an rpc connection so we can query the server for an exports list */
-                current->client = create_rpc_client(current->client_sock, &hints, MOUNTPROG, cfg.version, cfg.timeout, src_ip);
+    /* skip the first dummy entry */
+    targets = targets->next;
+    /* reset to start of list */
+    current = targets;
 
-                if (cfg.format == showmount) {
-                    ex = get_exports(current);
-                    if (cfg.ip) {
-                        exports_sent = print_exports(current->ip_address, ex);
-                    } else {
-                        exports_sent = print_exports(current->name, ex);
-                    }
+    /* go through the new targets and make a list of exports */
+    while (current) {
+        /* no path given, look up exports on server */
+        if (current->exports == NULL) {
+            /* first create an rpc connection so we can query the server for an exports list */
+            current->client = create_rpc_client(current->client_sock, &hints, MOUNTPROG, cfg.version, cfg.timeout, src_ip);
+
+            if (cfg.format == showmount) {
+                ex = get_exports(current);
+                if (cfg.ip) {
+                    exports_sent = print_exports(current->ip_address, ex);
                 } else {
-                    /* look up the export list on the server and create a list of exports */
-                    current->exports = make_exports(current);
+                    exports_sent = print_exports(current->name, ex);
                 }
+            } else {
+                /* look up the export list on the server and create a list of exports */
+                current->exports = make_exports(current);
             }
         }
 
-        optind++;
+        current = current->next;
     }
 
     /* listen for ctrl-c */
@@ -1054,9 +1019,6 @@ int main(int argc, char **argv) {
     if (cfg.format == showmount) {
         targets = NULL;
     } else {
-        /* skip the first dummy entry */
-        targets = targets->next;
-
         /* calculate the maximum width for aligned printing */
         /* TODO only for certain formats (not JSON) */
         current = targets;

@@ -324,11 +324,45 @@ targets_t *init_target(uint16_t port, struct timeval timeout, unsigned long coun
 }
 
 
+/* initialise the export struct in a target */
+/* for the MOUNT protocol */
+struct mount_exports *init_export(struct targets *target, char *path, unsigned long count) {
+    struct mount_exports *export = calloc(1, sizeof(struct mount_exports));
+    JSON_Object *json_obj;
+
+    /* copy the hostname from the mount result into the target */
+    strncpy(export->path, path, MNTPATHLEN);
+
+    /* allocate space for printing out a summary of all ping times at the end */
+    if (count) {
+        export->results = calloc(count, sizeof(unsigned long));
+        if (export->results == NULL) {
+            fatalx(3, "Couldn't allocate memory for results!\n");
+        }
+    } else {
+        /* create an empty JSON value for output */
+        export->json_root = json_value_init_object();
+        /* get a handle to the JSON object */
+        json_obj = json_value_get_object(export->json_root);
+        /* add the hostname to JSON */
+        json_object_set_string(json_obj, "host", target->name);
+        /* copy the IP into the JSON object */
+        json_object_set_string(json_obj, "ip", target->ip_address);
+        /* this escapes / to \/ */
+        json_object_set_string(json_obj, "path", path);
+    }
+
+    /* terminate the list */
+    export->next = NULL;
+    return export;
+}
+
+
 /* take a string hostname and make a new target, or list of targets if there are multiple DNS entries */
 /* return the number of targets created (possibly including duplicates) */
 /* Always store the ip address string in target->ip_address. */
 /* port should be in host byte order (ie 2049) */
-unsigned int make_target(targets_t *head, char *target_name, const struct addrinfo *hints, uint16_t port, int dns, int display_ips, int multiple, struct timeval timeout, unsigned long count) {
+unsigned int make_target(targets_t *head, char *target_name, const struct addrinfo *hints, uint16_t port, int dns, int display_ips, int multiple, struct timeval timeout, char *path, unsigned long count) {
     unsigned int created = 0;
     targets_t *target = NULL;
     struct addrinfo *addr;
@@ -339,6 +373,10 @@ unsigned int make_target(targets_t *head, char *target_name, const struct addrin
     if (inet_pton(AF_INET, target_name, &sock.sin_addr)) {
         target = find_or_make_target(head, &sock, port, timeout, count);
         created++;
+
+        if (path) {
+            target->exports = init_export(target, path, count);
+        }
 
         /* reverse dns */
         if (dns) {
@@ -367,6 +405,10 @@ unsigned int make_target(targets_t *head, char *target_name, const struct addrin
             while (addr) {
                 target = find_or_make_target(head, (struct sockaddr_in *)addr->ai_addr, port, timeout, count);
                 created++;
+
+                if (path) {
+                    target->exports = init_export(target, path, count);
+                }
 
                 /* if reverse lookups enabled */
                 if (dns) {

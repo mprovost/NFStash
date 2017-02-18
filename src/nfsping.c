@@ -825,10 +825,10 @@ int main(int argc, char **argv) {
     for (index = optind; index < argc; index++) {
         if (format == ping_fping) {
             /* allocate space for all results */
-            make_target(targets, argv[index], &hints, port, cfg.reverse_dns, cfg.display_ips, multiple, timeout, count);
+            make_target(targets, argv[index], &hints, port, cfg.reverse_dns, cfg.display_ips, multiple, timeout, NULL, count);
         } else {
             /* don't allocate space for storing results */
-            make_target(targets, argv[index], &hints, port, cfg.reverse_dns, cfg.display_ips, multiple, timeout, 0);
+            make_target(targets, argv[index], &hints, port, cfg.reverse_dns, cfg.display_ips, multiple, timeout, NULL, 0);
         }
     }
 
