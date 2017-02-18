@@ -398,7 +398,7 @@ int main(int argc, char **argv) {
     /* default to unset so we can check in getopt */
     enum ping_outputs format = ping_unset;
     char prefix[255] = "nfsping";
-    targets_t target_dummy;
+    targets_t target_dummy = { 0 };
     /* pointer to head of list */
     targets_t *target = &target_dummy;
     targets_t *targets = target;
@@ -823,13 +823,11 @@ int main(int argc, char **argv) {
     for (index = optind; index < argc; index++) {
         if (format == ping_fping) {
             /* allocate space for all results */
-            target->next = make_target(argv[index], &hints, port, cfg.reverse_dns, cfg.display_ips, multiple, timeout, count);
+            make_target(targets, argv[index], &hints, port, cfg.reverse_dns, cfg.display_ips, multiple, timeout, count);
         } else {
             /* don't allocate space for storing results */
-            target->next = make_target(argv[index], &hints, port, cfg.reverse_dns, cfg.display_ips, multiple, timeout, 0);
+            make_target(targets, argv[index], &hints, port, cfg.reverse_dns, cfg.display_ips, multiple, timeout, 0);
         }
-
-        target = target->next;
     }
 
     /* skip the first dummy entry */
