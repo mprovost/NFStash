@@ -9,7 +9,7 @@ int nfs_perror(nfsstat3, const char *);
 targets_t *parse_fh(targets_t *, char *, uint16_t, struct timeval, unsigned long);
 char *nfs_fh3_to_string(nfs_fh3);
 char* reverse_fqdn(char *);
-targets_t *make_target(char *, const struct addrinfo *, uint16_t, int, int, int, struct timeval, unsigned long);
+unsigned int make_target(targets_t *, char *, const struct addrinfo *, uint16_t, int, int, int, struct timeval, unsigned long);
 targets_t *init_target(uint16_t, struct timeval, unsigned long);
 targets_t *copy_target(targets_t *, unsigned long);
 targets_t *append_target(targets_t **, targets_t *);

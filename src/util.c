@@ -159,6 +159,9 @@ targets_t *parse_fh(targets_t *head, char *input, uint16_t port, struct timeval 
                 /* TODO check length against NI_MAXHOST */
                 strncpy(current->name, tmp, NI_MAXHOST);
 
+                /* default to using the hostname */
+                current->display_name = current->name;
+
                 /* reverse the hostname */
                 current->ndqf = reverse_fqdn(current->name);
 
@@ -322,22 +325,21 @@ targets_t *init_target(uint16_t port, struct timeval timeout, unsigned long coun
 
 
 /* take a string hostname and make a new target, or list of targets if there are multiple DNS entries */
-/* return the head of the list */
+/* return the number of targets created (possibly including duplicates) */
 /* Always store the ip address string in target->ip_address. */
 /* port should be in host byte order (ie 2049) */
-targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t port, int dns, int display_ips, int multiple, struct timeval timeout, unsigned long count) {
-    targets_t *target, *first;
+unsigned int make_target(targets_t *head, char *target_name, const struct addrinfo *hints, uint16_t port, int dns, int display_ips, int multiple, struct timeval timeout, unsigned long count) {
+    unsigned int created = 0;
+    targets_t *target = NULL;
     struct addrinfo *addr;
     int getaddr;
-
-    /* first build a blank target */
-    target = init_target(port, timeout, count);
-
-    /* save the head of the list in case of multiple DNS responses */
-    first = target;
+    struct sockaddr_in sock;
 
     /* first try treating the hostname as an IP address */
-    if (inet_pton(AF_INET, target_name, &((struct sockaddr_in *)target->client_sock)->sin_addr)) {
+    if (inet_pton(AF_INET, target_name, &sock.sin_addr)) {
+        target = find_or_make_target(head, &sock, port, timeout, count);
+        created++;
+
         /* reverse dns */
         if (dns) {
             /* don't free the old name because we're using it as the ip_address */
@@ -348,16 +350,14 @@ targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t
                 fatalx(2, "%s: %s\n", target_name, gai_strerror(getaddr));
             }
             target->ndqf = reverse_fqdn(target->name);
+            /* TODO display_name */
         } else {
             /* the IP address is the only thing we have for a name */
             strncpy(target->name, target_name, INET_ADDRSTRLEN);
+            target->display_name = target->name;
             /* don't reverse IP addresses */
             target->ndqf = target->name;
         }
-
-        /* the name is already an IP address if inet_pton succeeded */
-        /* TODO should ip_address be a pointer in struct target so we don't have to make a copy in this one case? */
-        strncpy(target->ip_address, target_name, INET_ADDRSTRLEN);
     /* not an IP address, do a DNS lookup */
     } else {
         /* we don't call freeaddrinfo because we keep a pointer to the sin_addr in the target */
@@ -365,17 +365,14 @@ targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t
         if (getaddr == 0) { /* success! */
             /* loop through possibly multiple DNS responses */
             while (addr) {
-                /* copy the IP address */
-                target->client_sock->sin_addr = ((struct sockaddr_in *)addr->ai_addr)->sin_addr;
-
-                /* save the IP address as a string */
-                inet_ntop(AF_INET, &((struct sockaddr_in *)addr->ai_addr)->sin_addr, target->ip_address, INET_ADDRSTRLEN);
+                target = find_or_make_target(head, (struct sockaddr_in *)addr->ai_addr, port, timeout, count);
+                created++;
 
                 /* if reverse lookups enabled */
                 if (dns) {
                     getaddr = getnameinfo((struct sockaddr *)target->client_sock, sizeof(struct sockaddr_in), target->name, NI_MAXHOST, NULL, 0, NI_NAMEREQD);
                     /* check for DNS success */
-                    if (getaddr == 0) {
+                    if (getaddr == 0) { /* success! */
                         target->ndqf = reverse_fqdn(target->name);
                     /* otherwise just use the IP address */
                     /* TODO or use the original hostname? */
@@ -397,16 +394,12 @@ targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t
                 /* with glibc, this can return 127.0.0.1 twice when using "localhost" if there is an IPv6 entry in /etc/hosts
                    as documented here: https://bugzilla.redhat.com/show_bug.cgi?id=496300 */
                 /* TODO detect this and skip the second duplicate entry? */
-                if (addr->ai_next) {
-                    if (multiple) {
-                        /* make the next target */
-                        target->next = init_target(port, timeout, count);
-                        target = target->next;
-                    } else {
-                        /* assume that all utilities use -m to check multiple addresses */
-                        fprintf(stderr, "Multiple addresses found for %s, using %s (rerun with -m for all)\n", target_name, target->ip_address);
-                        break;
-                    }
+                if (addr->ai_next && multiple == 0) {
+                    /* assume that all utilities use -m to check multiple addresses */
+                    fprintf(stderr, "Multiple addresses found for %s, using %s (rerun with -m for all)\n",
+                        target_name, target->ip_address);
+
+                    break;
                 }
 
                 addr = addr->ai_next;
@@ -417,8 +410,7 @@ targets_t *make_target(char *target_name, const struct addrinfo *hints, uint16_t
         }
     } /* end of DNS */
 
-    /* only return the head of the list */
-    return first;
+    return created;
 }
 
 
