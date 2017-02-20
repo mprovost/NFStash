@@ -67,10 +67,23 @@ const struct config CONFIG_DEFAULT = {
 /* MOUNT protocol function pointers */
 /* EXPORT procedure */
 typedef exports *(*proc_export_t)(void *, CLIENT *);
+/* UMNT procedure */
+typedef void *(*proc_umnt_t)(dirpath *, CLIENT *);
 
 struct export_procs {
     /* function pointer */
     proc_export_t proc;
+    /* store the name as a string for error messages */
+    char *name;
+    /* protocol name for output functions */
+    char *protocol;
+    /* version is the filehandle version, ie NFSv2 or v3 */
+    u_long version;
+};
+
+struct umnt_procs {
+    /* function pointer */
+    proc_umnt_t proc;
     /* store the name as a string for error messages */
     char *name;
     /* protocol name for output functions */
@@ -84,6 +97,13 @@ static const struct export_procs export_dispatch[4] = {
     [1] = { .proc = mountproc_export_1, .name = "mountproc_export_1", .protocol = "mountv1", .version = 2 },
     [2] = { .proc = mountproc_export_2, .name = "mountproc_export_2", .protocol = "mountv2", .version = 2 },
     [3] = { .proc = mountproc_export_3, .name = "mountproc_export_3", .protocol = "mountv3", .version = 3 },
+};
+
+/* umnt procedures */
+static const struct umnt_procs umnt_dispatch[4] = {
+    [1] = { .proc =  mountproc_umnt_1, .name = "mountproc_umnt_1", .protocol = "mountv1", .version = 2 },
+    [2] = { .proc =  mountproc_umnt_2, .name = "mountproc_umnt_2", .protocol = "mountv2", .version = 2 },
+    [3] = { .proc =  mountproc_umnt_3, .name = "mountproc_umnt_3", .protocol = "mountv3", .version = 3 },
 };
 
 
@@ -256,6 +276,7 @@ mountres3 *mountproc_mnt_x(char *path, CLIENT *client) {
         case 1:
             status = mountproc_mnt_1(&path, client);
             /* convert to v3 */
+            /* TODO if (status == MNT3_OK) */
             mountres = fhstatus_to_mountres3(status);
             /* free fhstatus */
             if (clnt_freeres(client, (xdrproc_t) xdr_fhstatus, (caddr_t) status) == 0) {
@@ -265,6 +286,7 @@ mountres3 *mountproc_mnt_x(char *path, CLIENT *client) {
         case 2:
             status = mountproc_mnt_2(&path, client);
             /* convert to v3 */
+            /* TODO if (status == MNT3_OK) */
             mountres = fhstatus_to_mountres3(status);
             /* free fhstatus */
             if (clnt_freeres(client, (xdrproc_t) xdr_fhstatus, (caddr_t) status) == 0) {
@@ -274,6 +296,7 @@ mountres3 *mountproc_mnt_x(char *path, CLIENT *client) {
         case 3:
             result = mountproc_mnt_3(&path, client);
             /* make a copy so it's out of the RPC client */
+            /* TODO if (result.fhs_status == MNT3_OK) */
             mountres = copy_mountres3(result);
             /* now free the result in the client */
             if (clnt_freeres(client, (xdrproc_t) xdr_mountres3, (caddr_t) result) == 0) {
