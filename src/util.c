@@ -399,6 +399,7 @@ unsigned int make_target(targets_t *head, char *target_name, const struct addrin
     /* not an IP address, do a DNS lookup */
     } else {
         /* we don't call freeaddrinfo because we keep a pointer to the sin_addr in the target */
+        /* TODO what about the case where we're only using the first of multiple results? */
         getaddr = getaddrinfo(target_name, "nfs", hints, &addr);
         if (getaddr == 0) { /* success! */
             /* loop through possibly multiple DNS responses */
@@ -447,8 +448,8 @@ unsigned int make_target(targets_t *head, char *target_name, const struct addrin
                 addr = addr->ai_next;
             }
         } else {
-            fprintf(stderr, "getaddrinfo error (%s): %s\n", target->name, gai_strerror(getaddr));
-            exit(2); /* ping and fping return 2 for name resolution failures */
+            /* ping and fping return 2 for name resolution failures */
+            fatalx(2, "getaddrinfo error (%s): %s\n", target->name, gai_strerror(getaddr));
         }
     } /* end of DNS */
 
