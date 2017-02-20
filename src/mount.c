@@ -16,6 +16,7 @@ static mountres3 *copy_mountres3(mountres3 *);
 static void free_mountres3(mountres3 *);
 static mountres3 *mountproc_mnt_x(char *, CLIENT *);
 static fhandle3 *get_root_filehandle(CLIENT *, char *, char *, fhandle3 *, unsigned long *);
+static void unmount_client(CLIENT *, char *);
 static int print_exports(char *, struct exportnode *);
 static struct mount_exports *make_exports(targets_t *);
 static int print_fhandle3(JSON_Value *, const fhandle3, const unsigned long, const struct timespec);
@@ -374,6 +375,13 @@ fhandle3 *get_root_filehandle(CLIENT *client, char *hostname, char *path, fhandl
     } /* if(client) */
 
     return root;
+}
+
+
+/* "unmount" a client from a server */
+void unmount_client(CLIENT *client, char *path) {
+    /* no errors returned from server */
+    umnt_dispatch[cfg.version].proc(&path, client);
 }
 
 
@@ -1098,6 +1106,10 @@ int main(int argc, char **argv) {
 
                     /* the RPC call */
                     get_root_filehandle(current->client, current->name, export->path, &root, &usec);
+
+                    /* cleanup the mounted client list on the server */
+                    /* this doesn't count towards the call timing */
+                    unmount_client(current->client, export->path);
 
                     exports_sent++;
                     export->sent++;
