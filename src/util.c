@@ -398,8 +398,8 @@ unsigned int make_target(targets_t *head, char *target_name, const struct addrin
         }
     /* not an IP address, do a DNS lookup */
     } else {
-        /* we don't call freeaddrinfo because we keep a pointer to the sin_addr in the target */
-        /* TODO what about the case where we're only using the first of multiple results? */
+        /* don't call freeaddrinfo because we keep a pointer to the sin_addr in the target */
+        /* except the case below where we're only using the first of multiple results */
         getaddr = getaddrinfo(target_name, "nfs", hints, &addr);
         if (getaddr == 0) { /* success! */
             /* loop through possibly multiple DNS responses */
@@ -441,6 +441,9 @@ unsigned int make_target(targets_t *head, char *target_name, const struct addrin
                     /* assume that all utilities use -m to check multiple addresses */
                     fprintf(stderr, "Multiple addresses found for %s, using %s (rerun with -m for all)\n",
                         target_name, target->ip_address);
+
+                    /* free any remaining results */
+                    freeaddrinfo(addr->ai_next);
 
                     break;
                 }
