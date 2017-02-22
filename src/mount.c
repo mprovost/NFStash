@@ -40,6 +40,7 @@ static struct config {
     int multiple;
     int quiet;
     int reconnect;
+    int unmount;
     struct timeval timeout;
     unsigned long hertz;
 } cfg;
@@ -60,8 +61,9 @@ const struct config CONFIG_DEFAULT = {
     .ip        = 0,
     .loop      = 0,
     .multiple  = 0,
-    .reconnect = 1,
     .quiet     = 0,
+    .reconnect = 1,
+    .unmount   = 1,
 };
 
 
@@ -93,7 +95,7 @@ struct umnt_procs {
     u_long version;
 };
 
-/* array to store pointers to mount procedures for different mount protocol versions */
+/* array to store pointers to export procedures for different mount protocol versions */
 static const struct export_procs export_dispatch[4] = {
     [1] = { .proc = mountproc_export_1, .name = "mountproc_export_1", .protocol = "mountv1", .version = 2 },
     [2] = { .proc = mountproc_export_2, .name = "mountproc_export_2", .protocol = "mountv2", .version = 2 },
@@ -129,6 +131,7 @@ void usage() {
     -R       don't reconnect to server after each round\n\
     -S addr  set source address\n\
     -T       use TCP (default UDP)\n\
+    -u       don't unmount after mount\n\
     -v       verbose output\n\
     -V n     MOUNT protocol version (1/2/3, default 3)\n"
     );
@@ -680,7 +683,7 @@ int main(int argc, char **argv) {
     if (argc == 1)
         usage();
 
-    while ((ch = getopt(argc, argv, "Ac:C:dDeEGhH:JlmqRS:TvV:")) != -1) {
+    while ((ch = getopt(argc, argv, "Ac:C:dDeEGhH:JlmqRS:TuvV:")) != -1) {
         switch(ch) {
             /* show IP addresses instead of hostnames */
             case 'A':
@@ -954,6 +957,11 @@ int main(int argc, char **argv) {
             case 'T':
                 hints.ai_socktype = SOCK_STREAM;
                 break;
+            /* don't send unmount command after mount */
+            case 'u':
+                /* TODO check for -e where this doesn't make sense or just ignore? */
+                cfg.unmount = 0;
+                break;
             /* verbose */
             case 'v':
                 verbose = 1;
@@ -1104,12 +1112,8 @@ int main(int argc, char **argv) {
                     /* get the current timestamp */
                     clock_gettime(CLOCK_REALTIME, &wall_clock);
 
-                    /* the RPC call */
+                    /* the mount RPC call */
                     get_root_filehandle(current->client, current->name, export->path, &root, &usec);
-
-                    /* cleanup the mounted client list on the server */
-                    /* this doesn't count towards the call timing */
-                    unmount_client(current->client, export->path);
 
                     exports_sent++;
                     export->sent++;
@@ -1117,6 +1121,12 @@ int main(int argc, char **argv) {
                     if (root.fhandle3_len) {
                         export->received++;
                         exports_ok++;
+
+                        /* cleanup the mounted client list on the server */
+                        /* this doesn't count towards the call timing */
+                        if (cfg.unmount) {
+                            unmount_client(current->client, export->path);
+                        }
 
                         /* only calculate these if we're looping */
                         if (cfg.count || cfg.loop) {
