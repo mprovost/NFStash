@@ -57,7 +57,7 @@
 #define NFS_WAIT { 0, 1000000 } /* 1ms */
 /* unsigned long */
 /* polling frequency */
-#define NFS_HERTZ 1
+#define NFS_HERTZ 10
 
 /* maximum number of digits that can fit in a 64 bit time_t seconds (long long int) for use with strftime() */
 /* 9223372036854775807 is LLONG_MAX, add one for a '-' (just in case!) and another for a terminating NUL */
