@@ -707,7 +707,7 @@ int main(int argc, char **argv) {
                 quiet = 1;
                 errno = 0;
                 cfg.summary_interval = strtoul(optarg, NULL, 10);
-                if (errno) {
+                if (errno + cfg.summary_interval == 0) {
                     fatal("Invalid interval for -Q!\n");
                 }
                 break;
@@ -776,6 +776,11 @@ int main(int argc, char **argv) {
     /* check if neither loop nor count were specified, default to looping */
     if (loop + count == 0) {
         loop = 1;
+    }
+
+    /* check that we'll have something to output */
+    if (count && (hertz * cfg.summary_interval) >= count) {
+        fatal("Interval (-Q) too small for count!\n");
     }
 
     /* calculate the sleep_time based on the frequency */
