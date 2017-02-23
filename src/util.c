@@ -452,7 +452,7 @@ unsigned int make_target(targets_t *head, char *target_name, const struct addrin
             }
         } else {
             /* ping and fping return 2 for name resolution failures */
-            fatalx(2, "getaddrinfo error (%s): %s\n", target->name, gai_strerror(getaddr));
+            fatalx(2, "getaddrinfo error (%s): %s\n", target_name, gai_strerror(getaddr));
         }
     } /* end of DNS */
 
