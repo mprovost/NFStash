@@ -99,7 +99,7 @@ void usage() {
     -H n       frequency in Hertz (pings per second, default %i)\n\
     -i n       interval between sending packets (in ms, default %lu)\n\
     -K         check the kernel lock manager (KLM) protocol (default NFS)\n\
-    -l         loop forever\n\
+    -l         loop forever (default)\n\
     -L         check the network lock manager (NLM) protocol (default NFS)\n\
     -m         use multiple target IP addresses if found (implies -A)\n\
     -M         use the portmapper (default: NFS/ACL no, mount/NLM/NSM/rquota yes)\n\
@@ -769,6 +769,11 @@ int main(int argc, char **argv) {
         format = ping_ping;
     }
 
+    /* check if neither loop nor count were specified, default to looping */
+    if (loop + count == 0) {
+        loop = 1;
+    }
+
     /* calculate the sleep_time based on the frequency */
     /* check for a frequency of 1, that's a simple case */
     /* this doesn't support frequencies lower than 1Hz */
@@ -808,11 +813,6 @@ int main(int argc, char **argv) {
                 /* use portmapper for everything else */
                 port = 0;
         }
-    }
-
-    /* output formatting doesn't make sense for the simple check */
-    if (count == 0 && loop == 0 && format != ping_ping) {
-        fatal("Can't specify output format without ping count!\n");
     }
 
     /* mark the first non-option argument */
@@ -859,7 +859,7 @@ int main(int argc, char **argv) {
     target = targets;
 
     /* print a header at the start */
-    if ((!quiet && (count || loop)) || cfg.summary_interval) {
+    if (!quiet || cfg.summary_interval) {
         print_header(format, maxhost, prognum_offset, version);
     }
 
@@ -924,7 +924,7 @@ int main(int argc, char **argv) {
             total_sent++;
 
             /* print a header for every screen of output */
-            if (!quiet && (count || loop) && (total_sent % rows == 0)) {
+            if (!quiet && (total_sent % rows == 0)) {
                 print_header(format, maxhost, prognum_offset, version);
             }
 
@@ -933,34 +933,29 @@ int main(int argc, char **argv) {
                 target->received++;
                 total_recv++;
 
-                /* check if we're looping */
-                if (count || loop) {
-                    /* calculate elapsed microseconds */
-                    /* TODO make internal calcs in nanoseconds? */
-                    timespecsub(&call_end, &call_start, &call_elapsed);
-                    us = ts2us(call_elapsed);
+                /* calculate elapsed microseconds */
+                /* TODO make internal calcs in nanoseconds? */
+                timespecsub(&call_end, &call_start, &call_elapsed);
+                us = ts2us(call_elapsed);
 
-                    if (format == ping_fping) {
-                        if (us < target->min) target->min = us;
-                        if (us > target->max) target->max = us;
-                        /* calculate the average time */
-                        target->avg = (target->avg * (target->received - 1) + us) / target->received;
+                if (format == ping_fping) {
+                    if (us < target->min) target->min = us;
+                    if (us > target->max) target->max = us;
+                    /* calculate the average time */
+                    target->avg = (target->avg * (target->received - 1) + us) / target->received;
 
-                        /* store the result for the final output */
-                        target->results[total_sent - 1] = us;
-                    } else {
-                        hdr_record_value(target->histogram, us);
-                        /* TODO hdr_add()? */
-                        hdr_record_value(target->interval_histogram, us);
-                    }
-
-                    if (!quiet) {
-                        /* use the start time for the call since some calls may not return */
-                        /* if there's an error we use print_lost() but stay consistent with timing */
-                        print_result(format, maxhost, prefix, target, prognum_offset, version, wall_clock, us);
-                    }
+                    /* store the result for the final output */
+                    target->results[total_sent - 1] = us;
                 } else {
-                    printf("%s is alive\n", target->display_name);
+                    hdr_record_value(target->histogram, us);
+                    /* TODO hdr_add()? */
+                    hdr_record_value(target->interval_histogram, us);
+                }
+
+                if (!quiet) {
+                    /* use the start time for the call since some calls may not return */
+                    /* if there's an error we use print_lost() but stay consistent with timing */
+                    print_result(format, maxhost, prefix, target, prognum_offset, version, wall_clock, us);
                 }
             /* something went wrong */
             } else {
@@ -979,10 +974,6 @@ int main(int argc, char **argv) {
                         target->client = destroy_rpc_client(target->client);
                     }
                 } /* TODO else? */
-
-                if (!count && !loop) {
-                    printf("%s is dead\n", target->display_name);
-                }
             }
 
             /* check if we should print a periodic summary */
@@ -1021,7 +1012,7 @@ int main(int argc, char **argv) {
         }
 
         /* at the end of the targets list, see if we need to loop */
-        if ((count && loop_count < count) || loop) {
+        if (loop || (count && loop_count < count)) {
             /* sleep between rounds */
             /* measure how long the current round took, and subtract that from the sleep time */
             /* this tries to ensure that each polling round takes the same time */
@@ -1048,10 +1039,8 @@ int main(int argc, char **argv) {
 
     fflush(stdout);
 
-    /* only print summary if looping */
-    if (count || loop) {
-        print_summary(format, total_sent, targets);
-    }
+    /* print a format-specific summary at the end */
+    print_summary(format, total_sent, targets);
 
     /* exit with a failure if there were any missing responses */
     if (total_recv < total_sent) {
