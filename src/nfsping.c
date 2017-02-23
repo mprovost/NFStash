@@ -598,8 +598,13 @@ int main(int argc, char **argv) {
                 break;
             /* polling frequency */
             case 'H':
-                /* TODO check for reasonable values */
+                errno = 0;
+                printf("%s\n", optarg);
                 hertz = strtoul(optarg, NULL, 10);
+                /* check for errors or zero */
+                if (errno + hertz == 0) {
+                    fatal("Invalid frequency for -H!\n");
+                }
                 break;
             /* interval between targets */
             case 'i':
