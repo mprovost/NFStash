@@ -1124,6 +1124,7 @@ int main(int argc, char **argv) {
 
                         /* cleanup the mounted client list on the server */
                         /* this doesn't count towards the call timing */
+                        /* TODO only do this once after sending all requests? */
                         if (cfg.unmount) {
                             unmount_client(current->client, export->path);
                         }

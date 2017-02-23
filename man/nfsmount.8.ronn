@@ -3,11 +3,13 @@ nfsmount(8) -- lookup NFS filesystem root filehandles
 
 ## SYNOPSIS
 
-`nfsmount` [`-AdDeEGhJlmqRTv`] [`-c` <count>] [`-C` <count>] [`-H` <hertz>] [`-S` <source>] [`-V` <version>] <server[:path]...>
+`nfsmount` [`-AdDeEGhJlmqRTuv`] [`-c` <count>] [`-C` <count>] [`-H` <hertz>] [`-S` <source>] [`-V` <version>] <server[:path]...>
 
 ## DESCRIPTION
 
 `nfsmount` sends MOUNT protocol version 3 RPC requests to NFS servers to look up exported filesystems and their root filehandles. Specific filesystems can be queried with an argument in the format `hostname:path`. If the path is omitted then a separate `EXPORT` RPC request is first sent to list all available filesystems which will then be looked up individually with `MNT` RPC requests. In looping (`-l`) and counting (`-c`, `-C`) modes, a single EXPORT request is sent before starting the main loop of MNT requests.
+
+As recommended in RFC 2224, a UMNT RPC is sent after each successful MNT request to clean up client mount records on the server. This can be disabled with the `-u` option.
 
 While typically the MOUNT protocol is used to list the root filehandles for exported filesystems, it can also obtain filehandles for directories and files within an exported filesystem. (This behaviour can be disabled on some NFS servers, for example on Solaris with the `nosub` option. On *BSD it must be enabled with the `alldirs` option.)
 
@@ -67,6 +69,9 @@ If the NFS server requires "secure" ports (<1024) for the mount daemon, `nfsmoun
 
 * `-T`:
   Use TCP to connect to server. Default = UDP.
+
+* `-u`:
+  Don't send a UMNT RPC after each successful MNT response. By default these are sent so that the server cleans up its records of mounted clients for each filesystem.
 
 * `-v`:
   Display debug output on `stderr`.
