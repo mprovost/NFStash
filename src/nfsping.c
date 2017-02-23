@@ -361,7 +361,7 @@ void print_header(enum ping_outputs format, unsigned int maxhost, unsigned long 
             strlen(null_dispatch[prognum_offset][version].protocol) : maxhost;
 
         /* bonus moustache */
-        printf("{%-*s ",
+        printf("{%-*s  ",
             maxhost,
             null_dispatch[prognum_offset][version].protocol);
 
@@ -599,7 +599,6 @@ int main(int argc, char **argv) {
             /* polling frequency */
             case 'H':
                 errno = 0;
-                printf("%s\n", optarg);
                 hertz = strtoul(optarg, NULL, 10);
                 /* check for errors or zero */
                 if (errno + hertz == 0) {
