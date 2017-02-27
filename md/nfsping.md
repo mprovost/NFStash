@@ -1,35 +1,6 @@
 # NFSping
 
-```console
-$ bin/nfsping -c 5 dumpy
-{nfsv3      RTT     min     p50     p90     p99     max
-dumpy :   0.961   0.961   0.961   0.961   0.961   0.961 ms
-dumpy :   1.075   0.961   0.961   1.075   1.075   1.075 ms
-dumpy :   0.855   0.855   0.961   1.075   1.075   1.075 ms
-dumpy :   1.122   0.855   0.961   1.122   1.122   1.122 ms
-dumpy :   0.921   0.855   0.961   1.122   1.122   1.122 ms
-
-dumpy :
-       Value   Percentile   TotalCount 1/(1-Percentile)
-       0.855     0.000000            1         1.00
-       0.855     0.100000            1         1.11
-       0.855     0.200000            1         1.25
-       0.921     0.300000            2         1.43
-       0.921     0.400000            2         1.67
-       0.961     0.500000            3         2.00
-       0.961     0.550000            3         2.22
-       0.961     0.600000            3         2.50
-       1.075     0.650000            4         2.86
-       1.075     0.700000            4         3.33
-       1.075     0.750000            4         4.00
-       1.075     0.775000            4         4.44
-       1.075     0.800000            4         5.00
-       1.122     0.825000            5         5.71
-       1.122     1.000000            5          inf
-#[Mean    =        0.987, StdDeviation   =        0.098]
-#[Max     =        1.122, Total count    =            5]
-#[Buckets =           10, SubBuckets     =         2048]
-```
+[![asciicast](https://asciinema.org/a/ctqp295kmsjwwravg64jmry5x.png)](https://asciinema.org/a/ctqp295kmsjwwravg64jmry5x)
 
 NFSping is an open source command line utility for Linux and other POSIX operating systems which measures the availability and response times of an NFS server by sending probe packets. It's based on the [fping](https://github.com/schweikert/fping) program's interface (but doesn't share any code with that project).
 
