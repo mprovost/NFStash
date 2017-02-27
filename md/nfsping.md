@@ -70,13 +70,13 @@ NFSping sends NULL RPCs to each target server at a specific frequency, 10 times 
 
 The `-Q` option sets the interval in seconds to print a histogram report of response times. A one line histogram summary of responses is printed for each interval, and finally a cumulative full HDR histogram for all responses is output when exiting. This enables using a higher frequency polling interval with `-H` while minimising the number of lines of output. For example, to keep the default polling frequency of 10 Hz (or higher) while emulating ping's historic behaviour of printing a line of output every second, use `-Q 1`.
 
-NFSping supports versions 2, 3 and 4 of NFS, and the corresponding versions of the other RPC protocols. With no arguments it will send NFS version 3 NULL requests. By default it doesn't use the RPC portmapper for NFS and connects to UDP port 2049, which is the standard port for NFS. Specify the `-T` option to use TCP, `-M` to query the portmapper for the server's NFS port, or `-P` to specify a port number. The `-V` option can be used to select another version of the protocol (2 or 4).
-perform
+NFSping supports NFS versions 2, 3, and 4, and the corresponding versions of the other RPC protocols. With no arguments it will send NFS version 3 NULL requests. By default it doesn't use the RPC portmapper for NFS and connects to UDP port 2049, which is the standard port for NFS. Specify the `-T` option to use TCP, `-M` to query the portmapper for the server's NFS port, or `-P` to specify a port number. The `-V` option can be used to select another version of the protocol (2 or 4).
+
 It's not possible to individually check minor versions of NFS version 4 (4.1, 4.2 etc) because they are all implemented under the same RPC protocol number. The version 4 protocol only has two procedures - NULL and COMPOUND. The COMPOUND procedure requires that each call specify a minor version, but the NULL procedure lacks this argument.
 
-NFSping can also check the mount protocol response using the `-n` option. This protocol is used in NFS versions 2 and 3 to look up a filesystem's root filehandle on the server when a client mounts a remote filesystem. In version 4 this functionality has been built into the NFS protocol itself. By default NFSping uses the portmapper to discover the port that the mount protocol is listening to on the target (there is no standard port, although server vendors typically select a stable port). Use the `-P` option to specify a port.
+NFSping can also check the mount protocol's response using the `-n` option. This protocol is used in NFS versions 2 and 3 to look up a filesystem's root filehandle on the server when a client mounts a remote filesystem. In version 4 this functionality has been built into the NFS protocol itself. By default NFSping uses the portmapper to discover the port that the mount protocol is listening to on the target (there is no standard port, although server vendors typically use their own consistent port, such as 4046 for Netapp). Use the `-P` option to specify a port.
 
-The `-L` option will check the network lock manager (NLM) protocol. The lock manager is a stateful protocol for managing file locks that was added to NFS version 2 and 3 servers - in version 4 locking has been built into the NFS protocol itself. By default NFSping uses the portmapper to discover the port that the NLM protocol is listening to on the target. Use the `-P` option to specify a port.
+The `-L` option will check the network lock manager (NLM) protocol. The lock manager is a stateful protocol for managing remote file locks that was added to NFS version 2 and 3 servers - in version 4 locking has been built into the NFS protocol itself. By default NFSping uses the portmapper to discover the port that the NLM protocol is listening to on the target. Use the `-P` option to specify a port.
 
 The `-N` option will check the portmap protocol itself (always listening on port 111). This is also called the portmapper or rpcbind service. The portmap protocol is used by clients to look up which port a specific RPC service and version pair is bound to on a server.
 
@@ -102,7 +102,7 @@ NFSping uses the `AUTH_NONE` authentication flavour which doesn't send any user 
 
 ## Examples
 
-Without any arguments, NFSping runs sending RPCs in a loop until it's interrupted with `control-c`. A specific number of requests can be sent with the `-c` argument. For each result, it prints the round trip time (RTT), the minimum RTT from all results, the 50/90/99th percentiles of all round trip times, and the maximum RTT. All of these are in milliseconds (with microsecond precision). After it's interrupted, an HDR Histogram summary report is printed showing the percentiles for all results.
+Without any arguments, NFSping sends RPCs in a loop until it's interrupted with `control-c`. A specific number of requests can be sent with the `-c` argument. For each result, it prints the round trip time (RTT), the minimum RTT from all results, the 50/90/99th percentiles of all round trip times seen so far, and the maximum RTT seen. All of these results are in milliseconds (with microsecond precision). After it's interrupted, an HDR Histogram summary report is printed showing the percentiles for all results.
 
 ```console
 $ nfsping dumpy
@@ -150,7 +150,7 @@ dumpy : [4], 0.18 ms (0.51 avg, 0% loss)
 dumpy : 1.96 0.11 0.12 0.16 0.18
 ```
 
-Missed responses are indicated with a dash (-) in the summary output. This form uses more memory since it stores all of the results. In all other forms memory is allocated during startup so there should be no increase in memory consumption once running. The `-C` format is compatible with fping's output so it can be easily used with Tobi Oetiker's [Smokeping](http://oss.oetiker.ch/smokeping/) to produce graphs of response times. There is a module for NFSPing in the standard Smokeping distribution or in the Smokeping subdirectory of the NFSping source.
+Missed responses are indicated with a dash (-) in the summary output. The fping form uses more memory since it stores all of the results. The `-C` format is compatible with fping's output so it can be easily used with Tobi Oetiker's [Smokeping](http://oss.oetiker.ch/smokeping/) to produce latency graphs. There is a module for NFSPing in the standard Smokeping distribution or in the Smokeping subdirectory of the NFSping source.
 
 To only show the summary line, use the `-q` (quiet) option.
 
