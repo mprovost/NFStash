@@ -66,9 +66,9 @@ Usage: nfsping [options] [targets...]
     -V n       specify NFS version (2/3/4, default 3)
 ```
 
-NFSping sends NULL RPCs to each target server at a specific frequency, 10 times per second by default. This can be changed with the `-H` option to specify a frequency (in Hertz), so for example `-H 100` will send 100 pings per second (every 10ms). Polling on a fixed frequency allows NFSping to send data to time series databases that expect updates on a regular basis.
+NFSping sends NULL RPCs to each target server at a specific frequency, 10 times per second by default. This can be changed with the `-H` option to specify a frequency (in Hertz), so for example `-H 100` will send 100 pings per second (every 10ms). Polling on a fixed frequency allows NFSping to send data to time series databases that expect updates on a regular basis. NFSping is a high frequency poller, for frequencies lower than 1 Hz, `cron` or `sleep` statements can be used to invoke it multiple times.
 
-The `-Q` option sets the interval in seconds to print a histogram report of response times. A one line histogram summary of responses is printed for each interval, and finally a cumulative full HDR histogram for all responses is output when exiting. This enables using a higher frequency polling interval with `-H` while minimising the number of lines of output. For example, to keep the default polling frequency of 10 Hz (or higher) while emulating ping's historic behaviour of printing a line of output every second, use `-Q 1`.
+The `-Q` option sets the interval in seconds to print summary output. A one line histogram summary of responses is printed for each interval, and finally a cumulative full HDR histogram for all responses is output when exiting. This enables a higher frequency polling interval with `-H` while minimising the number of lines of output. For example, to keep the default polling frequency of 10 Hz (or higher) while emulating `ping`'s historic behaviour of printing a line of output every second, use `-Q 1`.
 
 NFSping supports NFS versions 2, 3, and 4, and the corresponding versions of the other RPC protocols. With no arguments it will send NFS version 3 NULL requests. By default it doesn't use the RPC portmapper for NFS and connects to UDP port 2049, which is the standard port for NFS. Specify the `-T` option to use TCP, `-M` to query the portmapper for the server's NFS port, or `-P` to specify a port number. The `-V` option can be used to select another version of the protocol (2 or 4).
 
@@ -102,7 +102,7 @@ NFSping uses the `AUTH_NONE` authentication flavour which doesn't send any user 
 
 ## Examples
 
-Without any arguments, NFSping sends RPCs in a loop until it's interrupted with `control-c`. A specific number of requests can be sent with the `-c` argument. For each result, it prints the round trip time (RTT), the minimum RTT from all results, the 50/90/99th percentiles of all round trip times seen so far, and the maximum RTT seen. All of these results are in milliseconds (with microsecond precision). After it's interrupted, an HDR Histogram summary report is printed showing the percentiles for all results.
+Without any arguments, NFSping sends RPCs in a loop to the specified target(s). To exit (in any mode), use `control-c`. A specific number of requests can be sent with the `-c` argument. For each result, it prints the RPC's round trip time (RTT), the minimum RTT from all results, the 50th (median), 90th, and 99th percentiles of all round trip times, and the maximum RTT. All of these results are in milliseconds (with microsecond precision). After it's interrupted or reaches the count specified with `-c`, a summary report is printed in HDRHistogram's `hgrm` format showing the percentiles for all results.
 
 ```console
 $ nfsping dumpy
@@ -135,11 +135,9 @@ dumpy :
 #[Buckets =           10, SubBuckets     =         2048]
 ```
 
-The histogram output can be used to create a graph using the HdrHistogram [plotter](http://hdrhistogram.github.io/HdrHistogram/plotFiles.html) (this example graph is from a larger sample):
+The histogram output can be used to create a graph using the HDRHistogram [plotter](http://hdrhistogram.github.io/HdrHistogram/plotFiles.html) This is an example from a run with 10000 results:
 
 ![histogram](../gif/Histogram.png)
-
-To exit early in any mode, use `control-c`.
 
 NFSping also has an fping compatible form that produces easily parseable output with the `-C` option:
 
@@ -183,7 +181,7 @@ Lost requests (or timeouts) will be reported under a separate path, $prefix.$tar
 This output can be easily piped to a Carbon server using nc (netcat):
 
 ```console
-$ nfsping -l -G dumpy filer2 | nc carbon1 2003
+$ nfsping -l -G dumpy | nc carbon1 2003
 ```
 
 nc will exit if the TCP connection is reset (such as if the Carbon server is restarted) which will also cause nfsping to exit with a broken pipe. To automatically reconnect, start it under a process supervisor which will restart it when it exits for any reason.
