@@ -135,6 +135,10 @@ dumpy :
 #[Buckets =           10, SubBuckets     =         2048]
 ```
 
+The histogram output can be used to create a graph using the HdrHistogram [plotter](http://hdrhistogram.github.io/HdrHistogram/plotFiles.html) (this example graph is from a larger sample):
+
+![histogram](../gif/Histogram.png)
+
 To exit early in any mode, use `control-c`.
 
 NFSping also has an fping compatible form that produces easily parseable output with the `-C` option:
