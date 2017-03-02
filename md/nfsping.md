@@ -102,7 +102,7 @@ NFSping uses the `AUTH_NONE` authentication flavour which doesn't send any user 
 
 ## Examples
 
-Without any arguments, NFSping sends RPCs in a loop to the specified target(s). To exit (in any mode), use `control-c`. A specific number of requests can be sent with the `-c` argument. For each result, it prints the RPC's round trip time (RTT), the minimum RTT from all results, the 50th (median), 90th, and 99th percentiles of all round trip times, and the maximum RTT. All of these results are in milliseconds (with microsecond precision). After it's interrupted or reaches the count specified with `-c`, a summary report is printed in HDRHistogram's `hgrm` format showing the percentiles for all results.
+Without any arguments, NFSping sends RPCs in a loop to the specified target(s). To exit (in any mode), use <kbd>Ctrl-c</kbd>. A specific number of requests can be sent with the `-c` argument. For each result, it prints the RPC's round trip time (RTT), the minimum RTT from all results, the 50th (median), 90th, and 99th percentiles of all round trip times, and the maximum RTT. All of these results are in milliseconds (with microsecond precision). After it's interrupted or reaches the count specified with `-c`, a summary report is printed in HDRHistogram's `hgrm` format showing the percentiles for all results.
 
 ```console
 $ nfsping dumpy
