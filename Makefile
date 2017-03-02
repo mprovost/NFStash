@@ -6,6 +6,9 @@ all: $(all) man
 # installation directory
 prefix = /usr/local
 
+# check if setcap is installed
+setcap := $(shell which setcap)
+
 clean:
 	rm -rf obj bin deps man/*.html man/*.8 rpcsrc/*.c rpcsrc/*.h config/*.opt config/*.out
 
@@ -57,6 +60,13 @@ $(prefix)/bin/:
 # pattern rule for installing binaries
 $(prefix)/bin/%: bin/% $(prefix)/bin/
 	install $< $(@D)
+# use setcap if available to allow binaries to bind to reserved ports
+# TODO probably don't need this capability for nfsping
+# TODO maybe install nfsping in /usr/local/bin and everything else in /usr/local/sbin?
+# do this after installing because install doesn't copy capability bits
+ifdef setcap
+	$(setcap) 'cap_net_bind_service=+ep' $(@D)/$(<F)
+endif
 
 # pattern rule for installing manpages
 $(prefix)/share/man/man8/%.8: man/%.8 $(prefix)/share/man/man8/
