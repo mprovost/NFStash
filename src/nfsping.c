@@ -933,7 +933,7 @@ int main(int argc, char **argv) {
             total_sent++;
 
             /* print a header for every screen of output */
-            if (!quiet && (total_sent % rows == 0)) {
+            if (!quiet && rows && (total_sent % rows == 0)) {
                 print_header(format, maxhost, prognum_offset, version);
             }
 
