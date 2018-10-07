@@ -1,6 +1,6 @@
-.PHONY: all clean rpcgen nfsping nfsmount nfsdf nfscat nfslock clear_locks man install
+.PHONY: all clean rpcgen nfsping nfsmount nfsdf nfscat nfslock clear_locks nfsup man install
 
-all = nfsping nfsmount nfsdf nfsls nfscat nfslock clear_locks
+all = nfsping nfsmount nfsdf nfsls nfscat nfslock clear_locks nfsup
 all: $(all) man
 
 # installation directory
@@ -141,6 +141,11 @@ clear_locks: bin/clear_locks
 clear_locks_objs = $(addprefix obj/, $(addsuffix .o, clear_locks sm_inter_clnt sm_inter_xdr nlm_prot_clnt nlm_prot_xdr) $(common_objs))
 bin/clear_locks: config/clock_gettime.opt $(clear_locks_objs) | bin
 	gcc ${CFLAGS} ${HDR_LIBS} @config/clock_gettime.opt $(clear_locks_objs) -o $@
+
+nfsup: bin/nfsup
+nfsup_objs = $(addprefix obj/, $(addsuffix .o, nfsup nfs_prot_clnt nfs_prot_xdr) $(common_objs))
+bin/nfsup: config/clock_gettime.opt $(nfsup_objs) | bin
+	gcc ${CFLAGS} ${HDR_LIBS} @config/clock_gettime.opt $(nfsup_objs) -o $@
 
 tests: tests/util_tests
 tests/util_tests: tests/util_tests.c tests/minunit.h src/util.o obj/parson.o obj/hdr_histogram.o src/util.h | rpcgen
