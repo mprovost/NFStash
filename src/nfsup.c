@@ -1,6 +1,7 @@
 #include "nfsping.h"
 #include "util.h"
 #include "rpc.h"
+#include "nagios.h"
 
 /* globals */
 int verbose = 0;
@@ -30,7 +31,6 @@ int main(int argc, char **argv) {
 
     if (inet_pton(AF_INET, argv[1], &sock.sin_addr)) {
 
-        //CLIENT *create_rpc_client(struct sockaddr_in *client_sock, struct addrinfo *hints, unsigned l ong prognum, unsigned long version, struct timeval timeout, struct sockaddr_in src_ip) {}
         client = create_rpc_client(&sock, &hints, prognum, version, timeout, src_ip);
 
         if (client) {
@@ -39,8 +39,8 @@ int main(int argc, char **argv) {
     }
 
     if (status) {
-        return EXIT_SUCCESS;
+        return STATE_OK;
     } else {
-        return EXIT_FAILURE;
+        return STATE_CRITICAL;
     }
 }
