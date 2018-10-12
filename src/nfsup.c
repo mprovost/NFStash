@@ -4,14 +4,14 @@
 #include "nagios.h"
 
 /* globals */
-int verbose = 0;
+int verbose = 1;
 
 int main(int argc, char **argv) {
     void                *status = NULL;
     CLIENT              *client;
     struct sockaddr_in  sock    = {
         .sin_family     = AF_INET,
-        .sin_port       = 0,
+        .sin_port       = 0, /* use the portmapper */
     };
     struct addrinfo     hints   = {
         .ai_family      = AF_INET,
@@ -23,7 +23,6 @@ int main(int argc, char **argv) {
         .sin_family     = AF_INET,
         .sin_addr       = INADDR_ANY,
     };
-    uint16_t            port    = NFS_PORT;
     unsigned long       prognum = NFS_PROGRAM;
     /* default to NFS v3 */
     unsigned long       version = 3;
@@ -31,10 +30,32 @@ int main(int argc, char **argv) {
 
     if (inet_pton(AF_INET, argv[1], &sock.sin_addr)) {
 
-        client = create_rpc_client(&sock, &hints, prognum, version, timeout, src_ip);
+        /* first check the portmapper */
+        /* only one version of portmap protocol */
+        /* convert the port to network byte order */
+        sock.sin_port = htons(PMAPPORT);
+        client = create_rpc_client(&sock, &hints, PMAPPROG, 2, timeout, src_ip);
 
         if (client) {
-            status = nfsproc3_null_3(NULL, client);
+            status = pmapproc_null_2(NULL, client);
+
+            if (status) {
+                printf("pmap ok\n");
+                destroy_rpc_client(client);
+
+                sock.sin_port = 0; /* use portmapper */
+                client = create_rpc_client(&sock, &hints, prognum, version, timeout, src_ip);
+
+                if (client) {
+                    status = nfsproc3_null_3(NULL, client);
+
+                    if (status) {
+                        printf("nfs ok\n");
+                    }
+                }
+            } else {
+                printf("pmap fail\n");
+            }
         }
     }
 
