@@ -143,7 +143,7 @@ bin/clear_locks: config/clock_gettime.opt $(clear_locks_objs) | bin
 	gcc ${CFLAGS} ${HDR_LIBS} @config/clock_gettime.opt $(clear_locks_objs) -o $@
 
 nfsup: bin/nfsup
-nfsup_objs = $(addprefix obj/, $(addsuffix .o, nfsup nfs_prot_clnt nfs_prot_xdr) $(common_objs))
+nfsup_objs = $(addprefix obj/, $(addsuffix .o, nfsup mount_clnt mount_xdr nfs_prot_clnt nfs_prot_xdr) $(common_objs))
 bin/nfsup: config/clock_gettime.opt $(nfsup_objs) | bin
 	gcc ${CFLAGS} ${HDR_LIBS} @config/clock_gettime.opt $(nfsup_objs) -o $@
 

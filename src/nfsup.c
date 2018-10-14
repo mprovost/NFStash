@@ -44,13 +44,19 @@ int main(int argc, char **argv) {
                 destroy_rpc_client(client);
 
                 sock.sin_port = 0; /* use portmapper */
+                prognum = MOUNTPROG; /* check the mount protocol */
                 client = create_rpc_client(&sock, &hints, prognum, version, timeout, src_ip);
 
                 if (client) {
-                    status = nfsproc3_null_3(NULL, client);
+                    /* get a list of exports from the server */
+                    status = mountproc_export_3(NULL, client);
 
                     if (status) {
-                        printf("nfs ok\n");
+                        printf("mount ok\n");
+
+                        //status = nfsproc3_null_3(NULL, client);
+                    } else {
+                        printf("mount fail\n");
                     }
                 }
             } else {
