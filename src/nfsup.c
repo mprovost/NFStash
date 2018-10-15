@@ -63,17 +63,25 @@ int main(int argc, char **argv) {
                         version = 3; /* NFSv3 */
                         client = create_rpc_client(&sock, &hints, prognum, version, timeout, src_ip);
 
-                        status = nfsproc3_null_3(NULL, client);
+                        if (client) {
+                            status = nfsproc3_null_3(NULL, client);
 
-                        if (status) {
-                            printf("nfs ok\n");
-                            destroy_rpc_client(client);
+                            if (status) {
+                                printf("nfs ok\n");
+                                destroy_rpc_client(client);
+                            } else {
+                                printf("nfs fail\n");
+                            }
                         } else {
                             printf("nfs fail\n");
+                            status = 0;
                         }
                     } else {
                         printf("mount fail\n");
                     }
+                } else {
+                    printf("mount fail\n");
+                    status = 0;
                 }
             } else {
                 printf("pmap fail\n");
