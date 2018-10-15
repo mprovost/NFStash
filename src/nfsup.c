@@ -31,10 +31,12 @@ int main(int argc, char **argv) {
     if (inet_pton(AF_INET, argv[1], &sock.sin_addr)) {
 
         /* first check the portmapper */
-        /* only one version of portmap protocol */
+        /* just do a NULL check because we'll use it to find specific ports for other protocols */
         /* convert the port to network byte order */
         sock.sin_port = htons(PMAPPORT);
-        client = create_rpc_client(&sock, &hints, PMAPPROG, 2, timeout, src_ip);
+        /* only one version of portmap protocol */
+        version = 2;
+        client = create_rpc_client(&sock, &hints, PMAPPROG, version, timeout, src_ip);
 
         if (client) {
             status = pmapproc_null_2(NULL, client);
@@ -45,6 +47,7 @@ int main(int argc, char **argv) {
 
                 sock.sin_port = 0; /* use portmapper */
                 prognum = MOUNTPROG; /* check the mount protocol */
+                version = 3; /* NFSv3 */
                 client = create_rpc_client(&sock, &hints, prognum, version, timeout, src_ip);
 
                 if (client) {
@@ -53,8 +56,21 @@ int main(int argc, char **argv) {
 
                     if (status) {
                         printf("mount ok\n");
+                        destroy_rpc_client(client);
 
-                        //status = nfsproc3_null_3(NULL, client);
+                        sock.sin_port = 0; /* use portmapper */
+                        prognum = NFS_PROGRAM;
+                        version = 3; /* NFSv3 */
+                        client = create_rpc_client(&sock, &hints, prognum, version, timeout, src_ip);
+
+                        status = nfsproc3_null_3(NULL, client);
+
+                        if (status) {
+                            printf("nfs ok\n");
+                            destroy_rpc_client(client);
+                        } else {
+                            printf("nfs fail\n");
+                        }
                     } else {
                         printf("mount fail\n");
                     }
