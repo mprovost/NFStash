@@ -4,7 +4,7 @@
 #include "nagios.h"
 
 /* globals */
-int verbose = 1;
+int verbose = 0;
 
 int main(int argc, char **argv) {
     void                *status = NULL;
@@ -42,7 +42,7 @@ int main(int argc, char **argv) {
             status = pmapproc_null_2(NULL, client);
 
             if (status) {
-                printf("pmap ok\n");
+                printf("PMAP OK");
                 destroy_rpc_client(client);
 
                 sock.sin_port = 0; /* use portmapper */
@@ -55,7 +55,7 @@ int main(int argc, char **argv) {
                     status = mountproc_export_3(NULL, client);
 
                     if (status) {
-                        printf("mount ok\n");
+                        printf(" MOUNT OK");
                         destroy_rpc_client(client);
 
                         sock.sin_port = 0; /* use portmapper */
@@ -67,27 +67,29 @@ int main(int argc, char **argv) {
                             status = nfsproc3_null_3(NULL, client);
 
                             if (status) {
-                                printf("nfs ok\n");
+                                printf(" NFS OK");
                                 destroy_rpc_client(client);
                             } else {
-                                printf("nfs fail\n");
+                                printf(" NFS FAIL");
                             }
                         } else {
-                            printf("nfs fail\n");
+                            printf(" NFS FAIL");
                             status = 0;
                         }
                     } else {
-                        printf("mount fail\n");
+                        printf(" MOUNT FAIL");
                     }
                 } else {
-                    printf("mount fail\n");
+                    printf(" MOUNT FAIL");
                     status = 0;
                 }
             } else {
-                printf("pmap fail\n");
+                printf("PMAP FAIL");
             }
         }
     }
+
+    printf("\n");
 
     if (status) {
         return STATE_OK;
