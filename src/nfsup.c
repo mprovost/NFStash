@@ -6,6 +6,14 @@
 /* globals */
 int verbose = 0;
 
+static void usage(void);
+
+void usage() {
+    printf("Usage: nfsup ip-address\n");
+
+    exit(STATE_UNKNOWN);
+}
+
 int main(int argc, char **argv) {
     void                *status = NULL;
     CLIENT              *client;
@@ -27,6 +35,11 @@ int main(int argc, char **argv) {
     /* default to NFS v3 */
     unsigned long       version = 3;
     struct timeval      timeout = NFS_TIMEOUT;
+
+    /* check for no arguments */
+    if (argc == 1) {
+        usage();
+    }
 
     if (inet_pton(AF_INET, argv[1], &sock.sin_addr)) {
 
