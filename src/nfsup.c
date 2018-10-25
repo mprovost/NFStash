@@ -87,6 +87,9 @@ int main(int argc, char **argv) {
                 printf("PMAP FAIL");
             }
         }
+    /* inet_pton() failed */
+    } else {
+        fatalx(STATE_UNKNOWN, "Invalid IP address. Consider using $HOSTADDRESS$\n");
     }
 
     printf("\n");
