@@ -10,7 +10,7 @@ prefix = /usr/local
 setcap := $(shell which setcap)
 
 clean:
-	rm -rf obj bin deps man/*.html man/*.8 rpcsrc/*.c rpcsrc/*.h config/*.opt config/*.out
+	rm -rf obj bin deps man/*.html man/*.8 rpcsrc/*.c rpcsrc/*.h config/*.out config/*.cflags config/*.ldflags
 
 #output directories
 bin obj deps:
@@ -82,12 +82,12 @@ SRC = $(wildcard src/*.c)
 # pattern rule to build objects
 # make the obj directory first
 # gcc will fail if the rpc headers don't exist so make sure they are generated first
-obj/%.o: src/%.c | obj deps rpcgen
-	gcc ${CPPFLAGS} ${CFLAGS} -MF deps/$(patsubst %.o,%.d, $(notdir $@)) -c -o $@ $<
+obj/%.o: src/%.c | obj deps rpcgen config/rpc.cflags config/rpc.ldflags
+	gcc ${CPPFLAGS} ${CFLAGS} @config/rpc.cflags -MF deps/$(patsubst %.o,%.d, $(notdir $@)) -c -o $@ $<
 
 # don't need dependencies for generated source
-obj/%.o: rpcsrc/%.c | obj
-	gcc ${RPC_CFLAGS} -c -o $@ $<
+obj/%.o: rpcsrc/%.c | obj config/rpc.cflags
+	gcc ${RPC_CFLAGS} @config/rpc.cflags -c -o $@ $<
 
 # rule for compiling parson
 obj/parson.o: parson/parson.c | obj
@@ -98,9 +98,14 @@ obj/%.o: hdr/src/%.c | obj
 	gcc ${HDR_CFLAGS} -c -o $@ $<
 
 # config - check for clock_gettime in libc or librt
-# this opt file gets included as a gcc option
-config/clock_gettime.opt:
+# this file gets included as a gcc option
+config/clock_gettime.ldflags:
 	cd config && ./clock_gettime.sh
+
+# config - check for rpc headers in libc or libtirpc
+# these files get included as gcc options
+config/rpc.cflags config/rpc.ldflags:
+	cd config && ./rpc.sh
 
 # common object files
 common_objs = $(addsuffix .o, pmap_prot_clnt pmap_prot_xdr util rpc parson hdr_histogram)
@@ -108,44 +113,44 @@ common_objs = $(addsuffix .o, pmap_prot_clnt pmap_prot_xdr util rpc parson hdr_h
 # make the bin directory first if it's not already there
 nfsping: bin/nfsping
 nfsping_objs = $(addprefix obj/, $(addsuffix .o, nfsping nfs_prot_clnt nfs_prot_xdr nfsv4_prot_clnt nfsv4_prot_xdr mount_clnt mount_xdr nlm_prot_clnt nlm_prot_xdr nfs_acl_clnt sm_inter_clnt sm_inter_xdr rquota_clnt rquota_xdr klm_prot_clnt klm_prot_xdr) $(common_objs))
-bin/nfsping: config/clock_gettime.opt $(nfsping_objs) | bin
-	gcc ${CFLAGS} @config/clock_gettime.opt $(nfsping_objs) ${HDR_LIBS} -o $@
+bin/nfsping: config/clock_gettime.ldflags config/rpc.cflags config/rpc.ldflags $(nfsping_objs) | bin
+	gcc ${CFLAGS} @config/rpc.cflags $(nfsping_objs) ${HDR_LIBS} @config/clock_gettime.ldflags @config/rpc.ldflags -o $@
 
 nfsmount: bin/nfsmount
 nfsmount_objs = $(addprefix obj/, $(addsuffix .o, mount mount_clnt mount_xdr) $(common_objs))
-bin/nfsmount: config/clock_gettime.opt $(nfsmount_objs) | bin
-	gcc ${CFLAGS} @config/clock_gettime.opt $(nfsmount_objs) ${HDR_LIBS} -o $@
+bin/nfsmount: config/clock_gettime.ldflags config/rpc.cflags config/rpc.ldflags $(nfsmount_objs) | bin
+	gcc ${CFLAGS} @config/rpc.cflags $(nfsmount_objs) ${HDR_LIBS} @config/clock_gettime.ldflags @config/rpc.ldflags -o $@
 
 nfsdf: bin/nfsdf
 nfsdf_objs = $(addprefix obj/, $(addsuffix .o, df human nfs_prot_clnt nfs_prot_xdr) $(common_objs))
-bin/nfsdf: config/clock_gettime.opt $(nfsdf_objs) | bin
-	gcc ${CFLAGS} @config/clock_gettime.opt $(nfsdf_objs) ${HDR_LIBS} -o $@
+bin/nfsdf: config/clock_gettime.ldflags config/rpc.cflags config/rpc.ldflags $(nfsdf_objs) | bin
+	gcc ${CFLAGS} @config/rpc.cflags $(nfsdf_objs) ${HDR_LIBS} @config/clock_gettime.ldflags @config/rpc.ldflags -o $@
 
 nfsls: bin/nfsls
 nfsls_objs = $(addprefix obj/, $(addsuffix .o, ls human nfs_prot_clnt nfs_prot_xdr xdr_copy) $(common_objs))
-bin/nfsls: config/clock_gettime.opt $(nfsls_objs) | bin
+bin/nfsls: config/clock_gettime.ldflags config/rpc.cflags config/rpc.ldflags $(nfsls_objs) | bin
     # needs math library for log10() etc
-	gcc ${CFLAGS} @config/clock_gettime.opt -lm $(nfsls_objs) ${HDR_LIBS} -o $@
+	gcc ${CFLAGS} @config/rpc.cflags $(nfsls_objs) -lm ${HDR_LIBS} @config/clock_gettime.ldflags @config/rpc.ldflags -o $@
 
 nfscat: bin/nfscat
 nfscat_objs = $(addprefix obj/, $(addsuffix .o, cat nfs_prot_clnt nfs_prot_xdr) $(common_objs))
-bin/nfscat: config/clock_gettime.opt $(nfscat_objs) | bin
-	gcc ${CFLAGS} @config/clock_gettime.opt $(nfscat_objs) ${HDR_LIBS} -o $@
+bin/nfscat: config/clock_gettime.ldflags config/rpc.cflags config/rpc.ldflags $(nfscat_objs) | bin
+	gcc ${CFLAGS} @config/rpc.cflags $(nfscat_objs) ${HDR_LIBS} @config/clock_gettime.ldflags @config/rpc.ldflags -o $@
 
 nfslock: bin/nfslock
 nfslock_objs = $(addprefix obj/, $(addsuffix .o, lock nlm_prot_clnt nlm_prot_xdr) $(common_objs))
-bin/nfslock: config/clock_gettime.opt $(nfslock_objs) | bin
-	gcc ${CFLAGS} @config/clock_gettime.opt $(nfslock_objs) ${HDR_LIBS} -o $@
+bin/nfslock: config/clock_gettime.ldflags config/rpc.cflags config/rpc.ldflags $(nfslock_objs) | bin
+	gcc ${CFLAGS} @config/rpc.cflags $(nfslock_objs) ${HDR_LIBS} @config/clock_gettime.ldflags @config/rpc.ldflags -o $@
 
 clear_locks: bin/clear_locks
 clear_locks_objs = $(addprefix obj/, $(addsuffix .o, clear_locks sm_inter_clnt sm_inter_xdr nlm_prot_clnt nlm_prot_xdr) $(common_objs))
-bin/clear_locks: config/clock_gettime.opt $(clear_locks_objs) | bin
-	gcc ${CFLAGS} @config/clock_gettime.opt $(clear_locks_objs) ${HDR_LIBS} -o $@
+bin/clear_locks: config/clock_gettime.ldflags config/rpc.cflags config/rpc.ldflags $(clear_locks_objs) | bin
+	gcc ${CFLAGS} @config/rpc.cflags $(clear_locks_objs) ${HDR_LIBS} @config/clock_gettime.ldflags @config/rpc.ldflags -o $@
 
 nfsup: bin/nfsup
 nfsup_objs = $(addprefix obj/, $(addsuffix .o, nfsup mount_clnt mount_xdr nfs_prot_clnt nfs_prot_xdr) $(common_objs))
-bin/nfsup: config/clock_gettime.opt $(nfsup_objs) | bin
-	gcc ${CFLAGS} @config/clock_gettime.opt $(nfsup_objs) ${HDR_LIBS} -o $@
+bin/nfsup: config/clock_gettime.ldflags config/rpc.cflags config/rpc.ldflags $(nfsup_objs) | bin
+	gcc ${CFLAGS} @config/rpc.cflags $(nfsup_objs) ${HDR_LIBS} @config/clock_gettime.ldflags @config/rpc.ldflags -o $@
 
 tests: tests/util_tests
 tests/util_tests: tests/util_tests.c tests/minunit.h src/util.o obj/parson.o obj/hdr_histogram.o src/util.h | rpcgen
