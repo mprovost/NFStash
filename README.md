@@ -19,8 +19,7 @@ The goal of the project is to eventually support all 22 NFS version 3 client pro
 ## Main Features
 - Free and Open Source software ([BSD licensed](http://opensource.org/licenses/bsd-license.php))
 - Written in **C** for portability and speed
-- Built from the original Sun RPC protocol files
-- No requirement for any libraries other than libc (and `librt` for `clock_gettime()` if using an older version of GNU libc).
+- Built from the original Sun RPC protocol specification files
 - No dependencies on the operating system's NFS client
 - Easily readable and parseable **JSON** output
 - Timing output compatible with [fping](https://github.com/schweikert/fping), [Graphite](https://github.com/graphite-project/graphite-web) or [StatsD](https://github.com/etsy/statsd)
@@ -37,13 +36,14 @@ $ sudo make install
 - Requires `gmake`.
 - Uses some `gcc`-isms which may mean it won't compile with other C compilers.
 - Manpages are built with [`ronn`](http://rtomayko.github.io/ronn/).
-- RPC code is generated with `rpcgen`.
+- RPC code is generated with `rpcgen` (available in the `rpcsvc-proto` Debian package).
+- `glibc` removed the Sun RPC functions in release 2.26. These functions are now provied by `libtirpc` library (available in the `libtirpc-dev` Debian package).
 - At the moment it doesn't compile on FreeBSD because of conflicts with the portmap header files that it generates and the builtin RPC headers shipped with FreeBSD.
 - It doesn't compile on OSX yet due to a missing `clock_gettime()` - this will take some porting effort (probably using [monotonic_clock](https://github.com/ThomasHabets/monotonic_clock)).
-- The Makefile uses a test in the `/config` directory to check whether it needs to link the realtime library (-lrt) to pull in clock_gettime(). This is included in libc itself in glibc > 2.17.
+- The Makefile uses a test in the `/config` directory to check whether it needs to link the realtime library (`-lrt`) to pull in `clock_gettime()`. This is included in libc itself in glibc > 2.17.
 
 ## Roadmap
-NFStash is under active development and heading towards an initial stable release.
+Development of NFStash is paused, but the current version is stable.
 
 - [ ] convert internal time calculations to nanoseconds
 - [ ] [HDRHistogram](https://github.com/HdrHistogram/HdrHistogram_c) support
