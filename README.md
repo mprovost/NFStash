@@ -38,7 +38,6 @@ $ sudo make install
 - Manpages are built with [`ronn`](http://rtomayko.github.io/ronn/).
 - RPC code is generated with `rpcgen` (available in the `rpcsvc-proto` Debian package).
 - `glibc` removed the Sun RPC functions in release 2.26. These functions are now provied by `libtirpc` library (available in the `libtirpc-dev` Debian package).
-- At the moment it doesn't compile on FreeBSD because of conflicts with the portmap header files that it generates and the builtin RPC headers shipped with FreeBSD.
 - It doesn't compile on OSX yet due to a missing `clock_gettime()` - this will take some porting effort (probably using [monotonic_clock](https://github.com/ThomasHabets/monotonic_clock)).
 - The Makefile uses a test in the `/config` directory to check whether it needs to link the realtime library (`-lrt`) to pull in `clock_gettime()`. This is included in libc itself in glibc > 2.17.
 
@@ -48,7 +47,6 @@ Development of NFStash is paused, but the current version is stable.
 - [ ] convert internal time calculations to nanoseconds
 - [ ] [HDRHistogram](https://github.com/HdrHistogram/HdrHistogram_c) support
 - [ ] Workaround Coordinated Omission like [wrk2](https://github.com/giltene/wrk2)
-- [ ] Fix portmap header conflicts on *BSD
 - [ ] OSX support ([clock_gettime](https://github.com/ThomasHabets/monotonic_clock))
 - [ ] Multithreaded so slow responses don't block other requests?
 - [ ] A simplified version of NFSping for Nagios-compatible monitoring checks
