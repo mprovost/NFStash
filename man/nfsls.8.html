@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta http-equiv='content-type' value='text/html;charset=utf8'>
-  <meta name='generator' value='Ronn/v0.7.3 (http://github.com/rtomayko/ronn/tree/0.7.3)'>
+  <meta http-equiv='content-type' content='text/html;charset=utf8'>
+  <meta name='generator' content='Ronn-NG/v0.9.1 (http://github.com/apjanke/ronn-ng/tree/0.9.1)'>
   <title>nfsls(8) - list files and directories on an NFS server</title>
   <style type='text/css' media='all'>
   /* style: man */
@@ -75,11 +75,12 @@
     <li class='tr'>nfsls(8)</li>
   </ol>
 
-  <h2 id="NAME">NAME</h2>
+  
+
+<h2 id="NAME">NAME</h2>
 <p class="man-name">
   <code>nfsls</code> - <span class="man-whatis">list files and directories on an NFS server</span>
 </p>
-
 <h2 id="SYNOPSIS">SYNOPSIS</h2>
 
 <p><code>nfsls</code> [<code>-aAbdhklmMLqTv</code>] [<code>-c</code> <var>count</var>] [<code>-C</code> <var>count</var>] [<code>-H</code> <var>hertz</var>] [<code>-S</code> <var>source</var>]</p>
@@ -97,52 +98,76 @@
 <h2 id="OPTIONS">OPTIONS</h2>
 
 <dl>
-<dt class="flush"><code>-a</code></dt><dd><p>Display hidden files and directories (names starting with <code>.</code>) These are not displayed by default.</p></dd>
-<dt class="flush"><code>-A</code></dt><dd><p>Display IP addresses (instead of hostnames).</p></dd>
-<dt class="flush"><code>-b</code></dt><dd><p>In long listing (<code>-l</code>) mode, display file sizes in bytes. (Default is human readable.)</p></dd>
-<dt class="flush"><code>-c</code></dt><dd><p>Count of requests to send to each input filehandle before exiting. Note that multiple READDIRPLUS RPCs to load a full directory listing or READLINKs to lookup symlinks count as a single request. A summary of all responses is printed when the count is reached or the program is interrupted.</p></dd>
-<dt><code>-C</code> <var>count</var></dt><dd><p>Count of requests to send to each input filehandle before exiting. Note that multiple READDIRPLUS RPCs to load a full directory listing or READLINKs to lookup symlinks count as a single request. An <code>fping(8)</code> compatible parseable summary is printed when the count is reached or the program is interrupted.</p></dd>
-<dt class="flush"><code>-d</code></dt><dd><p>List directories instead of their contents. This forces <code>nfsls</code> to only send GETATTR calls.</p></dd>
-<dt class="flush"><code>-g</code></dt><dd><p>In long listing (<code>-l</code>) mode, display file sizes in gigabytes. (Default is human readable.) Files that have a nonzero size but that are less than 1GB are shown as >0 to distinguish them from zero length files.</p></dd>
-<dt class="flush"><code>-h</code></dt><dd><p>In long listing (<code>-l</code>) mode, display file sizes in human readable format. This selects whichever unit is the most compact to display in 4 digits of precision. This is the default.</p></dd>
-<dt><code>-H</code> <var>hertz</var></dt><dd><p>The polling frequency in Hertz when in looping (<code>-L</code>) or counting (<code>-c</code>) modes. This is the number of requests sent to each target filehandle per second. Note that for larger directories, multiple READDIRPLUS RPCs can be sent but are only counted as a single request. Default = 1.</p></dd>
-<dt class="flush"><code>-k</code></dt><dd><p>In long listing (<code>-l</code>) mode, display file sizes in kilobytes. (Default is human readable.) Files that have a nonzero size but that are less than 1KB are shown as >0 to distinguish them from zero length files.</p></dd>
-<dt class="flush"><code>-l</code></dt><dd><p>Display a long listing similar to <code>ls -l</code>. This includes the file type and permissions bits, the number of links to the file, the owner's user and group names, the size in bytes, the date and time in ISO 8601 format, the server's hostname (or IP address with <code>-A</code>) and the filename (and the target if it's a symlink).</p></dd>
-<dt class="flush"><code>-L</code></dt><dd><p>Loop forever. Exit loop with Ctrl-c.  A summary of all responses is printed when the program is interrupted.</p></dd>
-<dt class="flush"><code>-m</code></dt><dd><p>In long listing (<code>-l</code>) mode, display file sizes in megabytes. (Default is human readable.) Files that have a nonzero size but that are less than 1MB are shown as >0 to distinguish them from zero length files.</p></dd>
-<dt class="flush"><code>-M</code></dt><dd><p>Query the RPC portmapper on the server to lookup the NFS port. Otherwise connect directly to the standard port (2049). Uses UDP by defa
-ult or TCP if the <code>-T</code> option is specified.</p></dd>
-<dt class="flush"><code>-q</code></dt><dd><p>Quiet. In looping and counting modes, only print a summary not each individual response.</p></dd>
-<dt><code>-S</code> <var>source</var></dt><dd><p>Use the specified source IP address for request packets.</p></dd>
-<dt class="flush"><code>-t</code></dt><dd><p>In long listing (<code>-l</code>) mode, display file sizes in terabytes. (Default is human readable.) Files that have a nonzero size but that are less than 1TB are shown as >0 to distinguish them from zero length files.</p></dd>
-<dt class="flush"><code>-T</code></dt><dd><p>Use TCP to connect to server. Default = UDP.</p></dd>
-<dt class="flush"><code>-v</code></dt><dd><p>Display debug output on <code>stderr</code>.</p></dd>
+<dt><code>-a</code></dt>
+<dd>Display hidden files and directories (names starting with <code>.</code>) These are not displayed by default.</dd>
+<dt><code>-A</code></dt>
+<dd>Display IP addresses (instead of hostnames).</dd>
+<dt><code>-b</code></dt>
+<dd>In long listing (<code>-l</code>) mode, display file sizes in bytes. (Default is human readable.)</dd>
+<dt><code>-c</code></dt>
+<dd>Count of requests to send to each input filehandle before exiting. Note that multiple READDIRPLUS RPCs to load a full directory listing or READLINKs to lookup symlinks count as a single request. A summary of all responses is printed when the count is reached or the program is interrupted.</dd>
+<dt>
+<code>-C</code> <var>count</var>
+</dt>
+<dd>Count of requests to send to each input filehandle before exiting. Note that multiple READDIRPLUS RPCs to load a full directory listing or READLINKs to lookup symlinks count as a single request. An <code>fping(8)</code> compatible parseable summary is printed when the count is reached or the program is interrupted.</dd>
+<dt><code>-d</code></dt>
+<dd>List directories instead of their contents. This forces <code>nfsls</code> to only send GETATTR calls.</dd>
+<dt><code>-g</code></dt>
+<dd>In long listing (<code>-l</code>) mode, display file sizes in gigabytes. (Default is human readable.) Files that have a nonzero size but that are less than 1GB are shown as &gt;0 to distinguish them from zero length files.</dd>
+<dt><code>-h</code></dt>
+<dd>In long listing (<code>-l</code>) mode, display file sizes in human readable format. This selects whichever unit is the most compact to display in 4 digits of precision. This is the default.</dd>
+<dt>
+<code>-H</code> <var>hertz</var>
+</dt>
+<dd>The polling frequency in Hertz when in looping (<code>-L</code>) or counting (<code>-c</code>) modes. This is the number of requests sent to each target filehandle per second. Note that for larger directories, multiple READDIRPLUS RPCs can be sent but are only counted as a single request. Default = 1.</dd>
+<dt><code>-k</code></dt>
+<dd>In long listing (<code>-l</code>) mode, display file sizes in kilobytes. (Default is human readable.) Files that have a nonzero size but that are less than 1KB are shown as &gt;0 to distinguish them from zero length files.</dd>
+<dt><code>-l</code></dt>
+<dd>Display a long listing similar to <code>ls -l</code>. This includes the file type and permissions bits, the number of links to the file, the owner's user and group names, the size in bytes, the date and time in ISO 8601 format, the server's hostname (or IP address with <code>-A</code>) and the filename (and the target if it's a symlink).</dd>
+<dt><code>-L</code></dt>
+<dd>Loop forever. Exit loop with Ctrl-c.  A summary of all responses is printed when the program is interrupted.</dd>
+<dt><code>-m</code></dt>
+<dd>In long listing (<code>-l</code>) mode, display file sizes in megabytes. (Default is human readable.) Files that have a nonzero size but that are less than 1MB are shown as &gt;0 to distinguish them from zero length files.</dd>
+<dt><code>-M</code></dt>
+<dd>Query the RPC portmapper on the server to lookup the NFS port. Otherwise connect directly to the standard port (2049). Uses UDP by defa
+ult or TCP if the <code>-T</code> option is specified.</dd>
+<dt><code>-q</code></dt>
+<dd>Quiet. In looping and counting modes, only print a summary not each individual response.</dd>
+<dt>
+<code>-S</code> <var>source</var>
+</dt>
+<dd>Use the specified source IP address for request packets.</dd>
+<dt><code>-t</code></dt>
+<dd>In long listing (<code>-l</code>) mode, display file sizes in terabytes. (Default is human readable.) Files that have a nonzero size but that are less than 1TB are shown as &gt;0 to distinguish them from zero length files.</dd>
+<dt><code>-T</code></dt>
+<dd>Use TCP to connect to server. Default = UDP.</dd>
+<dt><code>-v</code></dt>
+<dd>Display debug output on <code>stderr</code>.</dd>
 </dl>
-
 
 <h2 id="EXAMPLES">EXAMPLES</h2>
 
 <p>Typically <code>nfsls</code> will use a filehandle obtained from the output of the <code>nfsmount</code> command:</p>
 
-<p>  <code>sudo sh -c "nfsmount dumpy | nfsls"</code></p>
+<p><code>sudo sh -c "nfsmount dumpy | nfsls"</code></p>
 
 <p>Since both commands typically need root privileges (to bind to a "secure" port) they can be run with a single subshell under <code>sudo</code>.</p>
 
 <p>If the check is being run repeatedly, there is no need to query the fileserver with <code>nfsmount</code> every time. Since the root filehandles shouldn't change, the output can be stored in a file:</p>
 
-<p>  <code>sudo nfsmount dumpy &gt; dumpy.nfs</code></p>
+<p><code>sudo nfsmount dumpy &gt; dumpy.nfs</code></p>
 
 <p>and used by subsequent commands:</p>
 
-<p>  <code>sudo nfsls -C 5 &lt; dumpy.nfs</code></p>
+<p><code>sudo nfsls -C 5 &lt; dumpy.nfs</code></p>
 
 <p>Filters can also be used to do recursive lookups, for example to list the contents of the "/var/log/" directory:</p>
 
-<p>  <code>sudo sh -c "nfsmount dumpy:/ | nfsls | grep var | nfsls | grep log | nfsls"</code></p>
+<p><code>sudo sh -c "nfsmount dumpy:/ | nfsls | grep var | nfsls | grep log | nfsls"</code></p>
 
 <p>This may not be required on all NFS servers if the MOUNT daemon allows listing unexported subdirectories:</p>
 
-<p>  <code>sudo sh -c "nfsmount dumpy:/var/log | nfsls"</code></p>
+<p><code>sudo sh -c "nfsmount dumpy:/var/log | nfsls"</code></p>
 
 <h2 id="RETURN-VALUES">RETURN VALUES</h2>
 
@@ -154,10 +179,9 @@ ult or TCP if the <code>-T</code> option is specified.</p></dd>
 
 <h2 id="COPYRIGHT">COPYRIGHT</h2>
 
-<p>Copyright 2017 Matt Provost<br />
-RPC files Copyright Sun Microsystems<br />
+<p>Copyright 2017 Matt Provost<br>
+RPC files Copyright Sun Microsystems<br>
 NFSv4 files Copyright IETF</p>
-
 
   <ol class='man-decor man-foot man foot'>
     <li class='tl'></li>

@@ -23,6 +23,8 @@
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 #include <errno.h>
+/* for ULONG_MAX */
+#include <limits.h>
 
 /* local copies */
 /* TODO do these need to be included in all utilities? */

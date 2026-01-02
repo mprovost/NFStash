@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta http-equiv='content-type' value='text/html;charset=utf8'>
-  <meta name='generator' value='Ronn/v0.7.3 (http://github.com/rtomayko/ronn/tree/0.7.3)'>
+  <meta http-equiv='content-type' content='text/html;charset=utf8'>
+  <meta name='generator' content='Ronn-NG/v0.9.1 (http://github.com/apjanke/ronn-ng/tree/0.9.1)'>
   <title>nfsmount(8) - lookup NFS filesystem root filehandles</title>
   <style type='text/css' media='all'>
   /* style: man */
@@ -76,14 +76,15 @@
     <li class='tr'>nfsmount(8)</li>
   </ol>
 
-  <h2 id="NAME">NAME</h2>
+  
+
+<h2 id="NAME">NAME</h2>
 <p class="man-name">
   <code>nfsmount</code> - <span class="man-whatis">lookup NFS filesystem root filehandles</span>
 </p>
-
 <h2 id="SYNOPSIS">SYNOPSIS</h2>
 
-<p><code>nfsmount</code> [<code>-AdDeEGhJlmqRTuv</code>] [<code>-c</code> <var>count</var>] [<code>-C</code> <var>count</var>] [<code>-H</code> <var>hertz</var>] [<code>-S</code> <var>source</var>] [<code>-V</code> <var>version</var>] &lt;server[:path]...></p>
+<p><code>nfsmount</code> [<code>-AdDeEGhJlmqRTuv</code>] [<code>-c</code> <var>count</var>] [<code>-C</code> <var>count</var>] [<code>-H</code> <var>hertz</var>] [<code>-S</code> <var>source</var>] [<code>-V</code> <var>version</var>] &lt;server[:path]...&gt;</p>
 
 <h2 id="DESCRIPTION">DESCRIPTION</h2>
 
@@ -100,46 +101,75 @@
 <h2 id="OPTIONS">OPTIONS</h2>
 
 <dl>
-<dt class="flush"><code>-A</code></dt><dd><p>Display IP addresses instead of hostnames. Also implied by <code>-m</code>.</p></dd>
-<dt><code>-c</code> <var>count</var></dt><dd><p>Count of (MNT) requests to send to each target's exported filesystems before exiting. For example, if a target has 4 filesystems exported, with a count 5, 20 requests will be sent (5 to each filesystem). Print a line of <code>ping</code>-style output after each response is received. A summary of all responses is printed when the count is reached or the program is interrupted.</p></dd>
-<dt><code>-C</code> <var>count</var></dt><dd><p>Count of mount (MNT) requests to send to each target's exported filesystems. Outputs an <code>fping(8)</code> compatible parseable summary of the response times (in milliseconds) of all requests when the count is reached or the program is interrupted. Errors or lost responses are represented with <code>-</code>.</p></dd>
-<dt class="flush"><code>-d</code></dt><dd><p>Perform reverse DNS lookups for target(s). This option overrides <code>-A</code> (and the implied <code>-A</code> from the <code>-m</code> option).</p></dd>
-<dt class="flush"><code>-D</code></dt><dd><p>Print timestamp (Unix time) before each line of output when counting or looping.</p></dd>
-<dt class="flush"><code>-e</code></dt><dd><p>Display available filesystems and their export policies in a human readable format, like <code>showmount -e</code>. This sends a single <code>EXPORT</code> RPC per target server and does not look up filehandles.</p></dd>
-<dt class="flush"><code>-E</code></dt><dd><p>Display output in Etsy's StatsD format (nfsmount.$hostname.$path.mountv3:<var>msec</var>|ms).</p></dd>
-<dt class="flush"><code>-G</code></dt><dd><p>Print output in Graphite format (nfsmount.$hostname.$path.mountv3.usec <var>usec</var> <var>timestamp</var>).</p></dd>
-<dt class="flush"><code>-h</code></dt><dd><p>Display a help message and exit.</p></dd>
-<dt><code>-H</code> <var>hertz</var></dt><dd><p>The polling frequency in Hertz. This is the number of requests sent to each target per second in looping and counting modes. Default = 1.</p></dd>
-<dt class="flush"><code>-J</code></dt><dd><p>Force JSON output, even in counting and looping modes.</p></dd>
-<dt class="flush"><code>-l</code></dt><dd><p>Loop forever sending mount (MNT) requests. Exit loop with Ctrl-c.  A summary of all responses is printed when the program is interrupted.</p></dd>
-<dt class="flush"><code>-m</code></dt><dd><p>Use multiple target IP addresses if found. This can be useful for clustered file servers. Implies <code>-A</code> (shows IP addresses instead of hostnames) so output isn't ambiguous.</p></dd>
-<dt class="flush"><code>-q</code></dt><dd><p>Quiet. Only print a summary.</p></dd>
-<dt class="flush"><code>-R</code></dt><dd><p>Don't reconnect to target servers after each loop. The default behaviour is to disconnect and reconnect after all of the exported filesystems on each target are queried.</p></dd>
-<dt><code>-S</code> <var>source</var></dt><dd><p>Use the specified source IP address for request packets.</p></dd>
-<dt class="flush"><code>-T</code></dt><dd><p>Use TCP to connect to server. Default = UDP.</p></dd>
-<dt class="flush"><code>-u</code></dt><dd><p>Don't send a UMNT RPC after each successful MNT response. By default these are sent so that the server cleans up its records of mounted clients for each filesystem.</p></dd>
-<dt class="flush"><code>-v</code></dt><dd><p>Display debug output on <code>stderr</code>.</p></dd>
-<dt><code>-V</code> <var>version</var></dt><dd><p>Use MOUNT protocol <code>version</code>. Default = 3, supports versions 1/2/3. MOUNT version 3 is used by NFS version 3, version 1 is used by NFS version 2. Version 2 can also be used with NFS version 2 but this is less common. Versions 1 and 2 will return 32 byte filehandles, version 3 returns variable length filehandles up to 64 bytes.</p></dd>
+<dt><code>-A</code></dt>
+<dd>Display IP addresses instead of hostnames. Also implied by <code>-m</code>.</dd>
+<dt>
+<code>-c</code> <var>count</var>
+</dt>
+<dd>Count of (MNT) requests to send to each target's exported filesystems before exiting. For example, if a target has 4 filesystems exported, with a count 5, 20 requests will be sent (5 to each filesystem). Print a line of <code>ping</code>-style output after each response is received. A summary of all responses is printed when the count is reached or the program is interrupted.</dd>
+<dt>
+<code>-C</code> <var>count</var>
+</dt>
+<dd>Count of mount (MNT) requests to send to each target's exported filesystems. Outputs an <code>fping(8)</code> compatible parseable summary of the response times (in milliseconds) of all requests when the count is reached or the program is interrupted. Errors or lost responses are represented with <code>-</code>.</dd>
+<dt><code>-d</code></dt>
+<dd>Perform reverse DNS lookups for target(s). This option overrides <code>-A</code> (and the implied <code>-A</code> from the <code>-m</code> option).</dd>
+<dt><code>-D</code></dt>
+<dd>Print timestamp (Unix time) before each line of output when counting or looping.</dd>
+<dt><code>-e</code></dt>
+<dd>Display available filesystems and their export policies in a human readable format, like <code>showmount -e</code>. This sends a single <code>EXPORT</code> RPC per target server and does not look up filehandles.</dd>
+<dt><code>-E</code></dt>
+<dd>Display output in Etsy's StatsD format (nfsmount.$hostname.$path.mountv3:<var>msec</var>|ms).</dd>
+<dt><code>-G</code></dt>
+<dd>Print output in Graphite format (nfsmount.$hostname.$path.mountv3.usec <var>usec</var> <var>timestamp</var>).</dd>
+<dt><code>-h</code></dt>
+<dd>Display a help message and exit.</dd>
+<dt>
+<code>-H</code> <var>hertz</var>
+</dt>
+<dd>The polling frequency in Hertz. This is the number of requests sent to each target per second in looping and counting modes. Default = 1.</dd>
+<dt><code>-J</code></dt>
+<dd>Force JSON output, even in counting and looping modes.</dd>
+<dt><code>-l</code></dt>
+<dd>Loop forever sending mount (MNT) requests. Exit loop with Ctrl-c.  A summary of all responses is printed when the program is interrupted.</dd>
+<dt><code>-m</code></dt>
+<dd>Use multiple target IP addresses if found. This can be useful for clustered file servers. Implies <code>-A</code> (shows IP addresses instead of hostnames) so output isn't ambiguous.</dd>
+<dt><code>-q</code></dt>
+<dd>Quiet. Only print a summary.</dd>
+<dt><code>-R</code></dt>
+<dd>Don't reconnect to target servers after each loop. The default behaviour is to disconnect and reconnect after all of the exported filesystems on each target are queried.</dd>
+<dt>
+<code>-S</code> <var>source</var>
+</dt>
+<dd>Use the specified source IP address for request packets.</dd>
+<dt><code>-T</code></dt>
+<dd>Use TCP to connect to server. Default = UDP.</dd>
+<dt><code>-u</code></dt>
+<dd>Don't send a UMNT RPC after each successful MNT response. By default these are sent so that the server cleans up its records of mounted clients for each filesystem.</dd>
+<dt><code>-v</code></dt>
+<dd>Display debug output on <code>stderr</code>.</dd>
+<dt>
+<code>-V</code> <var>version</var>
+</dt>
+<dd>Use MOUNT protocol <code>version</code>. Default = 3, supports versions 1/2/3. MOUNT version 3 is used by NFS version 3, version 1 is used by NFS version 2. Version 2 can also be used with NFS version 2 but this is less common. Versions 1 and 2 will return 32 byte filehandles, version 3 returns variable length filehandles up to 64 bytes.</dd>
 </dl>
-
 
 <h2 id="EXAMPLES">EXAMPLES</h2>
 
 <p>Query a server for all available exports:</p>
 
-<p>  <code>sudo nfsmount dumpy</code></p>
+<p><code>sudo nfsmount dumpy</code></p>
 
 <p>Query a server for a specific export:</p>
 
-<p>  <code>sudo nfsmount dumpy:/export</code></p>
+<p><code>sudo nfsmount dumpy:/export</code></p>
 
 <p>Query a server for a specific file:</p>
 
-<p>  <code>sudo nfsmount dumpy:/export/home/mnt</code></p>
+<p><code>sudo nfsmount dumpy:/export/home/mnt</code></p>
 
 <p>Produce <code>ping</code>-style output:</p>
 
-<p>  <code>sudo nfsmount dumpy -l</code></p>
+<p><code>sudo nfsmount dumpy -l</code></p>
 
 <h2 id="OUTPUT">OUTPUT</h2>
 
@@ -155,7 +185,14 @@
 
 <p>When the <code>-E</code> option is specified, <code>nfsmount</code> will produce StatsD-compatible output:</p>
 
-<p>nfsmount.localhost./.mountv3:0.20|ms</p>
+<table>
+  <tbody>
+    <tr>
+      <td>nfsmount.localhost./.mountv3:0.20</td>
+      <td>ms</td>
+    </tr>
+  </tbody>
+</table>
 
 <h2 id="RETURN-VALUES">RETURN VALUES</h2>
 
@@ -167,10 +204,9 @@
 
 <h2 id="COPYRIGHT">COPYRIGHT</h2>
 
-<p>Copyright 2017 Matt Provost<br />
-RPC files Copyright Sun Microsystems<br />
+<p>Copyright 2017 Matt Provost<br>
+RPC files Copyright Sun Microsystems<br>
 NFSv4 files Copyright IETF</p>
-
 
   <ol class='man-decor man-foot man foot'>
     <li class='tl'></li>

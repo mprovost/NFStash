@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta http-equiv='content-type' value='text/html;charset=utf8'>
-  <meta name='generator' value='Ronn/v0.7.3 (http://github.com/rtomayko/ronn/tree/0.7.3)'>
+  <meta http-equiv='content-type' content='text/html;charset=utf8'>
+  <meta name='generator' content='Ronn-NG/v0.9.1 (http://github.com/apjanke/ronn-ng/tree/0.9.1)'>
   <title>clear_locks(8) - clear file locks on an NFS server</title>
   <style type='text/css' media='all'>
   /* style: man */
@@ -75,17 +75,17 @@
     <li class='tr'>clear_locks(8)</li>
   </ol>
 
-  <h2 id="NAME">NAME</h2>
+  
+
+<h2 id="NAME">NAME</h2>
 <p class="man-name">
   <code>clear_locks</code> - <span class="man-whatis">clear file locks on an NFS server</span>
 </p>
-
 <h2 id="SYNOPSIS">SYNOPSIS</h2>
 
 <p><code>clear_locks</code> [<code>-hTv</code>] [<code>-S</code> <var>source</var>] [<code>-s</code> server] <var>client</var></p>
 
 <h2 id="DESCRIPTION">DESCRIPTION</h2>
-
 <p><code>clear_locks</code> removes all file locks for a specified NFS client on an NFS server (the local server by default). It can be used to forcibly remove stuck locks for a client that has crashed, failed, hung, or is unreachable. However if this program is run while the specified client is still active, it can cause the client to become out of sync with the server (for example, the server can issue a lock to another client for a file that the "cleared" client still believes it holds).</p>
 
 <p>A remote NFS server can be selected using the <code>-s</code> option. In this case <code>clear_locks</code> will default to using the local hostname as the client unless one is provided. The hostname should match the one originally provided to the NFS server by the client (usually the fully qualified domain name).</p>
@@ -101,13 +101,21 @@
 <h2 id="OPTIONS">OPTIONS</h2>
 
 <dl>
-<dt class="flush"><code>-h</code></dt><dd><p>Display a help message and exit.</p></dd>
-<dt><code>-S</code> <var>source</var></dt><dd><p>Use the specified source IP address for request packets.</p></dd>
-<dt><code>-s</code> <var>server</var></dt><dd><p>Connect to the specified NFS server. Default = localhost.</p></dd>
-<dt class="flush"><code>-T</code></dt><dd><p>Use TCP to connect to the server. Default = UDP.</p></dd>
-<dt class="flush"><code>-v</code></dt><dd><p>Display debug output on <code>stderr</code>.</p></dd>
+<dt><code>-h</code></dt>
+<dd>Display a help message and exit.</dd>
+<dt>
+<code>-S</code> <var>source</var>
+</dt>
+<dd>Use the specified source IP address for request packets.</dd>
+<dt>
+<code>-s</code> <var>server</var>
+</dt>
+<dd>Connect to the specified NFS server. Default = localhost.</dd>
+<dt><code>-T</code></dt>
+<dd>Use TCP to connect to the server. Default = UDP.</dd>
+<dt><code>-v</code></dt>
+<dd>Display debug output on <code>stderr</code>.</dd>
 </dl>
-
 
 <h2 id="RETURN-VALUES">RETURN VALUES</h2>
 
@@ -123,9 +131,8 @@
 
 <h2 id="COPYRIGHT">COPYRIGHT</h2>
 
-<p>Copyright 2017 Matt Provost<br />
+<p>Copyright 2017 Matt Provost<br>
 RPC files Copyright Sun Microsystems</p>
-
 
   <ol class='man-decor man-foot man foot'>
     <li class='tl'></li>

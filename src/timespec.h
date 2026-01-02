@@ -32,14 +32,22 @@
  *	@(#)time.h	8.2 (Berkeley) 7/10/94
  */
 
+#include <sys/time.h>
+
 /* Operations on timespecs. */
-/* TODO put ifndef guards in case they're already defined */
+#ifndef timespecclear
 #define	timespecclear(tsp)		(tsp)->tv_sec = (tsp)->tv_nsec = 0
+#endif
+#ifndef timespecisset
 #define	timespecisset(tsp)		((tsp)->tv_sec || (tsp)->tv_nsec)
+#endif
+#ifndef timespeccmp
 #define	timespeccmp(tsp, usp, cmp)					\
 	(((tsp)->tv_sec == (usp)->tv_sec) ?				\
 	    ((tsp)->tv_nsec cmp (usp)->tv_nsec) :			\
 	    ((tsp)->tv_sec cmp (usp)->tv_sec))
+#endif
+#ifndef timespecadd
 #define	timespecadd(tsp, usp, vsp)					\
 	do {								\
 		(vsp)->tv_sec = (tsp)->tv_sec + (usp)->tv_sec;		\
@@ -49,6 +57,8 @@
 			(vsp)->tv_nsec -= 1000000000L;			\
 		}							\
 	} while (0)
+#endif
+#ifndef timespecsub
 #define	timespecsub(tsp, usp, vsp)					\
 	do {								\
 		(vsp)->tv_sec = (tsp)->tv_sec - (usp)->tv_sec;		\
@@ -58,3 +68,4 @@
 			(vsp)->tv_nsec += 1000000000L;			\
 		}							\
 	} while (0)
+#endif

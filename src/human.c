@@ -4,6 +4,7 @@
 
 #include "human.h"
 #include <inttypes.h> /* for PRIu64 */
+#include <stdio.h> /* for snprintf() */
 
 
 /* labels for printing size prefixes */

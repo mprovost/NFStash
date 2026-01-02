@@ -1,6 +1,7 @@
 /* from http://stackoverflow.com/questions/27000237/does-this-rpc-xdr-copy-make-sense */
 
 #include <string.h>
+#include <stdlib.h> /* for realloc() */
 
 #include "xdr_copy.h"
 
