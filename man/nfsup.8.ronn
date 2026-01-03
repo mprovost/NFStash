@@ -1,0 +1,24 @@
+nfsup(8) -- Nagios plugin for checking NFS server status
+========================================================
+
+## SYNOPSIS
+
+`nfsup` ip-address
+
+## DESCRIPTION
+
+`nfsup` checks if the NFS server at `ip-address` is operational by sending RPC requests to the portmap, mount, and NFS (version 3) protocols.
+
+## RETURN VALUES
+
+`nfsup` will return `0` (STATUS_OK) if the server responds to all 3 protocols. Nonzero exit codes
+indicate a failure. `2` is an RPC error (STATUS_CRITICAL), `3` is an invalid IP address (STATE_UNKNOWN).
+
+## AUTHOR
+
+Matt Provost, mprovost@termcap.net
+
+## COPYRIGHT
+
+Copyright 2018 Matt Provost  
+RPC files Copyright Sun Microsystems  
