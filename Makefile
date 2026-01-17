@@ -4,7 +4,7 @@ all = nfsping nfsmount nfsdf nfsls nfscat nfslock clear_locks nfsup
 all: $(all) man
 
 # installation directory
-prefix = /usr/local
+prefix ?= /usr/local
 
 # check if setcap is installed
 setcap := $(shell which setcap)

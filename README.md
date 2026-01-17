@@ -33,7 +33,7 @@ $ cd NFStash && make
 $ sudo make install
 ```````
 
-- `make install` will copy the binaries to `/usr/local/bin/` and manpages to `/usr/local/share/man/`. To change this edit the `prefix` in the Makefile.
+- `make install` will copy the binaries to `/usr/local/bin/` and manpages to `/usr/local/share/man/`. To change this run `prefix=<path> make install`.
 - Requires `gmake`.
 - Uses some `gcc`-isms which may mean it won't compile with other C compilers.
 - Manpages are built with [`ronn`](http://rtomayko.github.io/ronn/).
